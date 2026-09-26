@@ -1,0 +1,83 @@
+---
+import { getCollection, render } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+
+export async function getStaticPaths() {
+  const logs = await getCollection('logs', ({ data }) => !data.draft);
+  return logs.map((log) => ({ params: { slug: log.id }, props: { log } }));
+}
+
+const { log } = Astro.props;
+const { Content } = await render(log);
+const d = log.data;
+const date = d.date.toISOString().slice(0, 10);
+const burns = d.burns.length;
+const hasBody = log.body ? log.body.replace(/<!--[\s\S]*?-->/g, '').trim().length > 0 : false;
+---
+
+<Base title={`${d.title} — Flight Logs — AgentRiders`} description={`${d.mount} · ${d.duration} · $${d.cost_usd} · ${burns} ${burns === 1 ? 'burn' : 'burns'}. Lesson: ${d.lesson}`}>
+  <section class="section section--ink page-hero">
+    <div class="container">
+      <p class="eyebrow">Flight Log · {date}</p>
+      <h1>{d.title}</h1>
+      <p class="page-hero__meta">Rider: {d.rider} · <a href="/logs">all flights</a></p>
+    </div>
+  </section>
+
+  <section class="section section--bone">
+    <div class="container">
+      <div class="flight">
+        <div class="flight__body">
+          {burns > 0 && (
+            <div class="stack__head">
+              <h2>Burns</h2>
+              <ul class="burnlist">
+                {d.burns.map((b) => (
+                  <li>
+                    <span class="what">{b.what}</span>
+                    <span class="recovery">Recovery: {b.recovery} · cost ${b.cost_usd}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <div class="stack__head">
+            <h2>Lesson</h2>
+            <p class="lead">{d.lesson}</p>
+          </div>
+          {hasBody && (
+            <div class="prose">
+              <Content />
+            </div>
+          )}
+        </div>
+
+        <aside class="panel" aria-label="Flight telemetry">
+          <div class="panel__head">
+            <span>Flight · {date}</span>
+            <span>{d.outcome}</span>
+          </div>
+          <dl class="kv">
+            <div><dt>Mount</dt><dd>{d.mount}</dd></div>
+            {d.model && <div><dt>Model</dt><dd>{d.model}</dd></div>}
+            {d.harness && <div><dt>Harness</dt><dd>{d.harness}</dd></div>}
+            <div><dt>Task</dt><dd>{d.task}</dd></div>
+            <div><dt>Flight</dt><dd>{d.duration}</dd></div>
+            <div><dt>Cost</dt><dd>${d.cost_usd}</dd></div>
+            <div><dt>Burns</dt><dd class:list={[burns > 0 && 'burn']}>{burns}</dd></div>
+            <div><dt>Outcome</dt><dd>{d.outcome}</dd></div>
+          </dl>
+          <div class="panel__rule"></div>
+          <dl class="kv">
+            <div><dt>Scope</dt><dd>{d.reins.scope}</dd></div>
+            <div><dt>Budget</dt><dd>{d.reins.budget}</dd></div>
+            <div><dt>Kill switch</dt><dd>{d.reins.kill_switch}</dd></div>
+            <div><dt>Autonomy</dt><dd>{d.reins.autonomy}</dd></div>
+          </dl>
+          <div class="panel__rule"></div>
+          <p class="panel__foot">Every field is public. If it isn't logged, it didn't happen.</p>
+        </aside>
+      </div>
+    </div>
+  </section>
+</Base>

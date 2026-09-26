@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgentRiders — The guild for people who run AI agents</title>
+<meta name="description" content="AgentRiders is where people who run AI agents on real work learn to hold the reins, log their flights, and prove they can ride. The agents are the easy part.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..700;1,9..144,500..700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ---------- Tokens (see agentriders-brief.md § Brand tokens) ---------- */
+  :root {
+    --ink: #16130F;
+    --bone: #F2EBDD;
+    --bone-raised: #FAF6EE;
+    --ember: #E4572E;
+    --ember-text: #A93A19;   /* ember dark enough for text on bone (AA) */
+    --ash: #6B645A;          /* captions on bone */
+    --smoke: #2A2622;        /* cards and rules on ink */
+    --smoke-line: #3B3631;
+    --ink-line: #2A2622;
+    --bone-line: #D8CFBE;
+    --text-on-bone: #16130F;
+    --text-on-bone-soft: #3E3933;
+    --text-on-ink: #F2EBDD;
+    --text-on-ink-soft: #B8AE9F;
+    --text-on-ink-caption: #8F8778;
+
+    --display: 'Fraunces', Georgia, 'Times New Roman', serif;
+    --body: 'Instrument Sans', 'Segoe UI', Helvetica, sans-serif;
+    --mono: 'JetBrains Mono', Menlo, Consolas, monospace;
+
+    --radius: 4px;
+    --measure: 62ch;
+    --container: 1248px;
+    --gutter: clamp(20px, 5vw, 96px);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    margin: 0;
+    background: var(--ink);
+    color: var(--text-on-ink);
+    font-family: var(--body);
+    font-size: 17px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+  p { margin: 0; }
+  a { color: var(--ember-text); text-underline-offset: 3px; }
+  a:hover { color: var(--ember); }
+  :focus-visible { outline: 2px solid var(--ember); outline-offset: 3px; }
+  .container { max-width: var(--container); margin: 0 auto; padding-left: var(--gutter); padding-right: var(--gutter); }
+  .section { padding-top: clamp(64px, 9vw, 112px); padding-bottom: clamp(64px, 9vw, 112px); }
+  .section--ink { background: var(--ink); color: var(--text-on-ink); }
+  .section--bone { background: var(--bone); color: var(--text-on-bone); }
+  .section--ink a { color: var(--text-on-ink); }
+  .section--ink a:hover { color: var(--ember); }
+  .section--bone a { color: var(--ember-text); }
+  .section--bone a:hover { color: var(--ember); }
+  .mono { font-family: var(--mono); }
+  .h2 { font-size: clamp(36px, 5vw, 56px); line-height: 1; }
+  .lead { font-size: clamp(18px, 1.6vw, 20px); line-height: 1.5; max-width: var(--measure); }
+  .section--ink .lead { color: var(--text-on-ink-soft); }
+  .section--bone .lead { color: var(--text-on-bone-soft); }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 48px; padding: 0 24px;
+    font-family: var(--mono); font-size: 14px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+    text-decoration: none; border-radius: var(--radius); border: 1px solid transparent; cursor: pointer;
+  }
+  .btn--ember { background: var(--ember); color: var(--ink) !important; }
+  .btn--ember:hover { background: #F06A43; }
+  .btn--outline { border-color: #5A534B; color: var(--text-on-ink) !important; background: transparent; }
+  .btn--outline:hover { border-color: var(--text-on-ink); }
+
+  /* ---------- Header ---------- */
+  .site-header { border-bottom: 1px solid var(--ink-line); }
+  .site-header .container { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 84px; flex-wrap: wrap; padding-top: 12px; padding-bottom: 12px; }
+  .brand { display: inline-flex; align-items: center; gap: 12px; color: var(--text-on-ink); text-decoration: none; }
+  .brand__word { font-family: var(--display); font-weight: 600; font-size: 24px; letter-spacing: -0.01em; }
+  .mark { width: 30px; height: 30px; display: block; }
+  .nav { display: flex; gap: clamp(18px, 3vw, 36px); font-family: var(--mono); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; }
+  .nav a { color: var(--text-on-ink-soft); text-decoration: none; }
+  .nav a:hover { color: var(--text-on-ink); }
+  .site-header .btn { min-height: 44px; padding: 0 20px; font-size: 13px; }
+  @media (max-width: 800px) {
+    .site-header .container { justify-content: space-between; }
+    .nav { order: 3; width: 100%; overflow-x: auto; padding-bottom: 4px; }
+  }
+
+  /* ---------- Hero ---------- */
+  .hero .container { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: clamp(40px, 6vw, 80px); align-items: start; }
+  .hero__text { display: flex; flex-direction: column; gap: clamp(20px, 3vw, 32px); }
+  .eyebrow { font-family: var(--mono); font-size: 13px; letter-spacing: 0.04em; color: var(--ember); }
+  .hero h1 { font-size: clamp(48px, 7.5vw, 96px); line-height: 0.98; letter-spacing: -0.025em; max-width: 12ch; }
+  .hero__sub { font-size: clamp(19px, 1.8vw, 22px); line-height: 1.5; color: var(--text-on-ink-soft); max-width: 34ch; }
+  .hero__actions { display: flex; flex-wrap: wrap; gap: 14px; }
+  .hero__proof { font-family: var(--mono); font-size: 13px; color: var(--text-on-ink-caption); }
+  @media (max-width: 900px) { .hero .container { grid-template-columns: 1fr; } }
+
+  /* Reins card (telemetry panel) */
+  .panel {
+    background: var(--smoke); border: 1px solid var(--smoke-line); border-radius: 6px;
+    padding: 28px; font-family: var(--mono); font-size: 14px; line-height: 1.6; color: var(--text-on-ink);
+    display: flex; flex-direction: column; gap: 20px; margin-top: clamp(0px, 3vw, 48px);
+  }
+  .panel__head { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-on-ink-caption); }
+  .live { display: inline-flex; align-items: center; gap: 8px; }
+  .live::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ember); }
+  .panel__title { font-family: var(--display); font-weight: 600; font-size: 24px; line-height: 1.2; letter-spacing: -0.01em; }
+  .kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; margin: 0; }
+  .kv div { display: flex; flex-direction: column; gap: 2px; }
+  .kv dt { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-on-ink-caption); }
+  .kv dd { margin: 0; }
+  .panel__rule { height: 1px; background: var(--smoke-line); }
+  .panel__foot { font-size: 13px; color: var(--text-on-ink-soft); }
+
+  /* ---------- Dragons ---------- */
+  .dragons .container { display: flex; flex-direction: column; gap: clamp(40px, 5vw, 64px); }
+  .dragons h2 { font-size: clamp(40px, 5.5vw, 64px); }
+  .trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(28px, 4vw, 48px); }
+  .trio h3 { font-size: clamp(26px, 2.6vw, 32px); line-height: 1.1; letter-spacing: -0.01em; margin-bottom: 14px; }
+  .trio p { font-size: 18px; color: var(--text-on-bone-soft); max-width: 36ch; }
+  .pull { border-top: 1px solid var(--bone-line); padding-top: 40px; }
+  .pull p { font-family: var(--display); font-style: italic; font-weight: 500; font-size: clamp(26px, 3vw, 36px); line-height: 1.25; letter-spacing: -0.01em; max-width: 26ch; }
+  @media (max-width: 800px) { .trio { grid-template-columns: 1fr; } }
+
+  /* ---------- Four parts ---------- */
+  .parts { padding-top: 0; }
+  .parts .container { display: flex; flex-direction: column; gap: 48px; }
+  .parts__head { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap; border-top: 1px solid var(--bone-line); padding-top: 64px; }
+  .parts__head h2 { font-size: clamp(34px, 4.5vw, 52px); }
+  .parts__note { font-family: var(--mono); font-size: 13px; color: var(--ash); }
+  .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+  .card { background: var(--bone-raised); border: 1px solid var(--bone-line); border-radius: 6px; padding: clamp(24px, 3vw, 36px); display: flex; flex-direction: column; gap: 16px; }
+  .card svg { width: 28px; height: 28px; stroke: var(--ink); fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .card h3 { font-size: clamp(24px, 2.4vw, 30px); line-height: 1.1; letter-spacing: -0.01em; }
+  .card p { font-size: 18px; color: var(--text-on-bone-soft); }
+  .card a { font-family: var(--mono); font-size: 13px; letter-spacing: 0.04em; }
+  @media (max-width: 720px) { .cards { grid-template-columns: 1fr; } }
+
+  /* ---------- Ranks ---------- */
+  .ranks .container { display: flex; flex-direction: column; gap: clamp(36px, 5vw, 56px); }
+  .ranks__intro { display: flex; flex-direction: column; gap: 20px; }
+  .ladder { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; margin: 0; padding: 0; list-style: none; counter-reset: rank; }
+  .rank { background: var(--smoke); border: 1px solid var(--smoke-line); border-radius: 6px; padding: clamp(24px, 3vw, 36px); display: flex; flex-direction: column; gap: 16px; counter-increment: rank; }
+  .rank::before { content: "Rank 0" counter(rank); font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-on-ink-caption); }
+  .rank h3 { font-size: clamp(32px, 3vw, 40px); line-height: 1; letter-spacing: -0.02em; }
+  .rank__req { font-family: var(--mono); font-size: 14px; color: var(--text-on-ink-soft); }
+  .rank p { color: var(--text-on-ink-soft); }
+  .ranks__foot { font-family: var(--mono); font-size: 13px; color: var(--text-on-ink-caption); }
+  @media (max-width: 800px) { .ladder { grid-template-columns: 1fr; } }
+
+  /* ---------- Logs ---------- */
+  .logs .container { display: flex; flex-direction: column; gap: 48px; }
+  .logs__head { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap; }
+  .logs__head a { font-family: var(--mono); font-size: 13px; letter-spacing: 0.04em; }
+  .log-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+  .log { background: var(--ink); color: var(--text-on-ink); border-radius: 6px; padding: clamp(24px, 3vw, 32px); display: flex; flex-direction: column; gap: 20px; font-family: var(--mono); }
+  .log__meta { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-on-ink-caption); }
+  .log h3 { font-size: 24px; line-height: 1.2; letter-spacing: -0.01em; }
+  .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; font-size: 14px; }
+  .stats div { display: flex; flex-direction: column; gap: 2px; }
+  .stats dt { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-on-ink-caption); }
+  .stats dd { margin: 0; }
+  .stats dd.burn { color: var(--ember); }
+  .log__rule { height: 1px; background: var(--smoke-line); }
+  .log__lesson { font-size: 13px; line-height: 1.6; color: var(--text-on-ink-soft); }
+  @media (max-width: 900px) { .log-grid { grid-template-columns: 1fr; } }
+
+  /* ---------- Rules ---------- */
+  .rules .container { display: flex; flex-direction: column; gap: 40px; }
+  .rules ol { list-style: none; margin: 0; padding: 0; counter-reset: rule; }
+  .rules li { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: clamp(16px, 3vw, 40px); padding: 28px 0; border-top: 1px solid var(--ink-line); counter-increment: rule; }
+  .rules li:last-child { border-bottom: 1px solid var(--ink-line); }
+  .rules li::before { content: "0" counter(rule); font-family: var(--mono); font-size: 14px; color: var(--ember); padding-top: 6px; }
+  .rules h3 { font-size: clamp(24px, 2.4vw, 30px); line-height: 1.1; letter-spacing: -0.01em; margin-bottom: 8px; }
+  .rules p { font-size: 18px; color: var(--text-on-ink-soft); max-width: var(--measure); }
+
+  /* ---------- Newsletter ---------- */
+  .newsletter .container { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 520px); gap: clamp(32px, 6vw, 96px); align-items: center; }
+  .newsletter__text { display: flex; flex-direction: column; gap: 20px; }
+  .signup { display: flex; flex-direction: column; gap: 14px; }
+  .signup label { font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ash); }
+  .signup__row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .signup input { flex: 1 1 220px; min-height: 52px; padding: 0 16px; background: var(--bone-raised); border: 1px solid var(--ink); border-radius: var(--radius); font-family: var(--mono); font-size: 15px; color: var(--ink); }
+  .signup input::placeholder { color: var(--ash); }
+  .signup .btn { min-height: 52px; }
+  .signup__fine { font-family: var(--mono); font-size: 13px; color: var(--ash); }
+  @media (max-width: 800px) { .newsletter .container { grid-template-columns: 1fr; } }
+
+  /* ---------- Footer ---------- */
+  .site-footer { border-top: 1px solid var(--ink-line); padding: 72px 0 40px; }
+  .site-footer .container { display: flex; flex-direction: column; gap: 48px; }
+  .footer__top { display: flex; justify-content: space-between; gap: 40px; flex-wrap: wrap; }
+  .footer__brand { display: flex; flex-direction: column; gap: 16px; }
+  .footer__tag { font-family: var(--display); font-style: italic; font-weight: 500; font-size: 20px; color: var(--text-on-ink-soft); }
+  .footer__cols { display: flex; gap: clamp(40px, 7vw, 96px); font-family: var(--mono); font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; }
+  .footer__cols div { display: flex; flex-direction: column; gap: 14px; }
+  .footer__cols span { color: var(--text-on-ink-caption); }
+  .footer__cols a { color: var(--text-on-ink-soft); text-decoration: none; }
+  .footer__cols a:hover { color: var(--text-on-ink); }
+  .footer__bottom { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; font-family: var(--mono); font-size: 12px; color: var(--text-on-ink-caption); }
+  .footer__bottom a { color: inherit; }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container">
+    <a class="brand" href="/" aria-label="AgentRiders home">
+      <svg class="mark" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M2 15C7 6 23 6 28 15C23 24 7 24 2 15Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M15 8.5C12.6 12 12.6 18 15 21.5C17.4 18 17.4 12 15 8.5Z" fill="#E4572E"/>
+      </svg>
+      <span class="brand__word">AgentRiders</span>
+    </a>
+    <nav class="nav" aria-label="Primary">
+      <a href="/manual">Manual</a>
+      <a href="/logs">Logs</a>
+      <a href="/riders">Riders</a>
+      <a href="/guild">Guild</a>
+      <a href="/about">About</a>
+    </nav>
+    <a class="btn btn--ember" href="/guild">Join the Guild</a>
+  </div>
+</header>
+
+<main>
+
+  <section class="section section--ink hero" aria-labelledby="hero-title">
+    <div class="container">
+      <div class="hero__text">
+        <p class="eyebrow">The guild for people who run agents</p>
+        <h1 id="hero-title">The agents are the easy part.</h1>
+        <p class="hero__sub">AgentRiders is where people who run AI agents on real work learn to hold the reins, log their flights, and prove they can ride.</p>
+        <div class="hero__actions">
+          <a class="btn btn--ember" href="/guild">Join the Guild</a>
+          <a class="btn btn--outline" href="/manual">Read the Field Manual →</a>
+        </div>
+        <p class="hero__proof">Flight Log · one field-tested lesson a week · no vendor demos</p>
+      </div>
+
+      <aside class="panel" aria-label="Example reins for a flight">
+        <div class="panel__head">
+          <span>Reins · example</span>
+          <span class="live">flight in progress</span>
+        </div>
+        <p class="panel__title">Migrate the test suite to Vitest</p>
+        <dl class="kv">
+          <div><dt>Agent</dt><dd>Claude Code</dd></div>
+          <div><dt>Scope</dt><dd>acme/web · branch only</dd></div>
+          <div><dt>Budget</dt><dd>$50 per flight</dd></div>
+          <div><dt>Kill switch</dt><dd>on · 2 approvals</dd></div>
+          <div><dt>Autonomy</dt><dd>Rider · unsupervised</dd></div>
+          <div><dt>Burns so far</dt><dd>0</dd></div>
+        </dl>
+        <div class="panel__rule"></div>
+        <p class="panel__foot">The log closes when the flight lands. Every field is public.</p>
+      </aside>
+    </div>
+  </section>
+
+  <section class="section section--bone dragons" aria-labelledby="dragons-title">
+    <div class="container">
+      <h2 id="dragons-title">Agents are dragons.</h2>
+      <div class="trio">
+        <div>
+          <h3>Powerful.</h3>
+          <p>One agent can do a week of work in an afternoon. It can also spend $400 in tokens doing the wrong thing.</p>
+        </div>
+        <div>
+          <h3>Willful.</h3>
+          <p>It will do what you didn't say. It has its own ideas about what you meant.</p>
+        </div>
+        <div>
+          <h3>Worth it, if you can ride.</h3>
+          <p>The difference between a burn and a win is the rider: reins, judgment, and a log of every flight.</p>
+        </div>
+      </div>
+      <div class="pull">
+        <p>Nobody controls a dragon. Riders learn where the reins are.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--bone parts" aria-labelledby="parts-title">
+    <div class="container">
+      <div class="parts__head">
+        <h2 id="parts-title">Four parts. One guild.</h2>
+        <p class="parts__note">Reading is free. Ranks are earned.</p>
+      </div>
+      <div class="cards">
+        <article class="card">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5V4.5A1.5 1.5 0 0 1 5.5 3H20v15H5.5A1.5 1.5 0 0 0 4 19.5z"/><path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H20"/><path d="M8.5 7.5h7M8.5 11h7"/></svg>
+          <h3>Field Manual</h3>
+          <p>Playbooks for permissions, budgets, kill switches and review loops. Written by riders, tested on real work.</p>
+          <a href="/manual">Open the Manual</a>
+        </article>
+        <article class="card">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z"/><path d="M8 10l3 2-3 2"/><path d="M13 14h3"/></svg>
+          <h3>Flight Logs</h3>
+          <p>Real runs with the numbers left in: hours saved, tokens burned, rollbacks, lessons. Peer evidence you can copy, not vendor demos.</p>
+          <a href="/logs">Read the logs</a>
+        </article>
+        <article class="card">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          <h3>Rider profiles</h3>
+          <p>Your public track record: flights logged, burns survived, vouches from other riders. Proof you can ride, for clients and employers.</p>
+          <a href="/riders">Find riders</a>
+        </article>
+        <article class="card">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="7" cy="9" r="3"/><circle cx="17" cy="9" r="3"/><path d="M2 20c0-3 2.2-5 5-5s5 2 5 5"/><path d="M12 20c0-3 2.2-5 5-5s5 2 5 5"/></svg>
+          <h3>The Guild</h3>
+          <p>The Roost forum, monthly live flights, and the weekly Flight Log. Peers who have been burned so you don't have to.</p>
+          <a href="/guild">Join the Guild</a>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--ink ranks" aria-labelledby="ranks-title">
+    <div class="container">
+      <div class="ranks__intro">
+        <h2 class="h2" id="ranks-title">Ranks are earned, never bought.</h2>
+        <p class="lead">Three ranks, earned by logged flights and vouches from other riders. Nobody skips a rung.</p>
+      </div>
+      <ol class="ladder">
+        <li class="rank">
+          <h3>Fledgling</h3>
+          <p class="rank__req">Joined · 1 flight logged</p>
+          <p>Learning. Can read, log and ask. Everyone starts here, including the people who built this.</p>
+        </li>
+        <li class="rank">
+          <h3>Rider</h3>
+          <p class="rank__req">20 flights · 2 vouches from Riders</p>
+          <p>Runs agents on real work, unsupervised. Can vouch for Fledglings.</p>
+        </li>
+        <li class="rank">
+          <h3>Wingleader</h3>
+          <p class="rank__req">100 flights · runs a wing · 5 vouches</p>
+          <p>Trusted to lead others and set the reins for a team or a fleet.</p>
+        </li>
+      </ol>
+      <p class="ranks__foot">Every flight is public. Every vouch has a name on it.</p>
+    </div>
+  </section>
+
+  <section class="section section--bone logs" aria-labelledby="logs-title">
+    <div class="container">
+      <div class="logs__head">
+        <h2 class="h2" id="logs-title">From the logs.</h2>
+        <a href="/logs">All flights</a>
+      </div>
+      <!-- These three are EXAMPLES. Replace with real logs from the content collection before launch. -->
+      <div class="log-grid">
+        <article class="log">
+          <div class="log__meta"><span>Example</span><span>Claude Code</span></div>
+          <h3>Migrated 214 unit tests to Vitest</h3>
+          <dl class="stats">
+            <div><dt>Flight</dt><dd>3h 10m</dd></div>
+            <div><dt>Cost</dt><dd>$41</dd></div>
+            <div><dt>Burns</dt><dd class="burn">1</dd></div>
+          </dl>
+          <div class="log__rule"></div>
+          <p class="log__lesson">Burn: deleted a fixture, restored from git.<br>Lesson: give it a branch, not the repo.</p>
+        </article>
+        <article class="log">
+          <div class="log__meta"><span>Example</span><span>Custom agent</span></div>
+          <h3>Weekly investor update, first draft</h3>
+          <dl class="stats">
+            <div><dt>Flight</dt><dd>25m</dd></div>
+            <div><dt>Cost</dt><dd>$3</dd></div>
+            <div><dt>Burns</dt><dd>0</dd></div>
+          </dl>
+          <div class="log__rule"></div>
+          <p class="log__lesson">Near miss: it invented a metric.<br>Lesson: every number now links to a source.</p>
+        </article>
+        <article class="log">
+          <div class="log__meta"><span>Example</span><span>n8n + Claude</span></div>
+          <h3>Inbound lead triage, five days</h3>
+          <dl class="stats">
+            <div><dt>Flight</dt><dd>5d</dd></div>
+            <div><dt>Cost</dt><dd>$28</dd></div>
+            <div><dt>Burns</dt><dd class="burn">1</dd></div>
+          </dl>
+          <div class="log__rule"></div>
+          <p class="log__lesson">Burn: emailed a churned customer.<br>Lesson: scope the CRM view before the run.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--ink rules" aria-labelledby="rules-title">
+    <div class="container">
+      <h2 class="h2" id="rules-title">The rider's rules.</h2>
+      <ol>
+        <li><div><h3>Hold the reins.</h3><p>Every agent gets a scope, a budget and a kill switch before its first flight.</p></div></li>
+        <li><div><h3>Log every flight.</h3><p>If it isn't logged, it didn't happen.</p></div></li>
+        <li><div><h3>Autonomy is earned.</h3><p>Loosen the reins one flight at a time.</p></div></li>
+        <li><div><h3>Never blame the dragon.</h3><p>If it burned something, the rein was too loose.</p></div></li>
+        <li><div><h3>Vouch honestly.</h3><p>Your name is on every rider you vouch for.</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="section section--bone newsletter" id="flight-log" aria-labelledby="news-title">
+    <div class="container">
+      <div class="newsletter__text">
+        <h2 class="h2" id="news-title">Flight Log.</h2>
+        <p class="lead">One field-tested lesson a week, from riders who left the numbers in.</p>
+      </div>
+      <!-- Point action at your newsletter provider (see brief § Newsletter). -->
+      <form class="signup" action="[NEWSLETTER_ENDPOINT]" method="post">
+        <label for="email">Your email</label>
+        <div class="signup__row">
+          <input id="email" name="email" type="email" autocomplete="email" required placeholder="rider@example.com">
+          <button class="btn btn--ember" type="submit">Subscribe</button>
+        </div>
+        <p class="signup__fine">No vendor demos. Unsubscribe any time.</p>
+      </form>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer section--ink">
+  <div class="container">
+    <div class="footer__top">
+      <div class="footer__brand">
+        <a class="brand" href="/" aria-label="AgentRiders home">
+          <svg class="mark" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M2 15C7 6 23 6 28 15C23 24 7 24 2 15Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M15 8.5C12.6 12 12.6 18 15 21.5C17.4 18 17.4 12 15 8.5Z" fill="#E4572E"/>
+          </svg>
+          <span class="brand__word">AgentRiders</span>
+        </a>
+        <p class="footer__tag">The agents are the easy part.</p>
+      </div>
+      <div class="footer__cols">
+        <div>
+          <span>Guild</span>
+          <a href="/manual">Manual</a>
+          <a href="/logs">Logs</a>
+          <a href="/riders">Riders</a>
+          <a href="/guild">Guild</a>
+        </div>
+        <div>
+          <span>More</span>
+          <a href="/about">About</a>
+          <a href="/flight-log">Flight Log</a>
+          <a href="/llms.txt">llms.txt</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer__bottom">
+      <span>© 2026 AgentRiders · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></span>
+      <span>Built by riders. Readable by dragons.</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

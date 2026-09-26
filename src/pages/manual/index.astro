@@ -1,0 +1,42 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+
+const chapters = (await getCollection('manual', ({ data }) => !data.draft)).sort(
+  (a, b) => a.data.chapter - b.data.chapter,
+);
+const fmt = (d: Date) => d.toISOString().slice(0, 10);
+---
+
+<Base
+  title="Field Manual — AgentRiders"
+  description="Playbooks written by riders and tested on real work: scope, budgets, kill switches, review loops and burns."
+>
+  <section class="section section--ink page-hero" aria-labelledby="manual-title">
+    <div class="container">
+      <p class="eyebrow">Field Manual</p>
+      <h1 id="manual-title">Everything we know about holding the reins.</h1>
+      <p class="lead">Playbooks written by riders and tested on real work. Start at chapter one if you are new; skip to Burns if you already have scars.</p>
+    </div>
+  </section>
+
+  <section class="section section--bone" aria-label="Chapters">
+    <div class="container">
+      <ol class="chapters">
+        {chapters.map((ch) => (
+          <li>
+            <article class="chapter">
+              <p class="chapter__num">{String(ch.data.chapter).padStart(2, '0')}</p>
+              <div class="chapter__body">
+                {ch.data.startHere && <p class="tag">Start here</p>}
+                <h2><a href={`/manual/${ch.id}`}>{ch.data.title}</a></h2>
+                <p>{ch.data.description}</p>
+                <p class="chapter__meta">Updated {fmt(ch.data.updated)}</p>
+              </div>
+            </article>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </section>
+</Base>

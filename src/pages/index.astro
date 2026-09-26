@@ -1,0 +1,211 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import LogCard from '../components/LogCard.astro';
+import Signup from '../components/Signup.astro';
+
+// The three most recent published logs replace the example cards
+// (agentriders-brief.md § 7 Home). Until any publish, the example
+// cards from the reference index.html render unchanged.
+const published = (await getCollection('logs', ({ data }) => !data.draft))
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
+  .slice(0, 3);
+---
+
+<Base
+  title="AgentRiders — The guild for people who run AI agents"
+  description="AgentRiders is where people who run AI agents on real work learn to hold the reins, log their flights, and prove they can ride. The agents are the easy part."
+>
+
+  <section class="section section--ink hero" aria-labelledby="hero-title">
+    <div class="container">
+      <div class="hero__text">
+        <p class="eyebrow">The guild for people who run agents</p>
+        <h1 id="hero-title">The agents are the easy part.</h1>
+        <p class="hero__sub">AgentRiders is where people who run AI agents on real work learn to hold the reins, log their flights, and prove they can ride.</p>
+        <div class="hero__actions">
+          <a class="btn btn--ember" href="/guild">Join the Guild</a>
+          <a class="btn btn--outline" href="/manual">Read the Field Manual →</a>
+        </div>
+        <p class="hero__proof">Flight Log · one field-tested lesson a week · no vendor demos</p>
+      </div>
+
+      <aside class="panel" aria-label="Example reins for a flight">
+        <div class="panel__head">
+          <span>Reins · example</span>
+          <span class="live">flight in progress</span>
+        </div>
+        <p class="panel__title">Migrate the test suite to Vitest</p>
+        <dl class="kv">
+          <div><dt>Agent</dt><dd>Claude Code</dd></div>
+          <div><dt>Scope</dt><dd>acme/web · branch only</dd></div>
+          <div><dt>Budget</dt><dd>$50 per flight</dd></div>
+          <div><dt>Kill switch</dt><dd>on · 2 approvals</dd></div>
+          <div><dt>Autonomy</dt><dd>Rider · unsupervised</dd></div>
+          <div><dt>Burns so far</dt><dd>0</dd></div>
+        </dl>
+        <div class="panel__rule"></div>
+        <p class="panel__foot">The log closes when the flight lands. Every field is public.</p>
+      </aside>
+    </div>
+  </section>
+
+  <section class="section section--bone dragons" aria-labelledby="dragons-title">
+    <div class="container">
+      <h2 id="dragons-title">Agents are dragons.</h2>
+      <div class="trio">
+        <div>
+          <h3>Powerful.</h3>
+          <p>One agent can do a week of work in an afternoon. It can also spend $400 in tokens doing the wrong thing.</p>
+        </div>
+        <div>
+          <h3>Willful.</h3>
+          <p>It will do what you didn't say. It has its own ideas about what you meant.</p>
+        </div>
+        <div>
+          <h3>Worth it, if you can ride.</h3>
+          <p>The difference between a burn and a win is the rider: reins, judgment, and a log of every flight.</p>
+        </div>
+      </div>
+      <div class="pull">
+        <p>Nobody controls a dragon. Riders learn where the reins are.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--bone parts" aria-labelledby="parts-title">
+    <div class="container">
+      <div class="parts__head">
+        <h2 id="parts-title">Four parts. One guild.</h2>
+        <p class="parts__note">Reading is free. Ranks are earned.</p>
+      </div>
+      <div class="cards">
+        <article class="card">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5V4.5A1.5 1.5 0 0 1 5.5 3H20v15H5.5A1.5 1.5 0 0 0 4 19.5z"/><path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H20"/><path d="M8.5 7.5h7M8.5 11h7"/></svg>
+          <h3>Field Manual</h3>
+          <p>Playbooks for permissions, budgets, kill switches and review loops. Written by riders, tested on real work.</p>
+          <a href="/manual">Open the Manual</a>
+        </article>
+        <article class="card">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z"/><path d="M8 10l3 2-3 2"/><path d="M13 14h3"/></svg>
+          <h3>Flight Logs</h3>
+          <p>Real runs with the numbers left in: hours saved, tokens burned, rollbacks, lessons. Peer evidence you can copy, not vendor demos.</p>
+          <a href="/logs">Read the logs</a>
+        </article>
+        <article class="card">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          <h3>Rider profiles</h3>
+          <p>Your public track record: flights logged, burns survived, vouches from other riders. Proof you can ride, for clients and employers.</p>
+          <a href="/riders">Find riders</a>
+        </article>
+        <article class="card">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="7" cy="9" r="3"/><circle cx="17" cy="9" r="3"/><path d="M2 20c0-3 2.2-5 5-5s5 2 5 5"/><path d="M12 20c0-3 2.2-5 5-5s5 2 5 5"/></svg>
+          <h3>The Guild</h3>
+          <p>The Roost forum, monthly live flights, and the weekly Flight Log. Peers who have been burned so you don't have to.</p>
+          <a href="/guild">Join the Guild</a>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--ink ranks" aria-labelledby="ranks-title">
+    <div class="container">
+      <div class="ranks__intro">
+        <h2 class="h2" id="ranks-title">Ranks are earned, never bought.</h2>
+        <p class="lead">Three ranks, earned by logged flights and vouches from other riders. Nobody skips a rung.</p>
+      </div>
+      <ol class="ladder">
+        <li class="rank">
+          <h3>Fledgling</h3>
+          <p class="rank__req">Joined · 1 flight logged</p>
+          <p>Learning. Can read, log and ask. Everyone starts here, including the people who built this.</p>
+        </li>
+        <li class="rank">
+          <h3>Rider</h3>
+          <p class="rank__req">20 flights · 2 vouches from Riders</p>
+          <p>Runs agents on real work, unsupervised. Can vouch for Fledglings.</p>
+        </li>
+        <li class="rank">
+          <h3>Wingleader</h3>
+          <p class="rank__req">100 flights · runs a wing · 5 vouches</p>
+          <p>Trusted to lead others and set the reins for a team or a fleet.</p>
+        </li>
+      </ol>
+      <p class="ranks__foot">Every flight is public. Every vouch has a name on it.</p>
+    </div>
+  </section>
+
+  <section class="section section--bone logs" aria-labelledby="logs-title">
+    <div class="container">
+      <div class="logs__head">
+        <h2 class="h2" id="logs-title">From the logs.</h2>
+        <a href="/logs">All flights</a>
+      </div>
+      {published.length > 0 ? (
+        <div class="log-grid">
+          {published.map((log) => <LogCard log={log} />)}
+        </div>
+      ) : (
+        <div class="log-grid">
+          <article class="log">
+            <div class="log__meta"><span>Example</span><span>Claude Code</span></div>
+            <h3>Migrated 214 unit tests to Vitest</h3>
+            <dl class="stats">
+              <div><dt>Flight</dt><dd>3h 10m</dd></div>
+              <div><dt>Cost</dt><dd>$41</dd></div>
+              <div><dt>Burns</dt><dd class="burn">1</dd></div>
+            </dl>
+            <div class="log__rule"></div>
+            <p class="log__lesson">Burn: deleted a fixture, restored from git.<br>Lesson: give it a branch, not the repo.</p>
+          </article>
+          <article class="log">
+            <div class="log__meta"><span>Example</span><span>Custom agent</span></div>
+            <h3>Weekly investor update, first draft</h3>
+            <dl class="stats">
+              <div><dt>Flight</dt><dd>25m</dd></div>
+              <div><dt>Cost</dt><dd>$3</dd></div>
+              <div><dt>Burns</dt><dd>0</dd></div>
+            </dl>
+            <div class="log__rule"></div>
+            <p class="log__lesson">Near miss: it invented a metric.<br>Lesson: every number now links to a source.</p>
+          </article>
+          <article class="log">
+            <div class="log__meta"><span>Example</span><span>n8n + Claude</span></div>
+            <h3>Inbound lead triage, five days</h3>
+            <dl class="stats">
+              <div><dt>Flight</dt><dd>5d</dd></div>
+              <div><dt>Cost</dt><dd>$28</dd></div>
+              <div><dt>Burns</dt><dd class="burn">1</dd></div>
+            </dl>
+            <div class="log__rule"></div>
+            <p class="log__lesson">Burn: emailed a churned customer.<br>Lesson: scope the CRM view before the run.</p>
+          </article>
+        </div>
+      )}
+    </div>
+  </section>
+
+  <section class="section section--ink rules" aria-labelledby="rules-title">
+    <div class="container">
+      <h2 class="h2" id="rules-title">The rider's rules.</h2>
+      <ol>
+        <li><div><h3>Hold the reins.</h3><p>Every agent gets a scope, a budget and a kill switch before its first flight.</p></div></li>
+        <li><div><h3>Log every flight.</h3><p>If it isn't logged, it didn't happen.</p></div></li>
+        <li><div><h3>Autonomy is earned.</h3><p>Loosen the reins one flight at a time.</p></div></li>
+        <li><div><h3>Never blame the dragon.</h3><p>If it burned something, the rein was too loose.</p></div></li>
+        <li><div><h3>Vouch honestly.</h3><p>Your name is on every rider you vouch for.</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="section section--bone newsletter" id="flight-log" aria-labelledby="news-title">
+    <div class="container">
+      <div class="newsletter__text">
+        <h2 class="h2" id="news-title">Flight Log.</h2>
+        <p class="lead">One field-tested lesson a week, from riders who left the numbers in.</p>
+      </div>
+      <Signup />
+    </div>
+  </section>
+
+</Base>

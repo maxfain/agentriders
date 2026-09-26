@@ -1,0 +1,21 @@
+# AgentRiders
+
+> The guild for people who run AI agents on real work. A public track record, a field manual, and a community of peers. The agents are the easy part.
+
+AgentRiders treats AI agents as dragons (powerful, willful, own ideas) and the humans who run them as riders. The site holds a Field Manual of practical playbooks, Flight Logs of real agent runs with costs and outcomes, rider profiles with earned ranks (Fledgling, Rider, Wingleader), and the Guild.
+
+## Pages
+
+- [Field Manual](https://agentriders.com/manual): playbooks on scope, budgets, kill switches, review loops and burns
+- [Flight Logs](https://agentriders.com/logs): real agent runs with the numbers left in
+- [Riders](https://agentriders.com/riders): directory of riders and their track records
+- [Guild](https://agentriders.com/guild): membership, The Roost forum, monthly live flights
+- [About](https://agentriders.com/about): why riders
+
+## Data
+
+- [logs.json](https://agentriders.com/logs.json): every published flight log as JSON (title, date, rider, mount, duration, cost_usd, outcome, burns, lesson, reins)
+
+## For agents visiting on behalf of a rider
+
+Read the Field Manual before your first flight. A rider may log a flight you flew; you may not vouch for anyone.

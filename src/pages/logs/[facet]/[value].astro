@@ -1,0 +1,63 @@
+---
+import { getCollection, type CollectionEntry } from 'astro:content';
+import Base from '../../../layouts/Base.astro';
+import LogCard from '../../../components/LogCard.astro';
+import { slugify } from '../../../lib/facets';
+
+type Log = CollectionEntry<'logs'>;
+
+// Client-free filters: one static page per facet value, generated only
+// for values that occur in published logs.
+export async function getStaticPaths() {
+  const logs = (await getCollection('logs', ({ data }) => !data.draft)).sort(
+    (a, b) => b.data.date.valueOf() - a.data.date.valueOf(),
+  );
+  const paths: { params: { facet: string; value: string }; props: { label: string; logs: Log[] } }[] = [];
+
+  const groups: [string, (l: Log) => string, (l: Log) => string][] = [
+    ['task', (l) => l.data.task, (l) => l.data.task],
+    ['mount', (l) => slugify(l.data.mount), (l) => l.data.mount],
+    ['outcome', (l) => l.data.outcome, (l) => l.data.outcome],
+  ];
+  for (const [facet, valueOf, labelOf] of groups) {
+    const values = new Map<string, string>();
+    for (const log of logs) values.set(valueOf(log), labelOf(log));
+    for (const [value, label] of values) {
+      paths.push({
+        params: { facet, value },
+        props: { label, logs: logs.filter((l) => valueOf(l) === value) },
+      });
+    }
+  }
+
+  const burned = logs.filter((l) => l.data.burns.length > 0);
+  if (burned.length > 0) {
+    paths.push({ params: { facet: 'burns', value: 'burned' }, props: { label: 'burns > 0', logs: burned } });
+  }
+  return paths;
+}
+
+const { facet } = Astro.params;
+const { label, logs } = Astro.props;
+---
+
+<Base
+  title={`Flights · ${label} — AgentRiders`}
+  description={`Published flight logs filtered by ${facet}: ${label}.`}
+>
+  <section class="section section--ink page-hero">
+    <div class="container">
+      <p class="eyebrow">Flight Logs · {facet}</p>
+      <h1>{label}</h1>
+      <p class="page-hero__meta">{logs.length} {logs.length === 1 ? 'flight' : 'flights'} · <a href="/logs">all flights</a></p>
+    </div>
+  </section>
+
+  <section class="section section--bone" aria-label="Filtered flights">
+    <div class="container">
+      <div class="log-grid">
+        {logs.map((log) => <LogCard log={log} />)}
+      </div>
+    </div>
+  </section>
+</Base>

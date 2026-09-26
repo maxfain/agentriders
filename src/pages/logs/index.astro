@@ -1,0 +1,81 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import LogCard from '../../components/LogCard.astro';
+import { slugify } from '../../lib/facets';
+
+const logs = (await getCollection('logs', ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.date.valueOf() - a.data.date.valueOf(),
+);
+
+// Static facets, computed at build from published logs only.
+const facet = (label: string) => {
+  const map = new Map<string, { label: string; count: number }>();
+  return { label, map };
+};
+const tasks = facet('Task');
+const mounts = facet('Mount');
+const outcomes = facet('Outcome');
+for (const log of logs) {
+  for (const [f, value, label] of [
+    [tasks, log.data.task, log.data.task],
+    [mounts, slugify(log.data.mount), log.data.mount],
+    [outcomes, log.data.outcome, log.data.outcome],
+  ] as const) {
+    const entry = f.map.get(value) ?? { label, count: 0 };
+    entry.count += 1;
+    f.map.set(value, entry);
+  }
+}
+const burned = logs.filter((l) => l.data.burns.length > 0);
+---
+
+<Base
+  title="Flight Logs — AgentRiders"
+  description="Real agent runs with the numbers left in: duration, cost, burns and the lesson, written by the rider who held the reins."
+>
+  <section class="section section--ink page-hero" aria-labelledby="logs-title">
+    <div class="container">
+      <p class="eyebrow">Flight Logs</p>
+      <h1 id="logs-title">Real flights. Numbers left in.</h1>
+      <p class="lead">Every log is one agent, one task, one outcome, written by the rider who held the reins.</p>
+      <div class="page-hero__actions">
+        <a class="btn btn--ember" href="/logs/template">Log a flight</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--bone" aria-label="Published flights">
+    <div class="container stack">
+      {logs.length > 0 ? (
+        <>
+          <nav class="facets" aria-label="Filter flights">
+            {[
+              ['task', tasks],
+              ['mount', mounts],
+              ['outcome', outcomes],
+            ].map(([key, f]: any) => (
+              <div class="facets__row">
+                <span class="facets__label">{f.label}</span>
+                {[...f.map.entries()].map(([value, { label, count }]: any) => (
+                  <a href={`/logs/${key}/${value}`}>{label} ({count})</a>
+                ))}
+              </div>
+            ))}
+            {burned.length > 0 && (
+              <div class="facets__row">
+                <span class="facets__label">Burns</span>
+                <a href="/logs/burns/burned">burns &gt; 0 ({burned.length})</a>
+              </div>
+            )}
+          </nav>
+          <div class="log-grid">
+            {logs.map((log) => <LogCard log={log} />)}
+          </div>
+        </>
+      ) : (
+        <p class="empty">No flights published yet. The first ones land with the Guild's first riders — the <a href="/logs/template">template</a> shows what a log holds.</p>
+      )}
+    </div>
+  </section>
+</Base>

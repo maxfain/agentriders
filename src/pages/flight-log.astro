@@ -1,0 +1,27 @@
+---
+import Base from '../layouts/Base.astro';
+import Signup from '../components/Signup.astro';
+---
+
+<Base
+  title="Flight Log — AgentRiders"
+  description="One field-tested lesson a week, from riders who left the numbers in. No vendor demos."
+>
+  <section class="section section--ink page-hero" aria-labelledby="fl-title">
+    <div class="container">
+      <p class="eyebrow">The weekly newsletter</p>
+      <h1 id="fl-title">Flight Log.</h1>
+      <p class="lead">One field-tested lesson a week, from riders who left the numbers in.</p>
+    </div>
+  </section>
+
+  <section class="section section--bone" aria-label="Subscribe">
+    <div class="container stack">
+      <Signup id="email-flight-log" />
+      <div class="stack__head">
+        <h2>Archive</h2>
+        <p class="empty">First issue lands when the first twenty flights are logged.</p>
+      </div>
+    </div>
+  </section>
+</Base>

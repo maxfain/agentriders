@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30">
+  <style>
+    .iris { stroke: #16130F; }
+    @media (prefers-color-scheme: dark) { .iris { stroke: #F2EBDD; } }
+  </style>
+  <path class="iris" d="M2 15C7 6 23 6 28 15C23 24 7 24 2 15Z" fill="none" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M15 8.5C12.6 12 12.6 18 15 21.5C17.4 18 17.4 12 15 8.5Z" fill="#E4572E"/>
+</svg>

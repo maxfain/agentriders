@@ -1,0 +1,18 @@
+---
+// Newsletter signup. POSTs `email` to PUBLIC_NEWSLETTER_ENDPOINT
+// (set in the Cloudflare Pages build environment; see README § Newsletter).
+interface Props {
+  id?: string;
+  fine?: string;
+}
+const { id = 'email', fine = 'No vendor demos. Unsubscribe any time.' } = Astro.props;
+const endpoint = import.meta.env.PUBLIC_NEWSLETTER_ENDPOINT ?? '#';
+---
+<form class="signup" action={endpoint} method="post">
+  <label for={id}>Your email</label>
+  <div class="signup__row">
+    <input id={id} name="email" type="email" autocomplete="email" required placeholder="rider@example.com" />
+    <button class="btn btn--ember" type="submit">Subscribe</button>
+  </div>
+  <p class="signup__fine">{fine}</p>
+</form>

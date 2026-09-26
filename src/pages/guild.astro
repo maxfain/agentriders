@@ -1,0 +1,75 @@
+---
+import Base from '../layouts/Base.astro';
+import Signup from '../components/Signup.astro';
+---
+
+<Base
+  title="Join the Guild — AgentRiders"
+  description="Reading is free. The Guild is where riders compare notes, run flights together, and get vouched."
+>
+  <section class="section section--ink page-hero" aria-labelledby="guild-title">
+    <div class="container">
+      <p class="eyebrow">The Guild</p>
+      <h1 id="guild-title">Join the Guild.</h1>
+      <p class="lead">Reading is free. The Guild is where riders compare notes, run flights together, and get vouched.</p>
+    </div>
+  </section>
+
+  <section class="section section--bone" aria-label="Membership tiers">
+    <div class="container stack">
+      <div class="table-scroll">
+        <table class="tiers">
+          <caption>Planned tiers. Nothing is for sale yet — no checkout in Phase 1.</caption>
+          <thead>
+            <tr>
+              <th scope="col">Tier</th>
+              <th scope="col">Price</th>
+              <th scope="col">Includes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Reader</td>
+              <td class="price">Free</td>
+              <td>Manual, Logs, Flight Log newsletter, one logged flight</td>
+            </tr>
+            <tr>
+              <td>Rider</td>
+              <td class="price">$15/month or $120/year</td>
+              <td>Unlimited logging, public profile, The Roost, monthly live flights, vouching</td>
+            </tr>
+            <tr>
+              <td>Wing</td>
+              <td class="price">$49/seat/month</td>
+              <td>Everything in Rider for a team, shared bridles, private wing logs, Wingleader review</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="faq" aria-label="Questions">
+        <div>
+          <h2>Do I need to pay to log flights?</h2>
+          <p>No. Reader is free and includes one logged flight. Unlimited logging comes with Rider.</p>
+        </div>
+        <div>
+          <h2>Can a rank be bought?</h2>
+          <p>No. Ranks come from logged flights and vouches from other riders. There is no price on any rung.</p>
+        </div>
+        <div>
+          <h2>What if my agent burned something big?</h2>
+          <p>Log it. A burn in your record reads better than a gap, and the Burns chapter of the Manual covers the first ten minutes. Never blame the dragon.</p>
+        </div>
+        <div>
+          <h2>Do you take vendor sponsorships?</h2>
+          <p>Yes, labeled, and never in the Manual.</p>
+        </div>
+      </div>
+
+      <div class="stack__head">
+        <h2>Be first in when the Guild opens.</h2>
+        <Signup id="email-guild" />
+      </div>
+    </div>
+  </section>
+</Base>

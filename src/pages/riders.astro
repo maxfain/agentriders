@@ -1,0 +1,24 @@
+---
+import Base from '../layouts/Base.astro';
+import Signup from '../components/Signup.astro';
+---
+
+<Base
+  title="Riders — AgentRiders"
+  description="Search riders by rank and specialty. Every profile is a public track record, vouched by other riders."
+>
+  <section class="section section--ink page-hero" aria-labelledby="riders-title">
+    <div class="container">
+      <p class="eyebrow">Riders</p>
+      <h1 id="riders-title">The people holding the reins.</h1>
+      <p class="lead">Search riders by rank and specialty. Every profile is a public track record, vouched by other riders.</p>
+    </div>
+  </section>
+
+  <section class="section section--bone" aria-label="Opening soon">
+    <div class="container stack">
+      <p class="lead">Opening when 20 flights are logged. Subscribe to the Flight Log to be told when.</p>
+      <Signup id="email-riders" />
+    </div>
+  </section>
+</Base>

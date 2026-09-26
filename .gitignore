@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.astro/
+.DS_Store
+
+# generated at build by scripts/generate-og.mjs
+public/og.png
+# not committed yet: too large for the API push path this repo was seeded over;
+# versions are pinned exact in package.json. Un-ignore and commit it once
+# normal git push works (see README § Deploy).
+package-lock.json

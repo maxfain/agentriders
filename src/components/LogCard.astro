@@ -1,0 +1,22 @@
+---
+import type { CollectionEntry } from 'astro:content';
+
+interface Props {
+  log: CollectionEntry<'logs'>;
+}
+const { log } = Astro.props;
+const d = log.data;
+const burns = d.burns.length;
+const date = d.date.toISOString().slice(0, 10);
+---
+<article class="log">
+  <div class="log__meta"><span>{date}</span><span>{d.mount}</span></div>
+  <h3><a href={`/logs/${log.id}`}>{d.title}</a></h3>
+  <dl class="stats">
+    <div><dt>Flight</dt><dd>{d.duration}</dd></div>
+    <div><dt>Cost</dt><dd>${d.cost_usd}</dd></div>
+    <div><dt>Burns</dt><dd class:list={[burns > 0 && 'burn']}>{burns}</dd></div>
+  </dl>
+  <div class="log__rule"></div>
+  <p class="log__lesson">Lesson: {d.lesson}</p>
+</article>
