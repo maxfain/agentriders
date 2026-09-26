@@ -1,0 +1,14 @@
+// Workers static-assets config, used by Cloudflare's "import a repository"
+// (Workers Builds) flow: build command `npm run build`, deploy command
+// `npx wrangler deploy`. Assets-only Worker — no server code, it just
+// serves dist/. The classic Pages git-integration flow ignores this file
+// and still works with build output directory `dist` (see README § Deploy).
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "agentriders",
+  "compatibility_date": "2026-09-26",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page"
+  }
+}

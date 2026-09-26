@@ -19,17 +19,24 @@ npm run build      # static output in dist/
 npm run preview    # serve dist/ locally
 ```
 
-## Deploy — Cloudflare Pages
+## Deploy — Cloudflare, built from the repo
 
-There is no `wrangler.toml`; Pages builds straight from the repo.
+Cloudflare builds and deploys on every push to `main`; other branches get preview URLs. The dashboard's current default git-import flow creates a **Worker with static assets**; the classic **Pages** flow works too if your dashboard still offers it. The repo supports both.
 
-1. Cloudflare dashboard → **Workers & Pages → Create → Pages → Connect to Git**, pick this repo.
-2. Framework preset: **Astro**. Build command: `npm run build`. Build output directory: `dist`.
-3. Node version is pinned by `.node-version` (22); no other build settings needed.
-4. Add `PUBLIC_NEWSLETTER_ENDPOINT` under **Settings → Environment variables** (production and preview), then redeploy. See § Newsletter.
-5. Add `agentriders.com` under **Custom domains**.
+**Workers flow (dashboard default):**
 
-Every push to the production branch deploys; other branches get preview URLs.
+1. Cloudflare dashboard → **Workers & Pages → Create → Import a repository**, pick this repo.
+2. Project name: `agentriders`. Build command: `npm run build`. Deploy command: `npx wrangler deploy` (the default). `wrangler.jsonc` tells it to serve `dist/` as static assets — there is no server code.
+3. Custom domain: the Worker → **Settings → Domains & Routes → Add → Custom Domain** → `agentriders.com` and `www.agentriders.com` (the zone must be on Cloudflare).
+4. `PUBLIC_NEWSLETTER_ENDPOINT` goes in the project's **Settings → Build → Variables**. See § Newsletter.
+
+**Pages flow (where offered):**
+
+1. **Workers & Pages → Create → Pages tab → Import an existing Git repository**, pick this repo.
+2. Production branch `main`, framework preset **Astro**, build command `npm run build`, build output directory `dist`. Pages ignores `wrangler.jsonc`.
+3. Custom domains and `PUBLIC_NEWSLETTER_ENDPOINT` live in the Pages project's **Custom domains** and **Settings → Environment variables**.
+
+Either way, Node comes from `.node-version` (22).
 
 ## Adding a Manual chapter
 
