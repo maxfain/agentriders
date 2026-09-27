@@ -1,0 +1,131 @@
+/* The Riders: engraved insignias turn into full-height character studies. */
+.riders-hero { min-height: 730px; position: relative; isolation: isolate; overflow: hidden; background: #16130f; }
+.riders-hero__art { position: absolute; inset: -2%; z-index: -3; }
+.riders-hero__art img { width: 100%; height: 100%; object-fit: cover; object-position: 68% center; }
+.riders-hero__shade { position: absolute; inset: 0; z-index: -2; background: linear-gradient(90deg,#16130f77,transparent 65%),linear-gradient(0deg,#16130f,transparent 45%); }
+.riders-hero::after { content: ''; position: absolute; inset: auto 0 0; height: 130px; z-index: -1; pointer-events: none; background: linear-gradient(transparent,#16130f 85%); }
+.riders-hero__copy { padding-top: 90px; padding-bottom: 135px; }
+.riders-eyebrow { font-size: 8px; color: #d7c0a7; display: flex; gap: 12px; align-items: center; }
+.riders-eyebrow > span { width: 5px; height: 5px; border-radius: 50%; background: #e4572e; box-shadow: 0 0 15px #e4572e88; }
+.riders-hero h1 { font-size: clamp(70px,7vw,100px); font-weight: 500; line-height: .97; letter-spacing: -.05em; margin-top: 32px; }
+.riders-hero h1 em { color: #eeb38c; }
+.riders-hero__lead { margin-top: 32px; color: #d9cbbb; font-size: 17px; line-height: 1.7; }
+.riders-hero__link { color: var(--bone); display: inline-flex; align-items: center; gap: 32px; font: 9px var(--mono); letter-spacing: .1em; text-decoration: none; margin-top: 29px; padding-block: 10px; }
+.riders-hero__link > span { display: grid; place-items: center; border: 1px solid #947453; border-radius: 50%; width: 34px; height: 34px; font: 20px var(--body); }
+.riders-hero__baseline { display: flex; justify-content: space-between; gap: 20px; width: 100%; position: absolute; bottom: 30px; font-size: 7px; color: #b9a084; }
+.riders-collection { padding-block: 20px 75px; position: relative; isolation: isolate; background: #16130f; }
+.riders-collection__atmosphere { position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; background: radial-gradient(ellipse at 50% 35%,#71452833,transparent 68%); }
+.riders-collection__atmosphere::before { content: ''; position: absolute; width: 1000px; height: 1000px; top: 260px; left: 50%; transform: translateX(-50%); border-radius: 50%; border: 1px solid #bb87581b; box-shadow: 0 0 0 50px #16130f,0 0 0 51px #bb875815,0 0 0 100px #16130f,0 0 0 101px #bb87580c; }
+.riders-collection__index { display: flex; justify-content: space-between; gap: 25px; color: #b99e80; font-size: 8px; padding-bottom: 23px; border-bottom: 1px solid #4b3c2b; }
+.riders-collection__heading { display: grid; grid-template-columns: 1.25fr 1fr; gap: 65px; align-items: end; padding-block: 58px 48px; }
+.riders-collection__heading > div > .micro { color: #bfa17e; font-size: 8px; margin-bottom: 18px; }
+.riders-collection h2 { font-weight: 500; font-size: clamp(44px,5vw,70px); line-height: 1.04; letter-spacing: -.035em; }
+.riders-collection h2 em { color: #e8a27a; }
+.riders-collection__intro { padding-bottom: 5px; max-width: 36ch; justify-self: end; }
+.riders-collection__intro > p { color: #c7b9a7; font-size: 15px; line-height: 1.7; }
+.riders-collection__intro .riders-reveal-hint { color: #f0dec5; margin-top: 13px; font-size: 12px; }
+.riders-reveal-all { background: transparent; border: 1px solid #8f6b46; color: #f0ddc7; font: 9px var(--mono); letter-spacing: .05em; text-transform: uppercase; min-height: 44px; padding: 10px 17px; cursor: pointer; margin-top: 20px; display: inline-flex; align-items: center; gap: 35px; transition: background .2s,border-color .2s; }
+.riders-reveal-all:hover { background: #9a66362e; border-color: #e0ad7b; }
+.riders-reveal-all > span { font: 19px var(--body); }
+.riders-reveal-all[hidden],.riders-reveal-status[hidden],.riders-reveal-hint[hidden],.rider-portrait__toggle[hidden] { display: none; }
+.riders-deck { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: clamp(18px,2.4vw,34px); align-items: start; }
+.rider-portrait { min-width: 0; }
+.rider-portrait__stage { position: relative; perspective: 1500px; aspect-ratio: 2/3; }
+.rider-portrait__turn { position: relative; height: 100%; width: 100%; }
+.rider-portrait__front { display: none; }
+.rider-portrait__back { position: absolute; inset: 0; overflow: hidden; background: #2a1f16; border: 1px solid #9d7747; }
+.rider-portrait__image { display: block; width: 100%; height: 100%; object-fit: cover; }
+.rider-portrait__back-top,.rider-portrait__back-bottom { position: absolute; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center; gap: 15px; color: #f6dfbd; font-size: 6px; letter-spacing: .12em; padding: 18px; text-shadow: 0 1px 6px #000; }
+.rider-portrait__back-top { top: 0; background: linear-gradient(#140e0bd9,transparent); padding-bottom: 48px; }
+.rider-portrait__back-bottom { bottom: 0; background: linear-gradient(transparent,#140e0bef); padding-top: 45px; }
+.rider-portrait__back-bottom > :last-child { font: 24px var(--body); }
+.rider-portrait__toggle { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 5; background: transparent; border: 0; cursor: pointer; border-radius: 1px; }
+.rider-portrait__toggle:focus-visible { outline: 3px solid #f4bb82; outline-offset: 7px; }
+.rider-portrait.is-enhanced .rider-portrait__turn { transform-style: preserve-3d; transition: transform 900ms cubic-bezier(.22,.7,.13,1); }
+.rider-portrait.is-enhanced .rider-portrait__front { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; padding: 25px; color: #382819; border: 1px solid #caae80; background: radial-gradient(ellipse at 50% 38%,#fff9e8,#ede0c6 65%,#d7c29f); }
+.rider-portrait.is-enhanced .rider-portrait__front,.rider-portrait.is-enhanced .rider-portrait__back { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.rider-portrait.is-enhanced .rider-portrait__front { transform: rotateY(0deg); }
+.rider-portrait.is-enhanced .rider-portrait__back { transform: rotateY(180deg); }
+.rider-portrait.is-revealed .rider-portrait__turn { transform: rotateY(-180deg); }
+.rider-portrait__front::before { content: ''; position: absolute; inset: 8px; border: 1px solid #a4834f55; pointer-events: none; }
+.rider-portrait__edition { display: flex; justify-content: space-between; gap: 10px; width: 100%; color: #785d37; font-size: 6px; }
+.rider-portrait__sigil { flex: 1; width: 100%; display: grid; place-items: center; position: relative; min-height: 120px; }
+.rider-portrait__sigil img { width: 51%; max-width: 180px; height: auto; position: relative; filter: drop-shadow(0 14px 12px #4d301d33); }
+.rider-portrait__sigil > span { position: absolute; width: 78%; aspect-ratio: 1; border: 1px solid #bd9d674d; border-radius: 50%; }
+.rider-portrait__sigil > span:nth-child(2) { width: 87%; border-style: dashed; opacity: .6; }
+.rider-portrait__rank { font: 500 clamp(30px,2.7vw,43px)/1 var(--display); letter-spacing: -.025em; }
+.rider-portrait__motto { font: italic 17px/1.4 var(--display); color: #76563a; max-width: 21ch; text-align: center; margin-top: 16px; min-height: 48px; }
+.rider-portrait__invitation { margin-top: 25px; padding-top: 20px; border-top: 1px solid #c5aa81; width: 100%; display: flex; align-items: center; justify-content: space-between; font-size: 7px; gap: 10px; }
+.rider-turn-icon { font: 24px var(--body); }
+.rider-portrait.is-loading .rider-portrait__invitation { color: #9b451e; }
+.rider-portrait__edge { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(110deg,transparent 20%,#fff9e944 46%,transparent 70%); opacity: 0; transition: opacity .25s; }
+.rider-portrait__dossier { padding: 24px 2px 0; }
+.rider-portrait__title { display: flex; align-items: baseline; gap: 13px; }
+.rider-portrait__title > span { color: #c49464; font-size: 8px; }
+.rider-portrait__title h3 { font: 500 clamp(27px,2.4vw,35px)/1.2 var(--display); color: #f0e4d1; letter-spacing: -.02em; }
+.rider-portrait__requirement { color: #d3af84; font-size: 7px; letter-spacing: .05em; margin-top: 12px; min-height: 24px; }
+.rider-portrait__tell { color: #c5b5a2; font-size: 14px; line-height: 1.7; margin-top: 10px; }
+.rider-portrait__gear { padding: 18px 0 0; margin: 20px 0 0; list-style: none; border-top: 1px solid #493a2b; }
+.rider-portrait__gear li { padding: 5px 0 5px 15px; color: #a99780; font-size: 11px; line-height: 1.5; position: relative; }
+.rider-portrait__gear li::before { content: ''; width: 4px; height: 4px; border: 1px solid #c6925d; position: absolute; left: 0; top: 11px; transform: rotate(45deg); }
+.riders-collection__foot { margin-top: 47px; padding-top: 24px; border-top: 1px solid #493a2b; display: grid; grid-template-columns: 1fr 1.3fr auto; gap: 30px; align-items: start; }
+.riders-collection__foot .micro { font-size: 7px; color: #b99a78; }
+.riders-collection__foot > p:not(.micro) { font-size: 11px; color: #a99883; }
+.riders-reveal-status { white-space: nowrap; }
+.riders-directory h2 { font-size: clamp(45px,4.8vw,68px); }
+.riders-directory h2 em { color: var(--ember-text); }
+.riders-directory__note { margin-top: 20px; font-size: 13px; color: #716352; max-width: 43ch; }
+.riders-directory .text-link { margin-top: 23px; }
+@media (hover:hover) and (pointer:fine) {
+  .rider-portrait__stage:hover .rider-portrait__edge { opacity: 1; }
+  .rider-portrait__stage:hover { filter: drop-shadow(0 12px 24px #0005); }
+}
+@keyframes rider-land { 0% { transform: translateY(0); } 38% { transform: translateY(-5px); } 68% { transform: translateY(2px); } 100% { transform: translateY(0); } }
+[data-motion="running"] .rider-portrait.is-revealed .rider-portrait__stage { animation: rider-land 700ms 180ms both; }
+@media (min-width: 721px) and (max-width: 1100px) {
+  .riders-deck { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 45px 28px; }
+  .rider-portrait:last-child { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 28px; align-items: center; }
+  .rider-portrait:last-child .rider-portrait__dossier { padding: 30px; }
+}
+@media (max-width: 760px) {
+  .riders-hero { min-height: 770px; }
+  .riders-hero__art { height: 440px; inset: 0; transform-origin: right center; }
+  .riders-hero__art img { object-position: 93% top; }
+  .riders-hero__shade { background: linear-gradient(0deg,#16130f 42%,#16130f55 67%,transparent); }
+  .riders-hero__copy { padding-top: 320px; padding-bottom: 85px; }
+  .riders-eyebrow { font-size: 7px; }
+  .riders-hero h1 { font-size: clamp(55px,11vw,80px); line-height: .99; margin-top: 25px; }
+  .riders-hero h1 br:first-of-type { display: none; }
+  .riders-hero__lead { font-size: 15px; margin-top: 24px; }
+  .riders-hero__link { margin-top: 17px; }
+  .riders-hero__baseline { bottom: 24px; font-size: 6px; }
+  .riders-hero__baseline > :last-child { display: none; }
+  .riders-collection__index { font-size: 6px; gap: 25px; }
+  .riders-collection__index > :last-child { text-align: right; max-width: 16ch; }
+  .riders-collection__heading { grid-template-columns: 1fr; gap: 25px; padding-top: 42px; }
+  .riders-collection__intro { justify-self: start; max-width: 45ch; }
+  .riders-collection h2 { font-size: clamp(41px,9vw,64px); }
+  .riders-collection__foot { grid-template-columns: 1fr; gap: 12px; }
+  .riders-collection__foot > p:not(.micro) { max-width: 44ch; }
+}
+@media (max-width: 720px) {
+  .riders-deck { grid-template-columns: minmax(0,1fr); gap: 48px; max-width: 480px; margin-inline: auto; }
+  .rider-portrait__rank { font-size: clamp(33px,8vw,46px); }
+  .rider-portrait__title h3 { font-size: 35px; }
+  .rider-portrait__requirement { min-height: 0; }
+  .rider-portrait__dossier { padding-top: 24px; }
+  .rider-portrait__tell { font-size: 15px; }
+  .rider-portrait__back-top,.rider-portrait__back-bottom { font-size: 6px; }
+}
+@media (max-width: 360px) {
+  .rider-portrait.is-enhanced .rider-portrait__front { padding: 18px; }
+  .rider-portrait__sigil { min-height: 80px; }
+  .rider-portrait__motto { font-size: 15px; min-height: 42px; }
+  .rider-portrait__invitation { margin-top: 20px; padding-top: 15px; }
+}
+html:not([data-motion="running"]) .rider-portrait__turn { transition: none !important; }
+html:not([data-motion="running"]) .rider-portrait__stage { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .rider-portrait__turn { transition: none !important; }
+  .rider-portrait__stage { animation: none !important; }
+}

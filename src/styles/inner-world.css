@@ -130,13 +130,6 @@
 .guild-faq h2 { font-size: 45px; font-weight: 500; line-height: 1.05; max-width: 10ch; }
 .guild-faq .faq summary { font-size: 23px; }
 .guild-faq .faq p { font-size: 15px; color: #6c604f; }
-.rider-gallery { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; }
-.rider-gallery__card { text-align: center; padding: 30px 25px; border: 1px solid #cab89b; position: relative; background: linear-gradient(150deg,#faf5e9,#e8dbc2); }
-.rider-gallery__card::before { content: ''; position: absolute; width: 180px; height: 180px; border: 1px solid #c6aa804d; border-radius: 50%; left: 50%; top: 47px; transform: translateX(-50%); }
-.rider-gallery__card > .micro { font-size: 8px; color: #907556; }
-.rider-gallery__card img { position: relative; display: block; margin: 35px auto 28px; width: 160px; height: 160px; filter: drop-shadow(0 10px 12px #6e44242b); }
-.rider-gallery__card h2 { font-size: 36px; font-weight: 500; }
-.rider-gallery__card > p:not(.micro) { margin: 18px auto 0; color: #70614f; font-size: 14px; max-width: 25ch; }
 .opening-note { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; padding-top: 20px; }
 .opening-note .micro { color: var(--ash); font-size: 8px; margin-bottom: 20px; }
 .opening-note h2 { font-size: 36px; font-weight: 500; line-height: 1.08; margin-bottom: 20px; }
@@ -241,8 +234,6 @@ html[data-motion="paused"] *,html[data-motion="paused"] *::before,html[data-moti
   .chapter-in-progress h2 { font-size: 30px; }
   .guild-faq { grid-template-columns: 1fr; gap: 30px; }
   .guild-faq h2 { max-width: none; font-size: 38px; }
-  .rider-gallery { grid-template-columns: 1fr; }
-  .rider-gallery__card { padding: 30px; }
   .opening-note,.dispatch-layout { grid-template-columns: 1fr; gap: 35px; }
   .manifesto-art { position: static; }
   .manifesto-quote { font-size: 30px; }
