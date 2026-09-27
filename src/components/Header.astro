@@ -1,19 +1,29 @@
 ---
 import Mark from './Mark.astro';
+import Arrow from './Arrow.astro';
+const links = [['/manual', 'Manual'], ['/logs', 'Logs'], ['/riders', 'Riders'], ['/guild', 'Guild'], ['/about', 'About']];
+const active = (href: string) => Astro.url.pathname === href || Astro.url.pathname.startsWith(href + '/');
 ---
 <header class="site-header">
   <div class="container">
-    <a class="brand" href="/" aria-label="AgentRiders home">
-      <Mark />
-      <span class="brand__word">AgentRiders</span>
-    </a>
+    <a class="brand" href="/" aria-label="AgentRiders home"><Mark /><span class="brand__word">AgentRiders<span class="brand__dot">.</span></span></a>
     <nav class="nav" aria-label="Primary">
-      <a href="/manual">Manual</a>
-      <a href="/logs">Logs</a>
-      <a href="/riders">Riders</a>
-      <a href="/guild">Guild</a>
-      <a href="/about">About</a>
+      {links.map(([href, label]) => <a href={href} aria-current={active(href) ? 'page' : undefined}>{label}</a>)}
     </nav>
-    <a class="btn btn--ember" href="/guild">Join the Guild</a>
+    <a class="btn btn--ember header-join" href="/guild">Join the Guild <Arrow /></a>
+    <details class="mobile-menu">
+      <summary aria-label="Navigation menu"><span></span><span></span></summary>
+      <nav aria-label="Mobile navigation">
+        {links.map(([href, label], i) => <a href={href} aria-current={active(href) ? 'page' : undefined}><span class="micro">0{i + 1}</span>{label}<Arrow /></a>)}
+        <a href="/guild" class="mobile-menu__join">Join the Guild <Arrow /></a>
+      </nav>
+    </details>
   </div>
 </header>
+<script>
+  const menu = document.querySelector<HTMLDetailsElement>('.mobile-menu');
+  if (menu) {
+    document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && menu.open) { menu.open = false; menu.querySelector('summary')?.focus(); } });
+    document.addEventListener('click', (event) => { if (event.target instanceof Node && !menu.contains(event.target)) menu.open = false; });
+  }
+</script>

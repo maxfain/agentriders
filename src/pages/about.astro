@@ -1,5 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
+import Artwork from '../components/Artwork.astro';
 ---
 
 <Base
@@ -15,7 +16,7 @@ import Base from '../layouts/Base.astro';
   </section>
 
   <section class="section section--bone">
-    <div class="container">
+    <div class="container inner-art-layout">
       <div class="prose">
         <p>An agent can do a week of work in an afternoon. It can also spend $400 in tokens doing the wrong thing, confidently. Both are true at once, and that is what makes it a dragon: powerful, willful, and full of its own ideas about what you meant.</p>
         <p>The dragons improve every quarter without your help. What does not improve on its own is the riding: the scoping, the budgets, the judgment about when to hold on and when to let go. The human is the bottleneck. That also makes the human the hero — the riding is where all the leverage is.</p>
@@ -24,6 +25,7 @@ import Base from '../layouts/Base.astro';
         <p>The Guild exists so nobody has to learn every lesson alone, at their own expense. Somebody here has already been burned the way you are about to be. Read their log. Then fly, and log yours.</p>
         <!-- AUTHOR: who runs it, where to write -->
       </div>
+      <figure class="inner-art"><Artwork name="bond" sizes="(min-width: 900px) 45vw, 100vw" alt="A rider and a copper dragon build trust, face to face." /><figcaption class="micro">THE HUMAN IS THE HERO.</figcaption></figure>
     </div>
   </section>
 </Base>

@@ -31,7 +31,7 @@ const fmt = (d: Date) => d.toISOString().slice(0, 10);
                 {ch.data.startHere && <p class="tag">Start here</p>}
                 <h2><a href={`/manual/${ch.id}`}>{ch.data.title}</a></h2>
                 <p>{ch.data.description}</p>
-                <p class="chapter__meta">Updated {fmt(ch.data.updated)}</p>
+                <p class="chapter__meta">{ch.body?.replace(/<!--[\s\S]*?-->/g, "").trim() ? `Updated ${fmt(ch.data.updated)}` : "Chapter in progress"}</p>
               </div>
             </article>
           </li>
