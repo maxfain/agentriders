@@ -3,6 +3,7 @@
 .riders-hero__art { position: absolute; inset: -2%; z-index: -3; }
 .riders-hero__art img { width: 100%; height: 100%; object-fit: cover; object-position: 68% center; }
 .riders-hero__shade { position: absolute; inset: 0; z-index: -2; background: linear-gradient(90deg,#16130f77,transparent 65%),linear-gradient(0deg,#16130f,transparent 45%); }
+.riders-hero::after { content: ''; position: absolute; inset: auto 0 0; height: 130px; z-index: -1; pointer-events: none; background: linear-gradient(transparent,#16130f 85%); }
 .riders-hero__copy { padding-top: 90px; padding-bottom: 135px; }
 .riders-eyebrow { font-size: 8px; color: #d7c0a7; display: flex; gap: 12px; align-items: center; }
 .riders-eyebrow > span { width: 5px; height: 5px; border-radius: 50%; background: #e4572e; box-shadow: 0 0 15px #e4572e88; }
@@ -56,6 +57,7 @@
 .rider-portrait__motto { font: italic 17px/1.4 var(--display); color: #76563a; max-width: 21ch; text-align: center; margin-top: 16px; min-height: 48px; }
 .rider-portrait__invitation { margin-top: 25px; padding-top: 20px; border-top: 1px solid #c5aa81; width: 100%; display: flex; align-items: center; justify-content: space-between; font-size: 7px; gap: 10px; }
 .rider-turn-icon { font: 24px var(--body); }
+.rider-portrait.is-loading .rider-portrait__invitation { color: #9b451e; }
 .rider-portrait__edge { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(110deg,transparent 20%,#fff9e944 46%,transparent 70%); opacity: 0; transition: opacity .25s; }
 .rider-portrait__dossier { padding: 24px 2px 0; }
 .rider-portrait__title { display: flex; align-items: baseline; gap: 13px; }
