@@ -162,8 +162,8 @@ html[data-page-hidden] *,html[data-page-hidden] *::before,html[data-page-hidden]
 @media (max-width: 700px) {
   .motion-toggle { bottom: 12px; right: 12px; min-height: 38px; font-size: 7px; }
   .hero-flight-line { top: 50px; right: 7%; height: 240px; width: 55%; opacity: .3; }
-  .cinema-hero__art { inset: -6px; height: 445px; }
-  .cinema-hero__art img { object-position: 75% 42%; }
+  .cinema-hero__art { inset: -6px; height: 445px; transform-origin: right center; }
+  .cinema-hero__art img { object-position: 100% 42%; }
   .cinema-hero__shade { background: linear-gradient(0deg,#16130f 1%,#16130fef 12%,transparent 58%); }
   .hero-atmosphere { height: 430px; }
   .ember-field { max-height: 480px; }

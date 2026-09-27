@@ -47,7 +47,7 @@ The owner requested a further “shock and awe” pass, including subtle frontie
 
 - `src/components/FlightAtlas.astro`: three native radio controls reveal a preparation, review, or logging briefing. CSS traces the illustrated route. This is a field guide, not a live mission dashboard.
 - `src/components/CinematicMotion.astro` and `src/scripts/cinematic.ts`: small dependency-free controller for pointer/scroll camera depth, 22–48 canvas embers, viewport-triggered arrivals, rank-card lighting, a reading line, and a persistent motion toggle.
-- `src/styles/cinematic.css`: scene treatments, etched instruments, authored SVG routes, responsive compositions, and motion policies. Loaded on the homepage only.
+- `src/styles/cinematic.css`: scene treatments, etched instruments, authored SVG routes, responsive compositions, and motion policies. Loaded by the shared layout so the same motion controls apply throughout the site.
 - A full-bleed dragon-eye encounter and three concentric pre-flight rings tied to the real checkboxes. The instrument is a local self-check, not an agent connection.
 - Responsive `dragon-eye-{800,1200,1672}.webp` and `beyond-the-clouds-{800,1200,1672}.webp`. Both are lazy loaded. No third-party image requests.
 

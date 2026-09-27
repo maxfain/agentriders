@@ -3,6 +3,8 @@
 .page-hero--cinematic::after { display: none; }
 .page-hero .page-hero__layout { display: grid; grid-template-columns: minmax(0,1.25fr) minmax(0,1fr); gap: 55px; align-items: center; }
 .page-hero__copy { position: relative; z-index: 2; }
+.page-hero__copy .page-hero__actions { margin-top: 28px; }
+.page-hero__artifact { min-width: 0; }
 .page-hero--cinematic .eyebrow { font: 9px/1.6 var(--mono); letter-spacing: .15em; display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
 .page-hero--cinematic .eyebrow span { font-size: 17px; color: #edb58b; }
 .page-hero--cinematic h1 { font-size: clamp(48px,5.3vw,78px); line-height: 1.03; font-weight: 500; letter-spacing: -.045em; max-width: 17ch; }
