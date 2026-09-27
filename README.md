@@ -38,7 +38,7 @@ Cloudflare builds and deploys on every push to `main`; other branches get previe
 
 Either way, Node comes from `.node-version` (22).
 
-**Production wiring:** the live deployment is the Pages project `agentriders`, building `main` on every push, with `agentriders.com` attached under the project's Custom domains. Point `www.agentriders.com` at the apex with a zone-level Redirect Rule (dashboard → the zone → **Rules** → the "Redirect from WWW to root" template, 301) — Pages' `_redirects` file does not support domain-level redirects, so that rule lives in the zone, not this repo.
+**Production wiring:** the live deployment is the Pages project `agentriders`, building `main` on every push. `agentriders.com` and `www.agentriders.com` are both attached under the project's Custom domains, and every page's canonical URL points at the apex, so the duplicate hostname is harmless. To make `www` redirect instead of serve, add a zone-level Redirect Rule (the zone → **Rules** → "Redirect from WWW to root" template, 301) — Pages' `_redirects` file cannot do domain-level redirects, so that would live in the zone, not this repo.
 
 ## Adding a Manual chapter
 
