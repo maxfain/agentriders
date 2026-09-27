@@ -1,5 +1,6 @@
 ---
 import { getCollection, type CollectionEntry } from 'astro:content';
+import PageHero from '../../../components/PageHero.astro';
 import Base from '../../../layouts/Base.astro';
 import LogCard from '../../../components/LogCard.astro';
 import { slugify } from '../../../lib/facets';
@@ -45,13 +46,7 @@ const { label, logs } = Astro.props;
   title={`Flights · ${label} — AgentRiders`}
   description={`Published flight logs filtered by ${facet}: ${label}.`}
 >
-  <section class="section section--ink page-hero">
-    <div class="container">
-      <p class="eyebrow">Flight Logs · {facet}</p>
-      <h1>{label}</h1>
-      <p class="page-hero__meta">{logs.length} {logs.length === 1 ? 'flight' : 'flights'} · <a href="/logs">all flights</a></p>
-    </div>
-  </section>
+  <PageHero eyebrow={`Flight Logs / ${facet}`} title={label} description={`${logs.length} published ${logs.length === 1 ? "flight" : "flights"}`} art="ledger" compact><p class="page-hero__meta"><a href="/logs">← All flights</a></p></PageHero>
 
   <section class="section section--bone" aria-label="Filtered flights">
     <div class="container">

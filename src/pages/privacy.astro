@@ -1,4 +1,5 @@
 ---
+import PageHero from '../components/PageHero.astro';
 import Base from '../layouts/Base.astro';
 ---
 
@@ -6,17 +7,14 @@ import Base from '../layouts/Base.astro';
   title="Privacy — AgentRiders"
   description="What AgentRiders collects: almost nothing. No tracking pixels, no ad cookies, no session recorders."
 >
-  <section class="section section--ink page-hero" aria-labelledby="privacy-title">
-    <div class="container">
-      <p class="eyebrow">Legal</p>
-      <h1 id="privacy-title">Privacy.</h1>
-    </div>
-  </section>
+  <PageHero eyebrow="The fine print" title="Privacy." description="Your information, handled with care." art="seal" id="privacy-title" compact></PageHero>
 
   <section class="section section--bone">
-    <div class="container">
+    <div class="container legal-layout">
+      <nav class="legal-nav" aria-label="Legal pages"><p class="micro">THE FINE PRINT</p><a href="/privacy" aria-current="page">Privacy</a><a href="/terms">Terms</a><a href="/about">About the Guild ↗</a></nav>
       <div class="prose">
         <p>We collect almost nothing. There are no tracking pixels, no ad cookies and no session recorders on this site. If analytics are ever added, they will be Cloudflare Web Analytics, which uses no cookies.</p>
+        <p>Your animation preference is saved on your device so the site remembers when you pause visual motion. It is not used for tracking.</p>
         <p>If you subscribe to the Flight Log, your email address goes to the newsletter provider and is used only to send it. Every issue has an unsubscribe link, and it works.</p>
         <p>The site is served by Cloudflare, which processes the traffic data any host processes — IP addresses and request logs — to serve and protect the site.</p>
         <p>To be removed from the newsletter list, unsubscribe from any issue.</p>

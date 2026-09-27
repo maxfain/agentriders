@@ -1,5 +1,6 @@
 ---
 import { getCollection, render } from 'astro:content';
+import PageHero from '../../components/PageHero.astro';
 import Base from '../../layouts/Base.astro';
 
 export async function getStaticPaths() {
@@ -16,13 +17,7 @@ const hasBody = log.body ? log.body.replace(/<!--[\s\S]*?-->/g, '').trim().lengt
 ---
 
 <Base title={`${d.title} — Flight Logs — AgentRiders`} description={`${d.mount} · ${d.duration} · $${d.cost_usd} · ${burns} ${burns === 1 ? 'burn' : 'burns'}. Lesson: ${d.lesson}`}>
-  <section class="section section--ink page-hero">
-    <div class="container">
-      <p class="eyebrow">Flight Log · {date}</p>
-      <h1>{d.title}</h1>
-      <p class="page-hero__meta">Rider: {d.rider} · <a href="/logs">all flights</a></p>
-    </div>
-  </section>
+  <PageHero eyebrow={`Flight Log / ${date}`} title={d.title} description={undefined} art="ledger" compact><p class="page-hero__meta">Rider: {d.rider} · <a href="/logs">All flights</a></p></PageHero>
 
   <section class="section section--bone">
     <div class="container">

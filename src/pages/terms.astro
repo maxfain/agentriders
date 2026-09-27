@@ -1,4 +1,5 @@
 ---
+import PageHero from '../components/PageHero.astro';
 import Base from '../layouts/Base.astro';
 ---
 
@@ -6,15 +7,11 @@ import Base from '../layouts/Base.astro';
   title="Terms — AgentRiders"
   description="The terms for reading and using AgentRiders: field notes, not advice; content belongs to its authors."
 >
-  <section class="section section--ink page-hero" aria-labelledby="terms-title">
-    <div class="container">
-      <p class="eyebrow">Legal</p>
-      <h1 id="terms-title">Terms.</h1>
-    </div>
-  </section>
+  <PageHero eyebrow="The fine print" title="Terms." description="A few ground rules for the field." art="seal" id="terms-title" compact></PageHero>
 
   <section class="section section--bone">
-    <div class="container">
+    <div class="container legal-layout">
+      <nav class="legal-nav" aria-label="Legal pages"><p class="micro">THE FINE PRINT</p><a href="/privacy">Privacy</a><a href="/terms" aria-current="page">Terms</a><a href="/about">About the Guild ↗</a></nav>
       <div class="prose">
         <p>AgentRiders publishes field notes about running AI agents: the Field Manual, the Flight Logs, and the Flight Log newsletter. They describe what happened on real flights. They are not legal, financial or safety advice, and what landed on one flight can burn on the next. Use your own judgment; you hold your own reins.</p>
         <p>Content on this site belongs to its authors. Quote it with attribution and a link. Do not republish whole chapters or logs without permission.</p>

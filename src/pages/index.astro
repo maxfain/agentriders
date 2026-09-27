@@ -8,8 +8,6 @@ import Icon from '../components/Icon.astro';
 import Arrow from '../components/Arrow.astro';
 import Preflight from '../components/Preflight.astro';
 import FlightAtlas from '../components/FlightAtlas.astro';
-import CinematicMotion from '../components/CinematicMotion.astro';
-import '../styles/cinematic.css';
 const published = (await getCollection('logs', ({ data }) => !data.draft))
   .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf()).slice(0, 3);
 const ranks = [
@@ -24,7 +22,6 @@ const examples = [
 ];
 ---
 <Base title="AgentRiders — The guild for people who run AI agents" description="AgentRiders is where people who run AI agents on real work learn to hold the reins, log their flights, and prove they can ride. The agents are the easy part.">
-  <CinematicMotion />
   <section class="cinema-hero section--ink" aria-labelledby="hero-title" data-scene>
     <Artwork name="flight" class="cinema-hero__art scene-art" eager alt="A rider holds the reins of a copper dragon soaring above a misty mountain range." />
     <div class="cinema-hero__shade" aria-hidden="true"></div>

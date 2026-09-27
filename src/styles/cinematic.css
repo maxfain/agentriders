@@ -16,6 +16,7 @@
 [data-motion="running"] [data-in-view] .scene-art { will-change: transform; }
 .cinema-hero__content { animation: none; }
 .cinema-hero__art { inset: -2%; }
+.cinema-hero__art img { object-position: 85% center; }
 .cinema-hero__shade { background: linear-gradient(90deg,rgba(22,19,15,.77),rgba(22,19,15,.38) 34%,transparent 63%),linear-gradient(0deg,#16130f,rgba(22,19,15,.8) 8%,transparent 40%); }
 .ember-field { position: absolute; inset: 0; width: 100%; height: min(100%,1000px); z-index: -1; pointer-events: none; }
 .hero-atmosphere { position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
@@ -34,7 +35,7 @@
 @keyframes chart-flow { to { stroke-dashoffset: -240; } }
 /* Guild artifacts have depth and material, without changing their useful links. */
 .bond-art::before { content: ''; position: absolute; inset: 5% 7% 10%; border: 1px solid #b7a38650; border-radius: 50%; }
-.bond-art::after { content: '+'; position: absolute; right: 8%; top: 22%; font: 20px var(--mono); color: #ac6c46; }
+.bond-art::after { content: ''; position: absolute; right: 8%; top: 22%; width: 10px; height: 10px; background: linear-gradient(#ac6c46,#ac6c46) center/1px 100% no-repeat,linear-gradient(#ac6c46,#ac6c46) center/100% 1px no-repeat; }
 .bond-art .artwork { position: relative; }
 .world-card { box-shadow: 0 8px 30px #6a442406; }
 .world-card--manual::after { content: ''; position: absolute; top: 0; bottom: 0; left: 8px; width: 4px; border-inline: 1px solid #ae9c7455; pointer-events: none; }
@@ -75,6 +76,7 @@
 .atlas-map::before { left: 0; top: 0; border-width: 1px 0 0 1px; }
 .atlas-map::after { right: 0; bottom: 0; border-width: 0 1px 1px 0; }
 .atlas-map__caption { display: flex; justify-content: space-between; gap: 20px; padding: 12px 18px; font-size: 8px; color: #e6c8a7; }
+.atlas-map__caption span { background: #16130fc9; padding: 5px 8px; }
 .atlas-route { display: block; width: 100%; height: clamp(230px,34vw,460px); color: #f5d9b5; overflow: visible; }
 .atlas-route__base { stroke: #f7d8ad70; stroke-width: 1; stroke-dasharray: 3 8; }
 .atlas-route__light { stroke: url(#route-light); stroke-width: 2; stroke-dasharray: 100; stroke-dashoffset: var(--route-offset); transition: stroke-dashoffset 1.8s cubic-bezier(.22,1,.36,1); filter: drop-shadow(0 0 6px #e98946); }
@@ -116,7 +118,7 @@
 @keyframes eye-breathe { 50% { opacity: .35; transform: scale(1.12); } }
 .field-rules__aside { position: sticky; top: 28px; }
 .preflight { position: relative; background: radial-gradient(ellipse at 50% 15%,#4c321f66,transparent 55%),linear-gradient(145deg,#2c241c,#211b16); box-shadow: 0 20px 60px #0002,inset 0 1px #edc59a15; overflow: hidden; }
-.preflight::before,.preflight::after { content: '+'; position: absolute; top: 8px; color: #a78c6b; font: 12px var(--mono); }
+.preflight::before,.preflight::after { content: ''; position: absolute; top: 8px; width: 7px; height: 7px; background: linear-gradient(#a78c6b,#a78c6b) center/1px 100% no-repeat,linear-gradient(#a78c6b,#a78c6b) center/100% 1px no-repeat; }
 .preflight::before { left: 10px; }.preflight::after { right: 10px; }
 .reins-instrument { width: 235px; max-width: 100%; margin: 22px auto 33px; position: relative; }
 .reins-instrument svg { display: block; width: 100%; height: auto; overflow: visible; }
@@ -161,6 +163,7 @@ html[data-page-hidden] *,html[data-page-hidden] *::before,html[data-page-hidden]
   .motion-toggle { bottom: 12px; right: 12px; min-height: 38px; font-size: 7px; }
   .hero-flight-line { top: 50px; right: 7%; height: 240px; width: 55%; opacity: .3; }
   .cinema-hero__art { inset: -6px; height: 445px; }
+  .cinema-hero__art img { object-position: 75% 42%; }
   .cinema-hero__shade { background: linear-gradient(0deg,#16130f 1%,#16130fef 12%,transparent 58%); }
   .hero-atmosphere { height: 430px; }
   .ember-field { max-height: 480px; }

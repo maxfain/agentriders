@@ -1,4 +1,5 @@
 ---
+import PageHero from '../../components/PageHero.astro';
 import Base from '../../layouts/Base.astro';
 
 const template = `---
@@ -33,20 +34,29 @@ what burned, and what you changed. Keep the numbers in.`;
   title="Log a flight — AgentRiders"
   description="The markdown template every published flight log uses: mount, duration, cost, burns, lesson and reins."
 >
-  <section class="section section--ink page-hero" aria-labelledby="template-title">
-    <div class="container">
-      <p class="eyebrow">Flight Logs</p>
-      <h1 id="template-title">Log a flight.</h1>
-      <p class="lead">One agent, one task, one outcome. Copy the frontmatter, fill every field, leave the numbers in.</p>
-    </div>
-  </section>
+  <PageHero eyebrow="The Flight Record" title="Log a flight." description="One agent, one task, one outcome. Copy the frontmatter, fill every field, leave the numbers in." art="ledger" id="template-title" compact></PageHero>
 
   <section class="section section--bone">
-    <div class="container stack">
-      <div class="codeblock">
-        <pre><code>{template}</code></pre>
-      </div>
-      <p class="stack__note">Submissions open with the Guild. Until then, keep your logs in this format — they publish unchanged. <a href="/logs">← All flights</a></p>
+    <div class="container template-workbench">
+      <div class="template-code"><div class="template-code__bar"><span class="micro">FLIGHT-LOG.MD / EXAMPLE TEMPLATE</span><button type="button" class="copy-template" hidden>Copy template</button></div><div class="codeblock"><pre><code id="flight-template">{template}</code></pre></div><p class="copy-status" aria-live="polite"></p></div>
+      <aside class="template-notes"><p class="micro">YOUR FLIGHT RECORD</p><h2>One honest<br /><em>record.</em></h2><p>Replace the example values with your own. Include the cost, the outcome, and what you would change next time.</p><a class="text-link" href={`data:text/markdown;charset=utf-8,${encodeURIComponent(template)}`} download="flight-log.md">Download the template ↓</a><p>Submissions open with the Guild. Until then, keep your logs in this format.</p><a class="text-link" href="/logs">← All flights</a></aside>
     </div>
   </section>
 </Base>
+<script>
+  const button = document.querySelector<HTMLButtonElement>('.copy-template');
+  const code = document.querySelector<HTMLElement>('#flight-template');
+  const status = document.querySelector<HTMLElement>('.copy-status');
+  if (button && code && status && navigator.clipboard) {
+    button.hidden = false;
+    button.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(code.textContent || '');
+        status.textContent = 'Template copied. Replace the example values with your own.';
+        button.textContent = 'Copy again';
+      } catch {
+        status.textContent = 'Copy is unavailable in this browser. Use the download link or select the template text.';
+      }
+    });
+  }
+</script>

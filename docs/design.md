@@ -52,3 +52,9 @@ The owner requested a further “shock and awe” pass, including subtle frontie
 - Responsive `dragon-eye-{800,1200,1672}.webp` and `beyond-the-clouds-{800,1200,1672}.webp`. Both are lazy loaded. No third-party image requests.
 
 All headings and controls remain HTML. CSS-only flight-stage selection works without JavaScript. Scene motion defaults off for reduced-motion and data-saving preferences, can be paused globally, and stops when scenes leave the viewport or the page is hidden. The particle loop is capped near 30 fps and canvas pixel density at 1.5. No content starts hidden waiting for JavaScript. Phone layouts give the art its own space above the copy; the route controls remain available by touch and keyboard.
+
+## Every-page extension
+
+The owner expanded the request to every page. The shared `PageHero`, `Relic`, `PageCoda`, `ChapterRail`, and `FieldDiagram` components now give every current route a deliberate composition. `inner-world.css` adds the dimensional field book, paper ledger, sealed dispatch, rank display, reading layouts, and engraved legal treatment. These artifacts are native HTML/SVG/CSS, keeping typography sharp and page weight modest.
+
+All seven Manual chapters use the reading layout and an illustrated field plate; the Evals chapter has an on-page contents rail. The six unfinished chapters remain explicitly in progress. The log detail and facet templates share the new covers when real published logs create those routes. The template page now has working copy and download controls. Privacy mentions the local motion preference introduced by this change. Membership, newsletter, directory, and log launch states remain explicit.
