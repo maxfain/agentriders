@@ -44,7 +44,7 @@ a:hover > .arrow, button:hover > .arrow { transform: translateX(4px); }
 .cinema-hero__content { position: relative; padding-top: clamp(56px, 6.7vw, 96px); padding-bottom: 160px; }
 .cinema-hero .eyebrow { display: flex; align-items: center; gap: 9px; font-size: 9px; color: var(--bone); text-transform: uppercase; letter-spacing: .14em; }
 .status-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--ember); flex-shrink: 0; }
-.cinema-hero h1 { font-size: clamp(78px, 7.7vw, 112px); line-height: .93; letter-spacing: -.055em; margin-top: 30px; max-width: 8ch; font-weight: 550; }
+.cinema-hero h1 { font-size: clamp(78px, 7.7vw, 112px); line-height: .93; letter-spacing: -.055em; margin-top: 30px; max-width: 580px; font-weight: 550; }
 .cinema-hero h1 em { color: #efb08d; }
 .cinema-hero__lead { margin-top: 30px; font-size: 18px; line-height: 1.6; color: #e1d8ca; }
 .cinema-hero__actions { display: flex; align-items: center; gap: 25px; flex-wrap: wrap; margin-top: 30px; }
@@ -310,8 +310,7 @@ a:hover > .arrow, button:hover > .arrow { transform: translateX(4px); }
   .cinema-hero__shade { height: 470px; background: linear-gradient(0deg, #16130f 1%, rgba(22,19,15,.93) 12%, rgba(22,19,15,0) 58%); }
   .cinema-hero__content { padding-top: 355px; padding-bottom: 40px; }
   .cinema-hero .eyebrow { font-size: 8px; letter-spacing: .085em; }
-  .cinema-hero h1 { font-size: clamp(66px,14vw,91px); margin-top: 23px; line-height: .94; max-width: none; }
-  .cinema-hero h1 br:first-of-type { display: none; }
+  .cinema-hero h1 { font-size: clamp(54px,14vw,91px); margin-top: 23px; line-height: .94; max-width: none; }
   .cinema-hero__lead { font-size: 17px; margin-top: 23px; }
   .cinema-hero__actions { margin-top: 27px; }
   .cinema-hero__actions .btn { font-size: 10px; }
