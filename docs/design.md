@@ -70,3 +70,15 @@ All seven Manual chapters use the reading layout and an illustrated field plate;
 - Six Manual chapters remain in progress. No published logs exist yet, so log-detail and facet designs are templates rather than generated routes. No production merge performed.
 
 Review captures: [Manual](review/manual-desktop.jpg) and [About / reflected dragon eye](review/about-dragon-eye.jpg).
+
+## Riders character collection
+
+The Riders page now opens on an original dragon-aerie scene. Three engraved insignia cards turn into full-height character portraits: Fledgling, Rider, and Wingleader. Expressions, materials, repairs, instruments, and equipment carry the progression. The Wingleader has the owner's requested battered keyboard clipped to the harness; it remains visible in the portrait crop. These are explicitly illustrated archetypes, not member profiles.
+
+`RiderPortrait.astro`, `riders.css`, and `riders.ts` implement native toggle buttons, individual flips, a reveal-all control, keyboard activation and Escape, and a live revealed count. The flip waits for image decoding, handles load failure, and cancels stale requests. Motion-off and reduced-motion modes swap instantly. With JavaScript unavailable, the portraits and rank requirements remain visible. The three desktop columns become two columns with a featured Wingleader at tablet widths, then a single column on phones.
+
+Built-in generated artwork, final asset names, and complete prompts are recorded in [riders-art-prompts.md](riders-art-prompts.md). Responsive images are self-hosted WebP, with lazy-loaded portraits and an eager hero. No new dependencies, audio, strobe effects, or tracking.
+
+Browser review: desktop, 390-pixel and 320-pixel phone widths, and 768-pixel tablet width; no horizontal page overflow at those sizes. Individual clicks, reveal-all, Space, Enter, Escape, and motion-off behavior verified. The keyboard is visible on the phone and desktop portraits. A fast-scroll image-loading gap was found and addressed with decode-before-reveal. TypeScript and the 18-page production build pass. The temporary review page is removed before delivery.
+
+Capture: [Riders portrait collection](review/riders-revealed.jpg).
