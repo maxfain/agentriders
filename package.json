@@ -7,7 +7,8 @@
     "dev": "astro dev",
     "build": "node scripts/generate-og.mjs && astro build",
     "preview": "astro preview",
-    "og": "node scripts/generate-og.mjs"
+    "og": "node scripts/generate-og.mjs",
+    "test": "node --test cli/eval-detector.test.js"
   },
   "dependencies": {
     "@fontsource-variable/fraunces": "5.3.0",
