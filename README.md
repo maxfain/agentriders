@@ -1,10 +1,11 @@
 # AgentRiders
 
-The guild for people who run AI agents on real work. A static site: Astro, plain CSS, and a small progressive enhancement for navigation and a pre-flight checklist. The agents are the easy part.
+The guild for people who run AI agents on real work. A static site: Astro, plain CSS, and small progressive enhancements for navigation, cinematic motion, a pre-flight checklist, and copying flight-log templates. The agents are the easy part.
 
 - `agentriders-brief.md` and root `index.html` — the original launch brief and visual reference, retained for history.
 - `docs/design.md` — the current illustrated design direction, authorized in the September 2026 redesign.
-- `src/pages/index.astro` and `src/styles/experience.css` — the current homepage and visual system. The historical reference is no longer a parity requirement.
+- `src/pages/index.astro`, `src/styles/experience.css`, and `src/styles/cinematic.css` — the homepage, visual system, and optional cinematic motion. The historical reference is no longer a parity requirement.
+- `src/components/PageHero.astro`, `src/components/Relic.astro`, and `src/styles/inner-world.css` — the shared inner-page art direction and reading layouts.
 
 ## Develop
 

@@ -1,5 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
+import PageHero from '../../components/PageHero.astro';
+import PageCoda from '../../components/PageCoda.astro';
 import Base from '../../layouts/Base.astro';
 import Icon from '../../components/Icon.astro';
 import LogCard from '../../components/LogCard.astro';
@@ -35,16 +37,7 @@ const burned = logs.filter((l) => l.data.burns.length > 0);
   title="Flight Logs — AgentRiders"
   description="Real agent runs with the numbers left in: duration, cost, burns and the lesson, written by the rider who held the reins."
 >
-  <section class="section section--ink page-hero" aria-labelledby="logs-title">
-    <div class="container">
-      <p class="eyebrow">Flight Logs</p>
-      <h1 id="logs-title">Real flights. Numbers left in.</h1>
-      <p class="lead">Every log is one agent, one task, one outcome, written by the rider who held the reins.</p>
-      <div class="page-hero__actions">
-        <a class="btn btn--ember" href="/logs/template">Log a flight</a>
-      </div>
-    </div>
-  </section>
+  <PageHero eyebrow="The Flight Logs" title="Real flights. Numbers left in." description="Every log is one agent, one task, one outcome, written by the rider who held the reins." art="ledger" id="logs-title"><div class="page-hero__actions"><a class="btn btn--ember" href="/logs/template">Log a flight ↗</a></div></PageHero>
 
   <section class="section section--bone" aria-label="Published flights">
     <div class="container stack">
@@ -85,4 +78,5 @@ const burned = logs.filter((l) => l.data.burns.length > 0);
       )}
     </div>
   </section>
+  <PageCoda />
 </Base>

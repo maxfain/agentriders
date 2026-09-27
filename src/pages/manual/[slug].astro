@@ -1,6 +1,9 @@
 ---
 import { getCollection, render } from 'astro:content';
+import PageHero from '../../components/PageHero.astro';
 import Base from '../../layouts/Base.astro';
+import ChapterRail from '../../components/ChapterRail.astro';
+import FieldDiagram from '../../components/FieldDiagram.astro';
 
 export async function getStaticPaths() {
   const chapters = await getCollection('manual', ({ data }) => !data.draft);
@@ -8,7 +11,7 @@ export async function getStaticPaths() {
 }
 
 const { chapter } = Astro.props;
-const { Content } = await render(chapter);
+const { Content, headings } = await render(chapter);
 const d = chapter.data;
 const chapters = (await getCollection('manual', ({ data }) => !data.draft)).sort((a, b) => a.data.chapter - b.data.chapter);
 const position = chapters.findIndex((item) => item.id === chapter.id);
@@ -18,29 +21,26 @@ const hasBody = chapter.body ? chapter.body.replace(/<!--[\s\S]*?-->/g, '').trim
 ---
 
 <Base title={`${d.title} — Field Manual — AgentRiders`} description={d.description}>
-  <section class="section section--ink page-hero">
-    <div class="container">
-      <p class="eyebrow">Chapter {String(d.chapter).padStart(2, '0')}</p>
-      <h1>{d.title}</h1>
-      <p class="lead">{d.description}</p>
-      <p class="page-hero__meta">Field Manual · updated {d.updated.toISOString().slice(0, 10)}</p>
-    </div>
-  </section>
+  <PageHero eyebrow={`Chapter ${String(d.chapter).padStart(2, '0')} / The Field Manual`} title={d.title.split(':')[0]} description={d.description} art="book" compact><p class="page-hero__meta">{hasBody ? `Updated ${d.updated.toISOString().slice(0,10)}` : "CHAPTER IN PROGRESS"}</p></PageHero>
 
   <section class="section section--bone">
-    <div class="container stack">
+    <div class="container chapter-reading">
+      <ChapterRail current={chapter.id} headings={headings} />
+      <div class="chapter-reading__body">
+      <FieldDiagram chapter={d.chapter} />
       {hasBody ? (
         <div class="prose">
           <Content />
         </div>
       ) : (
-        <p class="empty">This chapter is being written from real flights. Subscribe to the <a href="/flight-log">Flight Log</a> to hear when it lands.</p>
+        <div class="chapter-in-progress"><p class="micro">CHAPTER IN PROGRESS</p><h2>Still in the field.</h2><p>This chapter is being written from real flights. Read the <a href="/manual/evals">Evals chapter</a> while this one takes shape, or visit the <a href="/flight-log">Flight Log</a> for newsletter availability.</p></div>
       )}
       <nav class="chapter-navigation" aria-label="Chapters">
         <a href="/manual">← All chapters</a>
         {previous && <a href={`/manual/${previous.id}`}>Previous chapter</a>}
         {next && <a href={`/manual/${next.id}`}>Next: {next.data.title.split(':')[0]} →</a>}
       </nav>
+      </div>
     </div>
   </section>
 </Base>

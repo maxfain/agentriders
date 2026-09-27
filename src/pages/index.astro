@@ -7,6 +7,7 @@ import Artwork from '../components/Artwork.astro';
 import Icon from '../components/Icon.astro';
 import Arrow from '../components/Arrow.astro';
 import Preflight from '../components/Preflight.astro';
+import FlightAtlas from '../components/FlightAtlas.astro';
 const published = (await getCollection('logs', ({ data }) => !data.draft))
   .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf()).slice(0, 3);
 const ranks = [
@@ -21,9 +22,12 @@ const examples = [
 ];
 ---
 <Base title="AgentRiders — The guild for people who run AI agents" description="AgentRiders is where people who run AI agents on real work learn to hold the reins, log their flights, and prove they can ride. The agents are the easy part.">
-  <section class="cinema-hero section--ink" aria-labelledby="hero-title">
-    <Artwork name="flight" class="cinema-hero__art" eager alt="A rider holds the reins of a copper dragon soaring above a misty mountain range." />
+  <section class="cinema-hero section--ink" aria-labelledby="hero-title" data-scene>
+    <Artwork name="flight" class="cinema-hero__art scene-art" eager alt="A rider holds the reins of a copper dragon soaring above a misty mountain range." />
     <div class="cinema-hero__shade" aria-hidden="true"></div>
+    <div class="hero-atmosphere" aria-hidden="true"></div>
+    <canvas class="ember-field" aria-hidden="true"></canvas>
+    <svg class="hero-flight-line" viewBox="0 0 500 540" fill="none" aria-hidden="true"><path d="M50 480C-60 320 360 380 415 170S410 10 475 45" stroke="currentColor"/><circle cx="50" cy="480" r="5"/><text x="65" y="484">FIRST FLIGHT</text><circle cx="475" cy="45" r="4"/></svg>
     <div class="container cinema-hero__content">
       <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> The guild for people who run agents</p>
       <h1 id="hero-title">The agents<br />are the<br /><em>easy part.</em></h1>
@@ -53,8 +57,8 @@ const examples = [
     <div class="container">
       <div class="section-index"><span class="micro">01 / A powerful partnership</span><span class="micro">THE RIDER MAKES THE DIFFERENCE</span></div>
       <div class="bond-layout">
-        <div class="bond-copy">
-          <h2 id="dragons-title">Agents are<br /><em>dragons.</em></h2>
+        <div class="bond-copy" data-reveal>
+          <h2 id="dragons-title">Agents are <br /><em>dragons.</em></h2>
           <p class="bond-intro">Powerful. Willful.<br />Worth it, if you can ride.</p>
           <p>They have their own ideas about what you meant. The difference between a burn and a win is the rider: the scope, the judgment, and knowing when to pull the reins.</p>
           <a class="text-link" href="/about">Why we're here <Arrow /></a>
@@ -64,7 +68,7 @@ const examples = [
           <figcaption class="micro">FIG. 02 — TRUST IS BUILT, ONE FLIGHT AT A TIME.</figcaption>
         </figure>
       </div>
-      <div class="principle-row">
+      <div class="principle-row" data-reveal>
         <div><span class="micro">01 — POWER</span><h3>Extraordinary capability.</h3><p>An agent can take on serious work. Your job is to give that power a useful direction.</p></div>
         <div><span class="micro">02 — JUDGMENT</span><h3>A mind of its own.</h3><p>It will do what you didn't say. Clear scopes and review loops make the difference.</p></div>
         <div><span class="micro">03 — TRUST</span><h3>Earned, every flight.</h3><p>Start small. Review what happened. Give it more room when the record supports it.</p></div>
@@ -75,7 +79,7 @@ const examples = [
   <section class="section section--bone guild-world" aria-labelledby="parts-title">
     <div class="container">
       <div class="section-heading"><div><p class="micro section-label">02 / Your place in the guild</p><h2 id="parts-title">Four parts.<br /><em>One guild.</em></h2></div><p>Learn the craft. Leave a record.<br />Find your people.<br /><span>Reading is free. Ranks are earned.</span></p></div>
-      <div class="guild-grid">
+      <div class="guild-grid" data-reveal>
         <article class="world-card world-card--manual">
           <div class="world-card__top"><Icon name="skills" size={28} /><span class="micro">THE FIELD MANUAL</span><span class="micro">01</span></div>
           <h3>Learn to<br />hold the reins.</h3>
@@ -107,12 +111,12 @@ const examples = [
     </div>
   </section>
 
-  <section class="section section--ink rank-section" aria-labelledby="ranks-title">
+  <section class="section section--ink rank-section" aria-labelledby="ranks-title" data-scene>
     <div class="container">
       <div class="section-heading section-heading--center"><p class="micro section-label">03 / The rider's path</p><h2 id="ranks-title">Ranks are earned.<br /><em>Never bought.</em></h2><p>Three ranks. Logged flights. Vouches from other riders.<br />Nobody skips a rung.</p></div>
       <ol class="rank-path">
         {ranks.map((rank) => (
-          <li class={`rank-card rank-card--${rank.id}`}>
+          <li class={`rank-card rank-card--${rank.id}`} data-tilt>
             <div class="rank-card__meta micro"><span>RANK {rank.number}</span><span>{rank.label}</span></div>
             <div class="rank-card__badge"><img src={`/badges/${rank.id}.svg`} width="160" height="160" alt="" loading="lazy" /></div>
             <h3>{rank.name}</h3><p class="rank-card__req">{rank.req}</p><p class="rank-card__body">{rank.body}</p>
@@ -122,6 +126,8 @@ const examples = [
       <div class="rank-section__foot"><p><Icon name="reputation" size={20} /> Every flight is public. Every vouch has a name on it.</p><a class="text-link" href="/logs/template">Start with one flight <Arrow /></a></div>
     </div>
   </section>
+
+  <FlightAtlas />
 
   <section class="section section--bone logs" aria-labelledby="logs-title">
     <div class="container">
@@ -145,6 +151,11 @@ const examples = [
   </section>
 
   <section class="section section--ink field-rules" aria-labelledby="rules-title">
+    <div class="dragon-encounter" data-scene>
+      <Artwork name="eye" class="dragon-encounter__art scene-art" alt="An immense amber dragon eye with faint reflections of the OpenAI, Anthropic, Gemini, and DeepSeek marks in its firelit iris." />
+      <div class="container" data-reveal><p class="micro">EXTRAORDINARY POWER. HUMAN JUDGMENT.</p><h2>Power is <br />a given. <br /><em>Control <br />is a craft.</em></h2><p class="dragon-encounter__copy">The dragon brings the fire.<br />You decide what it builds.</p></div>
+      <div class="encounter-caption micro" aria-hidden="true"><span>FIG. 03 / THE EYE OF THE DRAGON</span><span>A MIND OF ITS OWN.</span></div>
+    </div>
     <div class="container">
       <div class="section-index"><span class="micro">05 / A code to fly by</span><Icon name="compass" /></div>
       <div class="field-rules__grid">
@@ -155,7 +166,7 @@ const examples = [
           <li><h3>Never blame the dragon.</h3><p>If it burned something, the rein was too loose.</p></li>
           <li><h3>Vouch honestly.</h3><p>Your name is on every rider you vouch for.</p></li>
         </ol></div>
-        <div class="field-rules__aside"><Preflight /><p class="field-note">Nobody controls a dragon.<br /><em>Riders learn where the reins are.</em></p></div>
+        <div class="field-rules__aside" data-scene><Preflight /><p class="field-note">Nobody controls a dragon.<br /><em>Riders learn where the reins are.</em></p></div>
       </div>
     </div>
   </section>

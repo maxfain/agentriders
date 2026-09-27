@@ -1,27 +1,28 @@
 ---
+import PageHero from '../components/PageHero.astro';
+import PageCoda from '../components/PageCoda.astro';
 import Base from '../layouts/Base.astro';
 import Signup from '../components/Signup.astro';
 ---
 
 <Base
   title="Riders — AgentRiders"
-  description="Search riders by rank and specialty. Every profile is a public track record, vouched by other riders."
+  description="Three ranks earned through logged flights and vouches. Meet the craft behind the AgentRiders directory, opening soon."
 >
-  <section class="section section--ink page-hero" aria-labelledby="riders-title">
-    <div class="container">
-      <p class="eyebrow">Riders</p>
-      <h1 id="riders-title">The people holding the reins.</h1>
-      <p class="lead">Search riders by rank and specialty. Every profile is a public track record, vouched by other riders.</p>
-    </div>
-  </section>
+  <PageHero eyebrow="The Riders" title="The people holding the reins." description="A public track record. Logged flights. Vouches from people who have seen you ride." art="ranks" id="riders-title"></PageHero>
 
   <section class="section section--bone" aria-label="Opening soon">
     <div class="container stack">
-      <div class="inner-ranks" aria-label="Rider ranks">
-        {['Fledgling', 'Rider', 'Wingleader'].map((rank) => <figure><img src={`/badges/${rank.toLowerCase()}.svg`} alt="" width="160" height="160" /><figcaption>{rank}</figcaption></figure>)}
+      <div class="inner-section-title"><h2>Proof you can ride.</h2><p class="micro">THREE RANKS / EARNED THROUGH PRACTICE</p></div>
+      <div class="rider-gallery" data-scene>
+        {[
+          {name:'Fledgling',id:'fledgling',req:'Joined · 1 flight logged',body:'Find your footing. Read, log, ask, and begin.'},
+          {name:'Rider',id:'rider',req:'20 flights · 2 Rider vouches',body:'A record of real work. The trust to fly on your own.'},
+          {name:'Wingleader',id:'wingleader',req:'100 flights · runs a wing · 5 vouches',body:'Lead a formation. Help other riders earn their wings.'},
+        ].map((rank,i)=><article class="rider-gallery__card" data-reveal><p class="micro">RANK 0{i+1}</p><img src={`/badges/${rank.id}.svg`} alt="" width="160" height="160" loading="lazy"/><h2>{rank.name}</h2><p class="micro">{rank.req}</p><p>{rank.body}</p></article>)}
       </div>
-      <p class="lead">Opening when 20 flights are logged. Subscribe to the Flight Log to be told when.</p>
-      <Signup id="email-riders" />
+      <div class="opening-note"><div><p class="micro">THE RIDER DIRECTORY / OPENING SOON</p><h2>A reputation has to start somewhere.</h2><p class="lead">The directory opens when 20 flights are logged. Every profile will start with a record of the work.</p></div><Signup id="email-riders" /></div>
     </div>
   </section>
+  <PageCoda />
 </Base>

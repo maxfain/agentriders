@@ -1,27 +1,20 @@
 ---
+import PageHero from '../components/PageHero.astro';
 import Base from '../layouts/Base.astro';
 import Signup from '../components/Signup.astro';
+import Mark from '../components/Mark.astro';
 ---
 
 <Base
   title="Flight Log — AgentRiders"
   description="One field-tested lesson a week, from riders who left the numbers in. No vendor demos."
 >
-  <section class="section section--ink page-hero" aria-labelledby="fl-title">
-    <div class="container">
-      <p class="eyebrow">The weekly newsletter</p>
-      <h1 id="fl-title">Flight Log.</h1>
-      <p class="lead">One field-tested lesson a week, from riders who left the numbers in.</p>
-    </div>
-  </section>
+  <PageHero eyebrow="The weekly newsletter" title="A little wiser. Every flight." description="One field-tested lesson a week, from riders who left the numbers in." art="dispatch" id="fl-title"></PageHero>
 
   <section class="section section--bone" aria-label="Subscribe">
-    <div class="container stack">
-      <Signup id="email-flight-log" />
-      <div class="stack__head">
-        <h2>Archive</h2>
-        <p class="empty">First issue lands when the first twenty flights are logged.</p>
-      </div>
+    <div class="container dispatch-layout">
+      <div class="dispatch-letter"><div class="dispatch-letter__head"><Mark/><span class="micro">THE WEEKLY FLIGHT LOG</span></div><h2>A letter<br />from the field.</h2><p>One useful lesson. The work behind it. The numbers left in. Written for people who actually hold the reins.</p><Signup id="email-flight-log" /></div>
+      <div class="dispatch-archive"><p class="micro">THE RECORD SO FAR</p><h2>Past dispatches.</h2><p class="empty">The first issue lands when the first twenty flights are logged. Until then, the Field Manual is open.</p><a class="text-link" href="/manual">Explore the Manual ↗</a></div>
     </div>
   </section>
 </Base>

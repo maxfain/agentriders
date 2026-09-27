@@ -1,0 +1,11 @@
+---
+import { getCollection } from 'astro:content';
+const { current, headings = [] } = Astro.props;
+const chapters=(await getCollection('manual',({data})=>!data.draft)).sort((a,b)=>a.data.chapter-b.data.chapter);
+---
+<aside class="chapter-rail">
+  <a class="chapter-rail__home micro" href="/manual">← THE FIELD MANUAL</a>
+  {headings.length > 0 && <nav class="chapter-rail__onpage" aria-label="On this page"><p class="micro">IN THIS CHAPTER</p>{headings.filter((h)=>h.depth===2).map((heading)=><a href={`#${heading.slug}`}>{heading.text}</a>)}</nav>}
+  <nav class="chapter-rail__chapters" aria-label="Field Manual chapters"><p class="micro">THE CHAPTERS</p>{chapters.map((ch)=><a href={`/manual/${ch.id}`} aria-current={ch.id===current?'page':undefined}><span class="micro">{String(ch.data.chapter).padStart(2,'0')}</span><span>{ch.data.title.split(':')[0]}</span></a>)}</nav>
+  <p class="chapter-rail__note">Reading is free.<br />The craft is earned.</p>
+</aside>

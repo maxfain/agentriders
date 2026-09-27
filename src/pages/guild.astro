@@ -1,41 +1,41 @@
 ---
+import PageHero from '../components/PageHero.astro';
+import PageCoda from '../components/PageCoda.astro';
 import Base from '../layouts/Base.astro';
 import Signup from '../components/Signup.astro';
+import Icon from '../components/Icon.astro';
 ---
 
 <Base
   title="Join the Guild — AgentRiders"
   description="Reading is free. The Guild is where riders compare notes, run flights together, and get vouched."
 >
-  <section class="section section--ink page-hero" aria-labelledby="guild-title">
-    <div class="container">
-      <p class="eyebrow">The Guild</p>
-      <h1 id="guild-title">Join the Guild.</h1>
-      <p class="lead">Reading is free. The Guild is where riders compare notes, run flights together, and get vouched.</p>
-    </div>
-  </section>
+  <PageHero eyebrow="The Guild" title="Find your wing." description="Reading is free. The Guild is where riders compare notes, run flights together, and get vouched." art="horizon" id="guild-title"></PageHero>
 
   <section class="section section--bone" aria-label="Membership tiers">
     <div class="container stack">
       <p class="micro">PLANNED MEMBERSHIPS — ENROLLMENT IS NOT OPEN YET.</p>
-      <div class="guild-plans">
-        <article class="guild-plan"><p class="micro">01 / Start exploring</p><h2>Reader</h2><p class="guild-plan__price">Free</p><p class="guild-plan__year">A place to begin.</p><ul><li>The Field Manual</li><li>Flight Logs and the newsletter</li><li>One logged flight</li></ul></article>
-        <article class="guild-plan"><p class="micro">02 / Keep flying</p><h2>Rider</h2><p class="guild-plan__price">$15 <small>/ month</small></p><p class="guild-plan__year">or $120 per year</p><ul><li>Unlimited logging and a public profile</li><li>The Roost community</li><li>Monthly live flights</li><li>Vouching for other riders</li></ul></article>
-        <article class="guild-plan"><p class="micro">03 / Fly together</p><h2>Wing</h2><p class="guild-plan__price">$49 <small>/ seat / month</small></p><p class="guild-plan__year">For a team of riders.</p><ul><li>Everything in Rider</li><li>Shared bridles and private wing logs</li><li>Wingleader review</li></ul></article>
+      <div class="guild-plans" data-reveal>
+        <article class="guild-plan"><p class="micro">01 / Start exploring</p><div class="guild-plan__emblem"><Icon name="skills" size={66}/></div><h2>Reader</h2><p class="guild-plan__price">Free</p><p class="guild-plan__year">A place to begin.</p><ul><li>The Field Manual</li><li>Flight Logs and the newsletter</li><li>One logged flight</li></ul></article>
+        <article class="guild-plan"><p class="micro">02 / Keep flying</p><div class="guild-plan__emblem"><Icon name="rider" size={66}/></div><h2>Rider</h2><p class="guild-plan__price">$15 <small>/ month</small></p><p class="guild-plan__year">or $120 per year</p><ul><li>Unlimited logging and a public profile</li><li>The Roost community</li><li>Monthly live flights</li><li>Vouching for other riders</li></ul></article>
+        <article class="guild-plan"><p class="micro">03 / Fly together</p><div class="guild-plan__emblem"><Icon name="wingleader" size={66}/></div><h2>Wing</h2><p class="guild-plan__price">$49 <small>/ seat / month</small></p><p class="guild-plan__year">For a team of riders.</p><ul><li>Everything in Rider</li><li>Shared bridles and private wing logs</li><li>Wingleader review</li></ul></article>
       </div>
       <p class="stack__note">Membership supports the Guild. Rank is earned through flights and vouches.</p>
 
-      <div class="faq" aria-label="Questions">
+      <div class="guild-faq"><h2>A few things<br />before <em>takeoff.</em></h2><div class="faq" aria-label="Questions">
         <details><summary>Do I need to pay to log flights?</summary><p>No. Reader is free and includes one logged flight. Unlimited logging comes with Rider.</p></details>
         <details><summary>Can a rank be bought?</summary><p>No. Ranks come from logged flights and vouches from other riders. There is no price on any rung.</p></details>
         <details><summary>What if my agent burned something big?</summary><p>Log it. A burn in your record reads better than a gap, and the Burns chapter of the Manual covers the first ten minutes. Never blame the dragon.</p></details>
         <details><summary>Do you take vendor sponsorships?</summary><p>Yes, labeled, and never in the Manual.</p></details>
       </div>
 
-      <div class="stack__head">
+      </div>
+
+      <div class="opening-note">
         <h2>Be first in when the Guild opens.</h2>
         <Signup id="email-guild" />
       </div>
     </div>
   </section>
+  <PageCoda title="Ranks are earned. Never bought." description="Start with the craft. The first chapter is free." />
 </Base>

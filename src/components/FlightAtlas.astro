@@ -1,0 +1,45 @@
+---
+import Artwork from './Artwork.astro';
+import Arrow from './Arrow.astro';
+const stages = [
+  { id: 'prepare', number: '01', name: 'Set the course', label: 'Before the flight', title: 'Give the power a direction.', body: 'Name the outcome. Draw the boundary. Set the budget and the point where a human takes over.', link: '/manual/before-the-first-flight', cta: 'Prepare your first flight' },
+  { id: 'review', number: '02', name: 'Read the signals', label: 'During the flight', title: 'Stay close to the work.', body: 'Look at the output, not just the activity. Review at the boundaries. Pull the reins when the work drifts.', link: '/manual/reins', cta: 'Learn to set the reins' },
+  { id: 'learn', number: '03', name: 'Bring it home', label: 'After the flight', title: 'Turn a run into a lesson.', body: 'Record the outcome, the cost, and what burned. The next flight gets better because this one left a record.', link: '/logs/template', cta: 'Open the flight-log template' },
+];
+---
+<section class="flight-atlas section--ink" aria-labelledby="atlas-title" data-scene>
+  <Artwork name="horizon" class="flight-atlas__art scene-art" alt="Three dragon riders fly above a sea of clouds toward a luminous eclipse and towering mountain spires." />
+  <div class="flight-atlas__shade" aria-hidden="true"></div>
+  <div class="container flight-atlas__content">
+    <header class="atlas-heading" data-reveal>
+      <div><p class="micro">A FIELD GUIDE TO THE UNKNOWN</p><h2 id="atlas-title">Great flights<br />begin with <em>good reins.</em></h2></div>
+      <p>A little structure.<br />An extraordinary amount of possibility.</p>
+    </header>
+    <div class="atlas-console">
+      <fieldset class="atlas-selector">
+        <legend class="sr-only">Explore the three flight stages</legend>
+        {stages.map((stage, i) => <label><input type="radio" name="flight-stage" value={stage.id} checked={i === 0} /><span class="atlas-selector__number">{stage.number}</span><span>{stage.name}</span><span class="atlas-selector__arrow" aria-hidden="true">↗</span></label>)}
+      </fieldset>
+      <div class="atlas-map" aria-hidden="true">
+        <div class="atlas-map__caption micro"><span>THE FLIGHT PATH</span><span>ILLUSTRATIVE FIELD STUDY</span></div>
+        <svg class="atlas-route" viewBox="0 0 960 440" fill="none">
+          <defs><linearGradient id="route-light"><stop stop-color="#E4572E" /><stop offset="1" stop-color="#F9D9A8" /></linearGradient></defs>
+          <g class="atlas-contours" stroke="currentColor" opacity=".22">
+            <ellipse cx="490" cy="245" rx="370" ry="146"/><ellipse cx="490" cy="245" rx="300" ry="114"/><ellipse cx="490" cy="245" rx="230" ry="82"/>
+            <path d="M70 245H910M490 62V419M140 335L800 135M140 135L800 335" stroke-dasharray="2 9"/>
+          </g>
+          <path class="atlas-route__base" d="M140 330C210 330 250 150 480 170S680 310 800 250" />
+          <path class="atlas-route__light" pathLength="100" d="M140 330C210 330 250 150 480 170S680 310 800 250" />
+          <g class="atlas-point atlas-point--1" transform="translate(140 330)"><circle class="atlas-point__pulse" r="28"/><circle r="18"/><circle class="atlas-point__core" r="5"/><text y="47">DEPARTURE</text></g>
+          <g class="atlas-point atlas-point--2" transform="translate(480 170)"><circle class="atlas-point__pulse" r="28"/><circle r="18"/><circle class="atlas-point__core" r="5"/><text y="-38">REVIEW</text></g>
+          <g class="atlas-point atlas-point--3" transform="translate(800 250)"><circle class="atlas-point__pulse" r="28"/><circle r="18"/><circle class="atlas-point__core" r="5"/><text y="47">RETURN</text></g>
+          <g class="atlas-flight-marker"><path d="M0-12L7 8L0 4L-7 8Z" fill="#F2EBDD"/><circle r="24" stroke="#F2EBDD" stroke-dasharray="2 7" /></g>
+        </svg>
+        <span class="atlas-map__axis micro">SCOPE → JUDGMENT → EVIDENCE</span>
+      </div>
+      <div class="atlas-briefing">
+        {stages.map((stage) => <article class={`atlas-panel atlas-panel--${stage.id}`}><span class="micro">{stage.number} / {stage.label}</span><h3>{stage.title}</h3><p>{stage.body}</p><a class="text-link" href={stage.link}>{stage.cta}<Arrow /></a></article>)}
+      </div>
+    </div>
+  </div>
+</section>

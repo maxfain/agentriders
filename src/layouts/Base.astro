@@ -5,6 +5,9 @@ import '@fontsource-variable/instrument-sans';
 import '@fontsource-variable/jetbrains-mono';
 import '../styles/global.css';
 import '../styles/experience.css';
+import '../styles/cinematic.css';
+import '../styles/inner-world.css';
+import CinematicMotion from '../components/CinematicMotion.astro';
 import frauncesWoff2 from '@fontsource-variable/fraunces/files/fraunces-latin-opsz-normal.woff2?url';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
@@ -44,6 +47,7 @@ const ogImage = new URL('/og.png', Astro.site);
 <a class="skip-link" href="#main-content">Skip to content</a>
 
 <Header />
+<CinematicMotion />
 
 <main id="main-content" tabindex="-1">
 <slot />

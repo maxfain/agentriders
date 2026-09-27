@@ -1,6 +1,9 @@
 ---
 import { getCollection } from 'astro:content';
+import PageHero from '../../components/PageHero.astro';
+import PageCoda from '../../components/PageCoda.astro';
 import Base from '../../layouts/Base.astro';
+import Icon from '../../components/Icon.astro';
 
 const chapters = (await getCollection('manual', ({ data }) => !data.draft)).sort(
   (a, b) => a.data.chapter - b.data.chapter,
@@ -12,16 +15,11 @@ const fmt = (d: Date) => d.toISOString().slice(0, 10);
   title="Field Manual — AgentRiders"
   description="Playbooks written by riders and tested on real work: scope, budgets, kill switches, review loops and burns."
 >
-  <section class="section section--ink page-hero" aria-labelledby="manual-title">
-    <div class="container">
-      <p class="eyebrow">Field Manual</p>
-      <h1 id="manual-title">Everything we know about holding the reins.</h1>
-      <p class="lead">Playbooks written by riders and tested on real work. Start at chapter one if you are new; skip to Burns if you already have scars.</p>
-    </div>
-  </section>
+  <PageHero eyebrow="The Field Manual" title="Everything we know about holding the reins." description="Playbooks written by riders and tested on real work. Start at chapter one if you are new; skip to Burns if you already have scars." art="book" id="manual-title"></PageHero>
 
   <section class="section section--bone" aria-label="Chapters">
-    <div class="container">
+    <div class="container manual-library">
+      <aside class="manual-intro"><Icon name="skills" size={40}/><p class="micro">THE CRAFT OF RIDING</p><h2>Read it.<br />Try it.<br /><em>Log it.</em></h2><p>A field guide grows through practice. Some chapters are still taking shape; each one carries its current status.</p><a class="text-link" href="/logs/template">Keep a flight record ↗</a></aside>
       <ol class="chapters">
         {chapters.map((ch) => (
           <li>
@@ -39,4 +37,5 @@ const fmt = (d: Date) => d.toISOString().slice(0, 10);
       </ol>
     </div>
   </section>
+  <PageCoda title="Put the craft into practice." description="One task. One outcome. One honest record." href="/logs/template" label="Log your first flight" />
 </Base>

@@ -1,17 +1,8 @@
 ---
+import PageHero from '../components/PageHero.astro';
 import Base from '../layouts/Base.astro';
 ---
 
 <Base title="404 — AgentRiders" description="This page doesn't exist, or hasn't taken off yet.">
-  <section class="section section--ink page-hero" aria-labelledby="nf-title">
-    <div class="container">
-      <p class="eyebrow">404</p>
-      <h1 id="nf-title">Nothing lands here.</h1>
-      <p class="lead">This page doesn't exist, or hasn't taken off yet.</p>
-      <div class="page-hero__actions">
-        <a class="btn btn--ember" href="/">Home</a>
-        <a class="btn btn--outline" href="/logs">Read the logs →</a>
-      </div>
-    </div>
-  </section>
+  <PageHero eyebrow="404 / OFF THE CHART" title="Nothing lands here." description="This page doesn’t exist, or hasn’t taken off yet." art="horizon" id="nf-title"><div class="page-hero__actions"><a class="btn btn--ember" href="/">Return home ↗</a><a class="btn btn--outline" href="/manual">Open the Manual</a></div></PageHero>
 </Base>
