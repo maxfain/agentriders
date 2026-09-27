@@ -40,3 +40,15 @@ Existing unpublished example logs remain drafts. The homepage examples are expli
 ## Review
 
 Changes are intended for a review branch and Cloudflare preview before production merge. Build with `npm ci && npm run build`. The generated `dist/` includes all static routes and machine-readable feeds.
+
+## Cinematic extension
+
+The owner requested a further “shock and awe” pass, including subtle frontier-model reflections in the dragon eye. The new homepage adds:
+
+- `src/components/FlightAtlas.astro`: three native radio controls reveal a preparation, review, or logging briefing. CSS traces the illustrated route. This is a field guide, not a live mission dashboard.
+- `src/components/CinematicMotion.astro` and `src/scripts/cinematic.ts`: small dependency-free controller for pointer/scroll camera depth, 22–48 canvas embers, viewport-triggered arrivals, rank-card lighting, a reading line, and a persistent motion toggle.
+- `src/styles/cinematic.css`: scene treatments, etched instruments, authored SVG routes, responsive compositions, and motion policies. Loaded on the homepage only.
+- A full-bleed dragon-eye encounter and three concentric pre-flight rings tied to the real checkboxes. The instrument is a local self-check, not an agent connection.
+- Responsive `dragon-eye-{800,1200,1672}.webp` and `beyond-the-clouds-{800,1200,1672}.webp`. Both are lazy loaded. No third-party image requests.
+
+All headings and controls remain HTML. CSS-only flight-stage selection works without JavaScript. Scene motion defaults off for reduced-motion and data-saving preferences, can be paused globally, and stops when scenes leave the viewport or the page is hidden. The particle loop is capped near 30 fps and canvas pixel density at 1.5. No content starts hidden waiting for JavaScript. Phone layouts give the art its own space above the copy; the route controls remain available by touch and keyboard.
