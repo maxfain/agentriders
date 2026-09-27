@@ -1,0 +1,30 @@
+---
+interface Props { id: string; name: string; number: number; image: string; alt: string; motto: string; requirement: string; tell: string; gear: string[]; }
+const { id, name, number, image, alt, motto, requirement, tell, gear } = Astro.props;
+---
+<article class={`rider-portrait rider-portrait--${id}`} data-rider-card data-name={name} aria-labelledby={`rank-${id}`}>
+  <div class="rider-portrait__stage">
+    <div class="rider-portrait__turn">
+      <div class="rider-portrait__front" aria-hidden="true">
+        <div class="rider-portrait__edition micro"><span>THE RIDER COLLECTION</span><span>0{number} / 03</span></div>
+        <div class="rider-portrait__sigil"><span></span><span></span><img src={`/badges/${id}.svg`} alt="" width="170" height="170" loading="lazy" /></div>
+        <p class="rider-portrait__rank">{name}</p>
+        <p class="rider-portrait__motto">{motto}</p>
+        <div class="rider-portrait__invitation micro"><span>MEET THE {name.toUpperCase()}</span><span class="rider-turn-icon">↻</span></div>
+        <span class="rider-portrait__edge" aria-hidden="true"></span>
+      </div>
+      <div class="rider-portrait__back" id={`portrait-${id}`}>
+        <img class="rider-portrait__image" src={`/images/${image}-800.webp`} srcset={`/images/${image}-480.webp 480w, /images/${image}-800.webp 800w`} sizes="(max-width: 720px) 90vw, (max-width: 1100px) 44vw, 30vw" width="800" height="1200" loading="lazy" decoding="async" alt={alt} />
+        <div class="rider-portrait__back-top micro" aria-hidden="true"><span>RANK 0{number}</span><span>THE {name.toUpperCase()}</span></div>
+        <div class="rider-portrait__back-bottom micro" aria-hidden="true"><span>EXPERIENCE LEAVES A MARK.</span><span>↻</span></div>
+      </div>
+    </div>
+    <button class="rider-portrait__toggle" type="button" aria-label={`Reveal the ${name} portrait`} aria-controls={`portrait-${id}`} aria-pressed="false" hidden><span class="sr-only">Turn the card</span></button>
+  </div>
+  <div class="rider-portrait__dossier">
+    <div class="rider-portrait__title"><span class="micro" aria-hidden="true">0{number}</span><h3 id={`rank-${id}`}>{name}</h3></div>
+    <p class="rider-portrait__requirement micro">{requirement}</p>
+    <p class="rider-portrait__tell">{tell}</p>
+    <ul class="rider-portrait__gear" aria-label={`${name} visual details`}>{gear.map(item=><li>{item}</li>)}</ul>
+  </div>
+</article>
