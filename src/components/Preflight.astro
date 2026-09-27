@@ -3,6 +3,17 @@ import Icon from './Icon.astro';
 ---
 <aside class="preflight" aria-labelledby="preflight-title">
   <div class="preflight__top"><span class="micro">A habit before every flight</span><Icon name="compass" /></div>
+  <div class="reins-instrument" aria-hidden="true">
+    <svg viewBox="0 0 260 260" fill="none">
+      <defs><linearGradient id="reins-copper" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#F9D9A8"/><stop offset="1" stop-color="#E4572E"/></linearGradient></defs>
+      <circle class="instrument-ticks" cx="130" cy="130" r="118" pathLength="120" />
+      <circle class="instrument-orbit" cx="130" cy="130" r="110" stroke-dasharray="70 280 3 338" />
+      {[96, 81, 66].map((r, i) => <><circle class="reins-track" cx="130" cy="130" r={r}/><circle class="reins-ring" data-ring={i} cx="130" cy="130" r={r} pathLength="100" /></>)}
+      <path class="instrument-cross" d="M130 4V15M130 245V256M4 130H15M245 130H256"/>
+    </svg>
+    <div class="reins-instrument__readout"><strong>0<span>/3</span></strong><span class="micro">REINS SET</span></div>
+    <span class="reins-instrument__legend micro">SCOPE · BUDGET · STOP</span>
+  </div>
   <h3 id="preflight-title">Check your reins.</h3>
   <p>Three things to set before an agent touches real work.</p>
   <fieldset>
@@ -22,6 +33,10 @@ import Icon from './Icon.astro';
     const segments = [...card.querySelectorAll<HTMLElement>('.preflight__progress span')];
     const update = () => {
       const count = inputs.filter((input) => input.checked).length;
+      card.dataset.checked = String(count);
+      card.querySelectorAll<SVGCircleElement>('[data-ring]').forEach((ring, i) => ring.classList.toggle('is-set', inputs[i].checked));
+      const readout = card.querySelector<HTMLElement>('.reins-instrument__readout strong');
+      if (readout) readout.innerHTML = `${count}<span>/3</span>`;
       segments.forEach((segment, i) => segment.classList.toggle('is-set', i < count));
       if (status) status.textContent = count === 3 ? 'Reins checked. Start small. Review the result.' : `${count} of 3 reins checked. Take a moment to set the rest.`;
     };
