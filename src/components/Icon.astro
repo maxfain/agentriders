@@ -1,0 +1,9 @@
+---
+interface Props { name: string; size?: number; class?: string }
+const { name, size = 24, class: className = '' } = Astro.props;
+const icons = import.meta.glob<string>('/public/icons/*.svg', { query: '?raw', import: 'default', eager: true });
+const source = icons[`/public/icons/${name}.svg`];
+const body = source?.replace(/<svg[^>]*>/, '').replace(/<\/svg>/, '').replace(/<style>[\s\S]*?<\/style>/, '') ?? '';
+---
+<svg class:list={['icon', className]} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" set:html={body} />
+<style>.icon { flex-shrink: 0; } .icon :global(.ember) { stroke: var(--ember); }</style>

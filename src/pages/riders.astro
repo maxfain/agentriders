@@ -17,6 +17,9 @@ import Signup from '../components/Signup.astro';
 
   <section class="section section--bone" aria-label="Opening soon">
     <div class="container stack">
+      <div class="inner-ranks" aria-label="Rider ranks">
+        {['Fledgling', 'Rider', 'Wingleader'].map((rank) => <figure><img src={`/badges/${rank.toLowerCase()}.svg`} alt="" width="160" height="160" /><figcaption>{rank}</figcaption></figure>)}
+      </div>
       <p class="lead">Opening when 20 flights are logged. Subscribe to the Flight Log to be told when.</p>
       <Signup id="email-riders" />
     </div>
