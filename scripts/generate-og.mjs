@@ -1,6 +1,6 @@
 // Generates public/og.png (1200x630) in brand colors:
-// Fraunces headline on ink, the mark, mono footer line.
-// Run `npm run og` after changing it; the PNG is committed.
+// Custom first-flight artwork, Fraunces headline, and the existing eye mark.
+// Generated during the build; the PNG is not committed.
 import { readFile, writeFile } from 'node:fs/promises';
 import satori from 'satori';
 import { Resvg } from '@resvg/resvg-js';
@@ -8,7 +8,9 @@ import { Resvg } from '@resvg/resvg-js';
 const ink = '#16130F';
 const bone = '#F2EBDD';
 const ember = '#E4572E';
-const caption = '#8F8778';
+const caption = '#C9BAA7';
+const artwork = await readFile(new URL('../public/images/first-flight-og.jpg', import.meta.url));
+const artUri = `data:image/jpeg;base64,${artwork.toString('base64')}`;
 
 const fraunces = await readFile(
   new URL('../node_modules/@fontsource/fraunces/files/fraunces-latin-600-normal.woff', import.meta.url),
@@ -31,27 +33,31 @@ const tree = el(
     flexDirection: 'column',
     justifyContent: 'space-between',
     backgroundColor: ink,
-    padding: '72px 80px',
+    padding: '54px 64px',
+    position: 'relative',
   },
   [
-    el('div', { display: 'flex', alignItems: 'center', gap: '20px' }, [
+    { type: 'img', props: { src: artUri, width: 1200, height: 630, style: { position: 'absolute', left: 0, top: 0 } } },
+    el('div', { display: 'flex', position: 'absolute', left: 0, top: 0, width: '620px', height: '630px', backgroundImage: 'linear-gradient(to right, rgba(22,19,15,0.9), rgba(22,19,15,0))' }, []),
+    el('div', { display: 'flex', alignItems: 'center', gap: '14px' }, [
       { type: 'img', props: { src: markUri, width: 52, height: 52 } },
-      el('div', { display: 'flex', fontFamily: 'Fraunces', fontSize: '40px', color: bone, letterSpacing: '-0.01em' }, 'AgentRiders'),
+      el('div', { display: 'flex', fontFamily: 'Fraunces', fontSize: '32px', color: bone, letterSpacing: '-0.01em' }, 'AgentRiders'),
     ]),
     el(
       'div',
       {
         display: 'flex',
         fontFamily: 'Fraunces',
-        fontSize: '104px',
+        fontSize: '85px',
+        position: 'relative',
         lineHeight: 1.02,
         letterSpacing: '-0.025em',
         color: bone,
-        maxWidth: '900px',
+        maxWidth: '510px',
       },
       'The agents are the easy part.',
     ),
-    el('div', { display: 'flex', justifyContent: 'space-between', fontFamily: 'JetBrains Mono', fontSize: '24px', color: caption }, [
+    el('div', { display: 'flex', justifyContent: 'space-between', fontFamily: 'JetBrains Mono', fontSize: '15px', color: caption }, [
       el('div', { display: 'flex' }, 'The guild for people who run agents'),
       el('div', { display: 'flex', color: ember }, 'agentriders.com'),
     ]),

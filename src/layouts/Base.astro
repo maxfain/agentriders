@@ -4,6 +4,7 @@ import '@fontsource-variable/fraunces/opsz-italic.css';
 import '@fontsource-variable/instrument-sans';
 import '@fontsource-variable/jetbrains-mono';
 import '../styles/global.css';
+import '../styles/experience.css';
 import frauncesWoff2 from '@fontsource-variable/fraunces/files/fraunces-latin-opsz-normal.woff2?url';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
@@ -23,6 +24,7 @@ const ogImage = new URL('/og.png', Astro.site);
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#16130F" />
 <title>{title}</title>
 <meta name="description" content={description} />
 <link rel="canonical" href={canonical} />
@@ -38,11 +40,12 @@ const ogImage = new URL('/og.png', Astro.site);
 <meta property="og:image:height" content="630" />
 <meta name="twitter:card" content="summary_large_image" />
 </head>
-<body>
+<body class:list={{ "is-home": Astro.url.pathname === "/", "is-inner": Astro.url.pathname !== "/" }}>
+<a class="skip-link" href="#main-content">Skip to content</a>
 
 <Header />
 
-<main>
+<main id="main-content" tabindex="-1">
 <slot />
 </main>
 

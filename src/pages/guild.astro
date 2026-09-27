@@ -17,53 +17,19 @@ import Signup from '../components/Signup.astro';
 
   <section class="section section--bone" aria-label="Membership tiers">
     <div class="container stack">
-      <div class="table-scroll">
-        <table class="tiers">
-          <caption>Planned tiers. Nothing is for sale yet — no checkout in Phase 1.</caption>
-          <thead>
-            <tr>
-              <th scope="col">Tier</th>
-              <th scope="col">Price</th>
-              <th scope="col">Includes</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Reader</td>
-              <td class="price">Free</td>
-              <td>Manual, Logs, Flight Log newsletter, one logged flight</td>
-            </tr>
-            <tr>
-              <td>Rider</td>
-              <td class="price">$15/month or $120/year</td>
-              <td>Unlimited logging, public profile, The Roost, monthly live flights, vouching</td>
-            </tr>
-            <tr>
-              <td>Wing</td>
-              <td class="price">$49/seat/month</td>
-              <td>Everything in Rider for a team, shared bridles, private wing logs, Wingleader review</td>
-            </tr>
-          </tbody>
-        </table>
+      <p class="micro">PLANNED MEMBERSHIPS — ENROLLMENT IS NOT OPEN YET.</p>
+      <div class="guild-plans">
+        <article class="guild-plan"><p class="micro">01 / Start exploring</p><h2>Reader</h2><p class="guild-plan__price">Free</p><p class="guild-plan__year">A place to begin.</p><ul><li>The Field Manual</li><li>Flight Logs and the newsletter</li><li>One logged flight</li></ul></article>
+        <article class="guild-plan"><p class="micro">02 / Keep flying</p><h2>Rider</h2><p class="guild-plan__price">$15 <small>/ month</small></p><p class="guild-plan__year">or $120 per year</p><ul><li>Unlimited logging and a public profile</li><li>The Roost community</li><li>Monthly live flights</li><li>Vouching for other riders</li></ul></article>
+        <article class="guild-plan"><p class="micro">03 / Fly together</p><h2>Wing</h2><p class="guild-plan__price">$49 <small>/ seat / month</small></p><p class="guild-plan__year">For a team of riders.</p><ul><li>Everything in Rider</li><li>Shared bridles and private wing logs</li><li>Wingleader review</li></ul></article>
       </div>
+      <p class="stack__note">Membership supports the Guild. Rank is earned through flights and vouches.</p>
 
       <div class="faq" aria-label="Questions">
-        <div>
-          <h2>Do I need to pay to log flights?</h2>
-          <p>No. Reader is free and includes one logged flight. Unlimited logging comes with Rider.</p>
-        </div>
-        <div>
-          <h2>Can a rank be bought?</h2>
-          <p>No. Ranks come from logged flights and vouches from other riders. There is no price on any rung.</p>
-        </div>
-        <div>
-          <h2>What if my agent burned something big?</h2>
-          <p>Log it. A burn in your record reads better than a gap, and the Burns chapter of the Manual covers the first ten minutes. Never blame the dragon.</p>
-        </div>
-        <div>
-          <h2>Do you take vendor sponsorships?</h2>
-          <p>Yes, labeled, and never in the Manual.</p>
-        </div>
+        <details><summary>Do I need to pay to log flights?</summary><p>No. Reader is free and includes one logged flight. Unlimited logging comes with Rider.</p></details>
+        <details><summary>Can a rank be bought?</summary><p>No. Ranks come from logged flights and vouches from other riders. There is no price on any rung.</p></details>
+        <details><summary>What if my agent burned something big?</summary><p>Log it. A burn in your record reads better than a gap, and the Burns chapter of the Manual covers the first ten minutes. Never blame the dragon.</p></details>
+        <details><summary>Do you take vendor sponsorships?</summary><p>Yes, labeled, and never in the Manual.</p></details>
       </div>
 
       <div class="stack__head">

@@ -1,0 +1,31 @@
+---
+import Icon from './Icon.astro';
+---
+<aside class="preflight" aria-labelledby="preflight-title">
+  <div class="preflight__top"><span class="micro">A habit before every flight</span><Icon name="compass" /></div>
+  <h3 id="preflight-title">Check your reins.</h3>
+  <p>Three things to set before an agent touches real work.</p>
+  <fieldset>
+    <legend class="sr-only">Pre-flight checklist</legend>
+    <label><input type="checkbox" name="scope" /><span><strong>A clear scope</strong><small>What can it touch? What is off limits?</small></span><span class="check-indicator" aria-hidden="true"></span></label>
+    <label><input type="checkbox" name="budget" /><span><strong>A hard budget</strong><small>How much time and money can it spend?</small></span><span class="check-indicator" aria-hidden="true"></span></label>
+    <label><input type="checkbox" name="stop" /><span><strong>A way to stop</strong><small>Who reviews the work? Where is the kill switch?</small></span><span class="check-indicator" aria-hidden="true"></span></label>
+  </fieldset>
+  <div class="preflight__progress" aria-hidden="true"><span></span><span></span><span></span></div>
+  <p class="preflight__status micro" aria-live="polite">Set your scope, budget, and stop conditions.</p>
+  <a href="/manual/before-the-first-flight">Read the first-flight checklist <span aria-hidden="true">↗</span></a>
+</aside>
+<script>
+  document.querySelectorAll<HTMLElement>('.preflight').forEach((card) => {
+    const inputs = [...card.querySelectorAll<HTMLInputElement>('input')];
+    const status = card.querySelector<HTMLElement>('.preflight__status');
+    const segments = [...card.querySelectorAll<HTMLElement>('.preflight__progress span')];
+    const update = () => {
+      const count = inputs.filter((input) => input.checked).length;
+      segments.forEach((segment, i) => segment.classList.toggle('is-set', i < count));
+      if (status) status.textContent = count === 3 ? 'Reins checked. Start small. Review the result.' : `${count} of 3 reins checked. Take a moment to set the rest.`;
+    };
+    inputs.forEach((input) => input.addEventListener('change', update));
+    update();
+  });
+</script>

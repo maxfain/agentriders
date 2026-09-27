@@ -1,6 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import Base from '../../layouts/Base.astro';
+import Icon from '../../components/Icon.astro';
 import LogCard from '../../components/LogCard.astro';
 import { slugify } from '../../lib/facets';
 
@@ -74,7 +75,13 @@ const burned = logs.filter((l) => l.data.burns.length > 0);
           </div>
         </>
       ) : (
-        <p class="empty">No flights published yet. The first ones land with the Guild's first riders — the <a href="/logs/template">template</a> shows what a log holds.</p>
+        <div class="empty-flight">
+          <Icon name="flight" size={48} />
+          <p class="micro">THE LOGBOOK IS OPEN</p>
+          <h2>The first page is yours.</h2>
+          <p>No flights published yet. The first ones land with the Guild's first riders. Start with the template: one task, one outcome, numbers left in.</p>
+          <a class="btn btn--ember" href="/logs/template">Get the flight template <span aria-hidden="true">↗</span></a>
+        </div>
       )}
     </div>
   </section>
