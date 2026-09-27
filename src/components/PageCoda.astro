@@ -1,0 +1,10 @@
+---
+import Artwork from './Artwork.astro';
+import Arrow from './Arrow.astro';
+interface Props { title?: string; description?: string; href?: string; label?: string; }
+const {title='Your next flight starts here.',description='Start small. Hold the reins. Leave a record.',href='/manual/before-the-first-flight',label='Open the Field Manual'} = Astro.props;
+---
+<section class="page-coda section--ink" data-scene aria-label="Your next flight">
+  <Artwork name="horizon" class="page-coda__art scene-art" alt=""/>
+  <div class="container"><div><p class="micro">THE NEXT HORIZON</p><h2>{title}</h2><p>{description}</p></div><a class="btn btn--ember" href={href}>{label}<Arrow /></a></div>
+</section>

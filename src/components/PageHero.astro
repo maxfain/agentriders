@@ -1,0 +1,15 @@
+---
+import Artwork from './Artwork.astro';
+import Relic from './Relic.astro';
+interface Props { eyebrow: string; title: string; description?: string; id?: string; art?: 'flight' | 'eye' | 'horizon' | 'book' | 'ledger' | 'ranks' | 'seal' | 'dispatch'; compact?: boolean; }
+const { eyebrow, title, description, id = 'page-title', art = 'book', compact = false } = Astro.props;
+const scenic = art === 'flight' || art === 'eye' || art === 'horizon';
+---
+<section class:list={['section', 'section--ink', 'page-hero', 'page-hero--cinematic', `page-hero--${art}`, { 'page-hero--compact': compact, 'page-hero--artifact': !scenic }]} aria-labelledby={id} data-scene>
+  {scenic && <><Artwork name={art} eager class="page-hero__art scene-art" alt="" /><div class="page-hero__veil" aria-hidden="true"></div></>}
+  <div class="container page-hero__layout">
+    <div class="page-hero__copy"><p class="eyebrow"><span aria-hidden="true">✦</span> {eyebrow}</p><h1 id={id}>{title}</h1>{description && <p class="lead">{description}</p>}<slot /></div>
+    {!scenic && <div class="page-hero__artifact"><Relic kind={art} /></div>}
+  </div>
+  <div class="page-hero__baseline container micro" aria-hidden="true"><span>AGENTRIDERS / FIELD NOTES FOR THE AGE OF AGENTS</span><span>HOLD THE REINS.</span></div>
+</section>

@@ -47,8 +47,26 @@ The owner requested a further “shock and awe” pass, including subtle frontie
 
 - `src/components/FlightAtlas.astro`: three native radio controls reveal a preparation, review, or logging briefing. CSS traces the illustrated route. This is a field guide, not a live mission dashboard.
 - `src/components/CinematicMotion.astro` and `src/scripts/cinematic.ts`: small dependency-free controller for pointer/scroll camera depth, 22–48 canvas embers, viewport-triggered arrivals, rank-card lighting, a reading line, and a persistent motion toggle.
-- `src/styles/cinematic.css`: scene treatments, etched instruments, authored SVG routes, responsive compositions, and motion policies. Loaded on the homepage only.
+- `src/styles/cinematic.css`: scene treatments, etched instruments, authored SVG routes, responsive compositions, and motion policies. Loaded by the shared layout so the same motion controls apply throughout the site.
 - A full-bleed dragon-eye encounter and three concentric pre-flight rings tied to the real checkboxes. The instrument is a local self-check, not an agent connection.
 - Responsive `dragon-eye-{800,1200,1672}.webp` and `beyond-the-clouds-{800,1200,1672}.webp`. Both are lazy loaded. No third-party image requests.
 
 All headings and controls remain HTML. CSS-only flight-stage selection works without JavaScript. Scene motion defaults off for reduced-motion and data-saving preferences, can be paused globally, and stops when scenes leave the viewport or the page is hidden. The particle loop is capped near 30 fps and canvas pixel density at 1.5. No content starts hidden waiting for JavaScript. Phone layouts give the art its own space above the copy; the route controls remain available by touch and keyboard.
+
+## Every-page extension
+
+The owner expanded the request to every page. The shared `PageHero`, `Relic`, `PageCoda`, `ChapterRail`, and `FieldDiagram` components now give every current route a deliberate composition. `inner-world.css` adds the dimensional field book, paper ledger, sealed dispatch, rank display, reading layouts, and engraved legal treatment. These artifacts are native HTML/SVG/CSS, keeping typography sharp and page weight modest.
+
+All seven Manual chapters use the reading layout and an illustrated field plate; the Evals chapter has an on-page contents rail. The six unfinished chapters remain explicitly in progress. The log detail and facet templates share the new covers when real published logs create those routes. The template page now has working copy and download controls. Privacy mentions the local motion preference introduced by this change. Membership, newsletter, directory, and log launch states remain explicit.
+
+## Verification — September 27, 2026
+
+- Production build generates all 18 current HTML routes. The standalone TypeScript check for `cinematic.ts` passes. The motion bundle is 1.80 kB gzip, with no added dependency.
+- Generated pages checked for one H1, unique IDs, internal file links, image/script references, and anchor destinations: no failures.
+- All current routes opened in the Cloudflare preview. Desktop compositions reviewed, with representative phone layouts at 390 and 320 pixels and the Manual at 768 pixels. Phone dragon framing, hero spacing, and the shared hero grid were corrected during review.
+- Native flight-stage radios checked with pointer and keyboard; pre-flight rings reflect checkbox changes; mobile navigation closes with Escape; Evals contents links reach their headings; Guild FAQ expands; template copy reports success and its download contains the Markdown template.
+- Motion pause/resume and preference persistence verified across pages. Reduced-motion and data-saving behavior audited in code and CSS; OS preference emulation was not available in this browser.
+- Newsletter endpoint configured in a separate build: four POST forms, valid actions, no duplicate IDs. Default build restored afterward. No forms submitted.
+- Six Manual chapters remain in progress. No published logs exist yet, so log-detail and facet designs are templates rather than generated routes. No production merge performed.
+
+Review captures: [Manual](review/manual-desktop.jpg) and [About / reflected dragon eye](review/about-dragon-eye.jpg).

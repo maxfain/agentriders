@@ -1,0 +1,14 @@
+---
+import Icon from './Icon.astro';
+import Mark from './Mark.astro';
+interface Props { kind: 'book' | 'ledger' | 'ranks' | 'seal' | 'dispatch'; }
+const { kind } = Astro.props;
+---
+<div class={`relic relic--${kind}`} aria-hidden="true">
+  <div class="relic__orbits"><i></i><i></i><i></i><span>+</span><span>+</span></div>
+  {kind === 'book' ? <div class="field-book"><div class="field-book__cover"><span class="micro">AGENTRIDERS / VOLUME I</span><span class="field-book__title">The<br /><em>Field</em><br />Manual.</span><div class="field-book__emblem"><Icon name="dragon" size={100} /></div><span class="micro">A GUIDE TO HOLDING THE REINS</span></div><span class="field-book__spine micro">THE FIELD MANUAL</span></div>
+    : kind === 'ledger' ? <div class="ledger-relic"><div class="ledger-relic__binding"></div><div class="ledger-relic__page"><div class="ledger-relic__head"><Mark /><span class="micro">THE FLIGHT RECORD</span></div><span class="ledger-relic__title">Leave the<br /><em>numbers in.</em></span>{['THE TASK','THE COST','THE BURN','THE LESSON'].map((label,i)=><div class="ledger-relic__row"><span class="micro">0{i+1}</span><span class="micro">{label}</span><i></i></div>)}<span class="ledger-relic__stamp">LOG EVERY<br />FLIGHT</span></div></div>
+    : kind === 'ranks' ? <div class="rank-relic"><img class="rank-relic__side rank-relic__side--left" src="/badges/fledgling.svg" width="180" height="180" alt=""/><img class="rank-relic__main" src="/badges/wingleader.svg" width="260" height="260" alt=""/><img class="rank-relic__side rank-relic__side--right" src="/badges/rider.svg" width="180" height="180" alt=""/><span class="micro">PRACTICE. PROOF. TRUST.</span></div>
+    : kind === 'dispatch' ? <div class="dispatch-relic"><span class="micro">A LETTER FROM THE FIELD</span><div class="dispatch-relic__lines"></div><div class="dispatch-relic__fold"></div><div class="dispatch-relic__seal"><Mark /></div><span class="dispatch-relic__name">AgentRiders.</span></div>
+    : <div class="guild-seal"><div class="guild-seal__rim"><span class="micro">AGENTRIDERS</span><Mark /><span class="micro">HOLD YOUR OWN REINS</span></div></div>}
+</div>

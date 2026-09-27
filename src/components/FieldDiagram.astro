@@ -1,0 +1,23 @@
+---
+import Icon from './Icon.astro';
+const { chapter = 1 } = Astro.props;
+const plates = [
+  {icon:'shield',center:'THE FIRST FLIGHT',labels:['SCOPE','BUDGET','STOP'],caption:'Set the boundaries before the flight.'},
+  {icon:'compass',center:'THE REINS',labels:['PERMISSIONS','LIMITS','REVIEW'],caption:'Clear boundaries give capability a direction.'},
+  {icon:'bond',center:'THE BOND',labels:['START SMALL','OBSERVE','EARN TRUST'],caption:'Give an agent more room, one flight at a time.'},
+  {icon:'fire',center:'THE BURN',labels:['NOTICE','STOP','RECOVER'],caption:'When something burns, the rider holds the reins.'},
+  {icon:'tasks',center:'THE RECORD',labels:['OUTCOME','COST','LESSON'],caption:'A flight becomes useful evidence when you leave a record.'},
+  {icon:'orchestration',center:'THE FORMATION',labels:['SCOPE','COORDINATE','REVIEW'],caption:'Several agents. A shared direction. Clear responsibility.'},
+  {icon:'reputation',center:'THE EVAL LOOP',labels:['DEFINE','RUN','CHECK'],caption:'Define a check. Run the task. Use the result to improve the next flight.'},
+];
+const plate=plates[(chapter-1)%plates.length];
+---
+<figure class="field-plate" data-scene>
+  <div class="field-plate__heading micro"><span>FIELD STUDY / {String(chapter).padStart(2,'0')}</span><span>AGENTRIDERS</span></div>
+  <div class="field-plate__drawing" aria-hidden="true">
+    <svg viewBox="0 0 600 250" fill="none"><ellipse cx="300" cy="125" rx="202" ry="85"/><ellipse cx="300" cy="125" rx="232" ry="105" stroke-dasharray="2 7"/><path d="M60 125H540M300 4V246" stroke-dasharray="2 8"/><path class="field-plate__flow" d="M102 147C152 250 470 249 502 137M498 101C448 3 150 3 102 107"/><path d="M95 102L102 113L112 104M492 140L502 129L511 140"/>{[[104,125],[400,50],[400,200]].map(([cx,cy])=><circle cx={cx} cy={cy} r="5"/>)}</svg>
+    <div class="field-plate__icon"><Icon name={plate.icon} size={66}/></div>
+    <span class="field-plate__label field-plate__label--1 micro">{plate.labels[0]}</span><span class="field-plate__label field-plate__label--2 micro">{plate.labels[1]}</span><span class="field-plate__label field-plate__label--3 micro">{plate.labels[2]}</span>
+  </div>
+  <figcaption><strong class="micro">{plate.center}</strong><span>{plate.caption}</span></figcaption>
+</figure>
