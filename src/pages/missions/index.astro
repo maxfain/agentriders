@@ -1,0 +1,15 @@
+---
+import {getCollection} from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import TrainingHero from '../../components/TrainingHero.astro';
+import TrainingNav from '../../components/TrainingNav.astro';
+import TrainingArt from '../../components/TrainingArt.astro';
+import Arrow from '../../components/Arrow.astro';
+import '../../styles/training.css';
+const missions=await getCollection('missions');
+---
+<Base title="Practice missions for AI agents — AgentRiders" description="Three guided agent exercises for engineers, founders, and operators: a small code change, research with sources, and a triage queue for human review.">
+  <TrainingHero eyebrow="The practice yard / Mission briefs" title="Give the power" emphasis="a useful direction." description="Three bounded missions. Real skills. A clear way to tell whether the work landed." art="wing"/>
+  <TrainingNav/>
+  <section class="section section--bone"><div class="container"><div class="school-heading"><div><p class="micro section-label">CHOOSE YOUR PRACTICE</p><h2>A task you can<br/><em>actually finish.</em></h2></div><p>These are guided exercises with fictional inputs, not published flight results. Time estimates are planning aids, not performance promises.</p></div><div class="mission-grid">{missions.map(m=><a class="mission-card" href={`/missions/${m.id}/`}><TrainingArt name={m.data.art} sizes="(min-width: 900px) 33vw, 100vw"/><div><p class="micro">{m.data.audience} · {m.data.duration}</p><h3>{m.data.title}</h3><p>{m.data.description}</p><span class="text-link">Open the brief <Arrow/></span></div></a>)}</div><div class="school-completion"><h2>New to running agents?</h2><p>Start with one small output before taking on a full workflow. The first lesson helps you choose a task, set a stopping point, and review the result.</p><a class="text-link" href="/training/your-first-flight/">Take your first flight ↗</a></div></div></section>
+</Base>

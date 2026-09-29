@@ -1,0 +1,11 @@
+---
+interface Props { weak: string; strong: string; }
+const {weak,strong}=Astro.props;
+---
+<section class="prompt-compare" aria-labelledby="prompt-title">
+  <div class="prompt-compare__head"><p class="micro">THE SAME TASK. A DIFFERENT BRIEF.</p><h2 id="prompt-title">See what the rider changes.</h2><p>Illustrative instructions. Better wording helps; permissions and checks still need to be configured in your tools.</p></div>
+  <div class="prompt-compare__grid">
+    <div class="prompt-version"><span class="micro">01 / TOO MUCH LEFT UNSAID</span><pre><code>{weak}</code></pre></div>
+    <div class="prompt-version prompt-version--strong"><span class="micro">02 / READY TO REVIEW</span><pre><code id="strong-prompt">{strong}</code></pre><button type="button" class="school-button" data-copy-target="strong-prompt" hidden>Copy this brief</button><p class="copy-feedback" aria-live="polite"></p></div>
+  </div>
+</section>

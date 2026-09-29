@@ -46,4 +46,20 @@ const logs = defineCollection({
   }),
 });
 
-export const collections = { manual, logs };
+const training = defineCollection({
+  loader: glob({ pattern: '**/*.md', base: './src/content/training' }),
+  schema: z.object({
+    title: z.string(), order: z.number().int().min(1).max(6), description: z.string(),
+    duration: z.string(), level: z.enum(['Fledgling', 'Rider', 'Wingleader']),
+    art: z.enum(['yard', 'workbench', 'wing']), outcome: z.string(),
+    download: z.string(), weakPrompt: z.string(), strongPrompt: z.string(),
+  }),
+});
+const missions = defineCollection({
+  loader: glob({ pattern: '**/*.md', base: './src/content/missions' }),
+  schema: z.object({
+    title: z.string(), description: z.string(), audience: z.string(),
+    duration: z.string(), art: z.enum(['yard', 'workbench', 'wing']), outcome: z.string(),
+  }),
+});
+export const collections = { manual, logs, training, missions };
