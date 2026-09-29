@@ -1,0 +1,38 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import TrainingHero from '../../components/TrainingHero.astro';
+import TrainingNav from '../../components/TrainingNav.astro';
+import TrainingArt from '../../components/TrainingArt.astro';
+import Arrow from '../../components/Arrow.astro';
+import '../../styles/training.css';
+const lessons=(await getCollection('training')).sort((a,b)=>a.data.order-b.data.order);
+const missions=await getCollection('missions');
+---
+<Base title="Train your agent. Earn your wings. — AgentRiders Flight School" description="Six practical lessons for founders, engineers, and operators: scope useful work, set boundaries, check results, and earn more autonomy. Free lessons and field templates.">
+  <TrainingHero eyebrow="Flight School / Open to every rider" title="Train your agent." emphasis="Earn your wings." description="A powerful agent is only the beginning. Learn to give it direction, check its work, and know when to take the reins.">
+    <div class="school-actions"><a class="btn btn--ember" href="/training/your-first-flight/">Take your first flight <Arrow/></a><a class="school-link" href="#curriculum">Explore the six lessons ↓</a></div>
+    <p class="school-hero__note micro">FREE TO READ · BUILT TO PRACTICE · NO ACCOUNT NEEDED</p>
+  </TrainingHero>
+  <TrainingNav />
+  <section class="section section--bone school-intro">
+    <div class="container school-split">
+      <div><p class="micro section-label">THE DRAGON GETS BETTER. SO SHOULD THE RIDER.</p><h2>Train the setup.<br/><em>Practice the judgment.</em></h2></div>
+      <div class="school-intro__copy"><p>Here, “training your agent” means shaping its instructions, context, tools, and review loop. It does not mean retraining the underlying model—or assuming it remembers every correction.</p><p>For founders making decisions, engineers shipping changes, and operators keeping work moving. Bring an agent you can already use. Leave with a repeatable way to work.</p><p class="school-note">Exercises are guided practice. Completing them does not grant a Guild rank. Ranks still depend on logged flights and vouches.</p></div>
+    </div>
+  </section>
+  <section class="section section--ink curriculum" id="curriculum" aria-labelledby="curriculum-title">
+    <div class="container">
+      <div class="school-heading"><div><p class="micro section-label">YOUR FLIGHT PATH / SIX LESSONS</p><h2 id="curriculum-title">From first task<br/>to <em>earned trust.</em></h2></div><p>Follow the path or open the lesson you need.<br/>Each one ends with something you can use.</p></div>
+      <ol class="lesson-path">
+        {lessons.map((lesson)=><li class="lesson-card" data-reveal><a href={`/training/${lesson.id}/`}><div class="lesson-card__number"><span class="micro">LESSON</span><span>{String(lesson.data.order).padStart(2,'0')}</span></div><div class="lesson-card__copy"><p class="micro">{lesson.data.level} PRACTICE · {lesson.data.duration}</p><h3>{lesson.data.title}</h3><p>{lesson.data.description}</p><span class="lesson-card__outcome">Leave with: {lesson.data.outcome}</span></div><Arrow/></a></li>)}
+      </ol>
+    </div>
+  </section>
+  <section class="school-panorama" data-scene aria-label="A wing in flight"><TrainingArt name="wing" class="scene-art" alt="A silver-haired rider watches three copper dragons fly separate paths above a mountain range."/><div class="container"><p class="micro">CAPABILITY IS GIVEN. TRUST IS EARNED.</p><p class="school-panorama__quote">More power.<br/><em>Better judgment.</em></p></div></section>
+  <section class="section section--bone" aria-labelledby="missions-title"><div class="container">
+    <div class="school-heading"><div><p class="micro section-label">PUT IT TO WORK</p><h2 id="missions-title">Choose a real<br/><em>kind of problem.</em></h2></div><p>Fictional practice inputs. Concrete checks.<br/>Useful habits to carry into your own work.</p></div>
+    <div class="mission-grid">{missions.map((mission)=><a class="mission-card" href={`/missions/${mission.id}/`}><TrainingArt name={mission.data.art} sizes="(min-width: 900px) 33vw, 100vw"/><div><p class="micro">{mission.data.audience}</p><h3>{mission.data.title}</h3><p>{mission.data.description}</p><span class="text-link">Open mission <Arrow/></span></div></a>)}</div>
+  </div></section>
+  <section class="section section--ink school-kit-callout"><div class="container school-split"><div><p class="micro section-label">PACK BEFORE YOU FLY</p><h2>Good riders<br/><em>keep good tools.</em></h2></div><div><p>Six editable Markdown templates: a mission brief, acceptance checks, a bridle, a burn report, an autonomy review, and a wing handoff.</p><a class="btn btn--ember" href="/training/kit/">Open the field kit <Arrow/></a><p class="school-note">No email gate. Download, adapt, and use them with your existing agent.</p></div></div></section>
+</Base>

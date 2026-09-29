@@ -1,0 +1,16 @@
+---
+import TrainingArt from './TrainingArt.astro';
+interface Props { title: string; emphasis?: string; eyebrow: string; description: string; art?: 'yard'|'workbench'|'wing'; compact?: boolean; }
+const {title, emphasis, eyebrow, description, art='yard', compact=false}=Astro.props;
+---
+<section class:list={['school-hero','section--ink', {'school-hero--compact':compact}]} data-scene aria-labelledby="school-title">
+  <TrainingArt name={art} class="school-hero__art scene-art" eager />
+  <div class="school-hero__veil" aria-hidden="true"></div>
+  <div class="container school-hero__content">
+    <p class="eyebrow">{eyebrow}</p>
+    <h1 id="school-title">{title}{emphasis && <><br/><em>{emphasis}</em></>}</h1>
+    <p class="school-hero__lead">{description}</p>
+    <slot />
+  </div>
+  <div class="container school-hero__caption micro" aria-hidden="true"><span>AGENTRIDERS / THE ART OF HOLDING THE REINS</span><span>POWER MEETS PRACTICE.</span></div>
+</section>

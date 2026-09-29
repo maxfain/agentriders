@@ -1,0 +1,5 @@
+---
+const links=[['/training/','Flight School'],['/missions/','Practice missions'],['/training/kit/','Field kit']];
+const path=Astro.url.pathname.replace(/\/$/,'');
+---
+<nav class="school-nav section--ink" aria-label="Learning resources"><div class="container">{links.map(([href,label])=><a href={href} aria-current={path===href.replace(/\/$/,'')?'page':undefined}>{label}<span aria-hidden="true">↗</span></a>)}<a href="/manual/">Field Manual<span aria-hidden="true">↗</span></a></div></nav>

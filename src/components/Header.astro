@@ -1,8 +1,11 @@
 ---
 import Mark from './Mark.astro';
 import Arrow from './Arrow.astro';
-const links = [['/manual', 'Manual'], ['/logs', 'Logs'], ['/riders', 'Riders'], ['/guild', 'Guild'], ['/about', 'About']];
-const active = (href: string) => Astro.url.pathname === href || Astro.url.pathname.startsWith(href + '/');
+const links = [['/training/', 'Train'], ['/manual', 'Manual'], ['/logs', 'Logs'], ['/riders', 'Riders'], ['/guild', 'Guild'], ['/about', 'About']];
+const active = (href: string) => {
+  const path = href.replace(/\/$/, '');
+  return Astro.url.pathname === path || Astro.url.pathname.startsWith(path + '/');
+};
 ---
 <header class="site-header">
   <div class="container">
@@ -20,6 +23,14 @@ const active = (href: string) => Astro.url.pathname === href || Astro.url.pathna
     </details>
   </div>
 </header>
+<style>
+  .brand { flex-shrink: 0; white-space: nowrap; }
+  .nav { gap: clamp(15px, 1.8vw, 28px); }
+  .nav a, .header-join { white-space: nowrap; }
+  @media (max-width: 860px) {
+    .mobile-menu nav { max-height: calc(100dvh - 76px); overflow-y: auto; overscroll-behavior: contain; }
+  }
+</style>
 <script>
   const menu = document.querySelector<HTMLDetailsElement>('.mobile-menu');
   if (menu) {

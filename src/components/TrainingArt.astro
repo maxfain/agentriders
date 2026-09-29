@@ -1,0 +1,7 @@
+---
+interface Props { name?: 'yard' | 'workbench' | 'wing'; alt?: string; eager?: boolean; class?: string; sizes?: string; }
+const { name = 'yard', alt = '', eager = false, class: className, sizes = '100vw' } = Astro.props;
+---
+<picture class:list={['training-art', className]}>
+  <img src={`/images/training-${name}-1600.webp`} srcset={[800,1200,1600].map(w => `/images/training-${name}-${w}.webp ${w}w`).join(', ')} sizes={sizes} width="1600" height="914" alt={alt} loading={eager ? 'eager' : 'lazy'} fetchpriority={eager ? 'high' : undefined} decoding="async" />
+</picture>

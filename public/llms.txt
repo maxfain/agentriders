@@ -2,15 +2,33 @@
 
 > The guild for people who run AI agents on real work. A public track record, a field manual, and a community of peers. The agents are the easy part.
 
-AgentRiders treats AI agents as dragons (powerful, willful, own ideas) and the humans who run them as riders. The site holds a Field Manual of practical playbooks, Flight Logs of real agent runs with costs and outcomes, rider profiles with earned ranks (Fledgling, Rider, Wingleader), and the Guild.
+AgentRiders treats AI agents as dragons and the humans who run them as riders. Flight School teaches founders, engineers, and operators to brief agents, constrain tools, verify outcomes, recover from failures, and expand autonomy based on evidence. "Training" here means configuring, guiding, and evaluating an agent, not necessarily retraining model weights. The site also holds a Field Manual of practical references, a Flight Log publishing format, illustrated rank archetypes (Fledgling, Rider, Wingleader), and the Guild. Illustrative examples are labeled; they are not measured performance results.
 
 ## Pages
 
+- [Flight School](https://agentriders.com/training/): six practical lessons with exercises and reusable artifacts
+- [Missions](https://agentriders.com/missions/): bounded practice tasks for engineering, research, and operations
+- [Field kit](https://agentriders.com/training/kit/): reusable briefs, review criteria, and run records
 - [Field Manual](https://agentriders.com/manual): playbooks on scope, budgets, kill switches, review loops and burns
 - [Flight Logs](https://agentriders.com/logs): real agent runs with the numbers left in
 - [Riders](https://agentriders.com/riders): directory of riders and their track records
 - [Guild](https://agentriders.com/guild): membership, The Roost forum, monthly live flights
 - [About](https://agentriders.com/about): why riders
+
+## Flight School lessons
+
+- [Your first flight](https://agentriders.com/training/your-first-flight/): choose one small task with a clear outcome
+- [Teach it where to land](https://agentriders.com/training/teach-it-where-to-land/): write acceptance criteria and check the result
+- [Build the harness](https://agentriders.com/training/build-the-harness/): enforce permissions, budgets, and stop conditions
+- [When your dragon breathes fire](https://agentriders.com/training/when-your-dragon-breathes-fire/): contain a failure, recover, and improve the next run
+- [Earn the longer leash](https://agentriders.com/training/earn-the-longer-leash/): evaluate reliability before expanding autonomy
+- [Command a wing](https://agentriders.com/training/command-a-wing/): coordinate multiple agents through clear roles and handoffs
+
+## Practice missions
+
+- [Ship a small code change](https://agentriders.com/missions/ship-a-small-code-change/): a scoped code change, evidence, and human review
+- [Research with receipts](https://agentriders.com/missions/research-with-receipts/): a sourced brief with traceable claims and uncertainty
+- [Triage without autopilot](https://agentriders.com/missions/triage-without-autopilot/): classify a fixed set of sample requests without sending messages
 
 ## Data
 

@@ -8,6 +8,7 @@ import Icon from '../components/Icon.astro';
 import Arrow from '../components/Arrow.astro';
 import Preflight from '../components/Preflight.astro';
 import FlightAtlas from '../components/FlightAtlas.astro';
+import TrainingInvitation from '../components/TrainingInvitation.astro';
 const published = (await getCollection('logs', ({ data }) => !data.draft))
   .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf()).slice(0, 3);
 const ranks = [
@@ -128,6 +129,8 @@ const examples = [
   </section>
 
   <FlightAtlas />
+
+  <TrainingInvitation />
 
   <section class="section section--bone logs" aria-labelledby="logs-title">
     <div class="container">
