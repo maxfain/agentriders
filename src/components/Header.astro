@@ -4,7 +4,7 @@ import Arrow from './Arrow.astro';
 const links = [['/training/', 'Train'], ['/manual', 'Manual'], ['/logs', 'Logs'], ['/riders', 'Riders'], ['/guild', 'Guild'], ['/about', 'About']];
 const active = (href: string) => {
   const path = href.replace(/\/$/, '');
-  return Astro.url.pathname === path || Astro.url.pathname.startsWith(path + '/');
+  return (path === '/training' && Astro.url.pathname.startsWith('/missions')) || Astro.url.pathname === path || Astro.url.pathname.startsWith(path + '/');
 };
 ---
 <header class="site-header">

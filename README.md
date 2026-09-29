@@ -101,3 +101,9 @@ export default {
 ## House rules for changes
 
 Tokens and type live in `src/styles/global.css`; the illustrated experience lives in `src/styles/experience.css`. Preserve ink/bone/ember, Fraunces/Instrument Sans/JetBrains Mono, honest example labels, and static content collections. Artwork and optional motion are now part of the approved direction. No invented riders, testimonials, counts, or published flights. No tracking. Respect reduced-motion preferences and retain keyboard navigation.
+
+## Flight School content
+
+Flight School lives at `/training/`, with guided missions at `/missions/` and six downloadable worksheets at `/training/kit/`. The six lessons are Markdown entries in `src/content/training/`; mission briefs are in `src/content/missions/`. Their schemas are in `src/content.config.ts`. Edit `public/training/*.md` to update a worksheet; the kit previews import the same files at build time so downloads and previews stay consistent. Lessons link to the existing Field Manual for continuing reference.
+
+Artwork prompts and responsive image paths are recorded in `docs/flight-school-art-prompts.md`. New assets are additive. Keep the original artwork and preserve the local motion toggle and reduced-motion behavior when extending these pages.

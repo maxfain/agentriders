@@ -99,8 +99,9 @@
 .school-button { color:var(--ember-text); border:1px solid #9c7958; padding:10px 14px; min-height:44px; background:transparent; font:10px var(--mono); cursor:pointer; }
 .school-button[hidden] { display:none; }
 .prompt-version .school-button { color:var(--bone); border-color:#a28468; margin-top:25px; }
+.copy-feedback:empty { display:none; }
 .copy-feedback { font-size:12px; min-height:0; margin-top:12px; }
-.school-prose { max-width:100%; font-size:17px; }
+.school-prose { max-width:65ch; font-size:17px; }
 .school-prose h2 { scroll-margin-top:25px; }
 .school-prose pre { padding:24px; overflow:auto; border:1px solid #b9a58a; font-size:12px; line-height:1.7; }
 .school-prose :not(pre) > code { overflow-wrap:anywhere; }
@@ -123,11 +124,14 @@
 .kit-item__intro > .micro { color:var(--ember-text); font-size:9px; text-transform:uppercase; }
 .kit-item h2 { font-size:36px; line-height:1.15; margin:12px 0 18px; }
 .kit-item__intro > .text-link { margin-top:25px; }
-.kit-item .copy-feedback { flex-basis:100%; margin:0; }
+.kit-item .copy-feedback:empty { display:none; }
+.copy-feedback { flex-basis:100%; margin:0; }
 .kit-preview { border:1px solid #b39a7e; align-self:start; background:#faf5eb; }
 .kit-preview summary { cursor:pointer; padding:20px; display:flex; justify-content:space-between; font:12px var(--mono); list-style:none; }
 .kit-preview summary::-webkit-details-marker { display:none; }
 .kit-preview summary span { color:var(--ember-text); }
+.kit-preview[open] summary span { font-size:0; }
+.kit-preview[open] summary span::after { content:"−"; font-size:12px; }
 .kit-preview[open] summary { border-bottom:1px solid #c4b095; }
 .kit-preview pre { max-height:600px; margin:0; padding:24px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; font:11px/1.8 var(--mono); }
 @media (max-width:1000px){.school-reading__layout{grid-template-columns:180px minmax(0,1fr);gap:35px}.prompt-compare__grid{grid-template-columns:1fr}.mission-grid{gap:16px}.mission-card>div{padding:20px}.mission-card h3{font-size:26px}.kit-item{gap:30px}.school-nav .container{gap:25px}.school-nav a{gap:10px}}

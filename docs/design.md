@@ -82,3 +82,24 @@ Built-in generated artwork, final asset names, and complete prompts are recorded
 Browser review: desktop, 390-pixel and 320-pixel phone widths, and 768-pixel tablet width; no horizontal page overflow at those sizes. Individual clicks, reveal-all, Space, Enter, Escape, and motion-off behavior verified. The keyboard is visible on the phone and desktop portraits. A fast-scroll image-loading gap was found and addressed with decode-before-reveal. TypeScript and the 18-page production build pass. The temporary review page is removed before delivery.
 
 Capture: [Riders portrait collection](review/riders-revealed.jpg).
+
+## Flight School — September 29, 2026
+
+The owner's “train your agent / train your dragon” content direction adds a free learning path for founders, engineers, and operators. Existing scenes, portraits, interactions, and page sections are preserved. New routes:
+
+- `/training/`: six-lesson Flight School with an original training-aerie hero and a wing-in-flight panorama.
+- `/training/[slug]/`: six guided exercises, contrasting briefs, visible acceptance criteria, related Manual references, and editable worksheets.
+- `/training/kit/`: six complete Markdown templates, accessible native disclosure previews, optional copy controls, and direct downloads.
+- `/missions/` and three mission pages: bounded code, research, and operations exercises with usable fictional inputs and review checks.
+
+Six previously unfinished Manual chapters now contain practical reference guidance. New content is original teaching material, with illustrative examples labeled. It does not claim these exercises are actual customer results or a certification. “Training” is explicitly configuring and evaluating the agent setup, not an assertion of model-weight training or automatic persistent memory. Permissions described in documents are distinguished from controls enforced by the environment.
+
+The homepage gains an additive Flight School invitation; navigation, footer, Riders, Manual, and llms.txt link into the learning path. All 21 pre-existing image files remain byte-identical. Three new illustrations and their responsive WebP assets are documented in `flight-school-art-prompts.md`. Existing motion controls and reduced-motion rules apply; the only new JavaScript is optional clipboard copying. Content, template previews, and downloads remain usable without JavaScript.
+
+The log template remains compatible with the existing numeric-cost schema. It defaults to draft and explains that unknown costs belong in working notes until a supported numeric value is available; example costs must not be published as measured results.
+
+Flight School verification: the production build generates 35 pages. Internal routes, assets, heading/ID uniqueness, ARIA references, and fragment destinations pass structural checks. All six kit previews contain their corresponding source files, and the built downloads match those files. The code mission's unmodified fixture fails three of six checks; a separate reference implementation passes all six. Standalone training-script TypeScript and whitespace checks pass.
+
+Browser review covered the Flight School hero, lesson layout and prompt contrast, longest lesson title, homepage invitation, field-kit disclosure, phone code blocks, and completed Manual at desktop, 390/320-pixel phone frames, and a 768-pixel tablet frame. Native disclosure keyboard control, mobile menu, copy success feedback, and motion pause were exercised. No site-script errors were observed (browser extension errors were excluded). Browser download-event capture was unavailable; direct-download invocation, built-file equality, and rendered download targets were checked instead. The deployed mission-brief Markdown endpoint returned HTTP 200 and byte-matched its source. Reduced-motion and no-JavaScript behavior were audited in source. Long-form reading measure was tightened after review. The temporary noindex review harness is removed from the final branch.
+
+Review capture: [Flight School](review/flight-school-desktop.jpg).
