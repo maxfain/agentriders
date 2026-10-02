@@ -98,7 +98,11 @@
 .chapter-rail__onpage a:hover { color: var(--ember-text); }
 .chapter-rail__note { font: italic 21px/1.3 var(--display); color: #8a7762; }
 .chapter-reading__body { min-width: 0; }
-.chapter-reading .prose { max-width: 100%; font-size: 17px; }
+.chapter-reading .prose { max-width: 65ch; font-size: 17px; }
+.chapter-reading .prose pre { max-width:100%; overflow:auto; padding:24px; border:1px solid var(--bone-line); font-size:12px; line-height:1.7; }
+.chapter-reading .prose table { display:block; max-width:100%; overflow-x:auto; border-collapse:collapse; font-size:14px; }
+.chapter-reading .prose th,.chapter-reading .prose td { padding:12px; text-align:left; border:1px solid var(--bone-line); min-width:110px; }
+.chapter-reading .prose :not(pre)>code,.chapter-reading .prose a { overflow-wrap:anywhere; }
 .chapter-reading .prose h2 { scroll-margin-top: 30px; }
 .chapter-reading .chapter-navigation { margin-top: 60px; font-size: 10px; }
 .chapter-in-progress { padding: 35px; border-left: 2px solid #b98151; background: #faf6ee; margin-top: 35px; }
@@ -130,13 +134,6 @@
 .guild-faq h2 { font-size: 45px; font-weight: 500; line-height: 1.05; max-width: 10ch; }
 .guild-faq .faq summary { font-size: 23px; }
 .guild-faq .faq p { font-size: 15px; color: #6c604f; }
-.rider-gallery { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; }
-.rider-gallery__card { text-align: center; padding: 30px 25px; border: 1px solid #cab89b; position: relative; background: linear-gradient(150deg,#faf5e9,#e8dbc2); }
-.rider-gallery__card::before { content: ''; position: absolute; width: 180px; height: 180px; border: 1px solid #c6aa804d; border-radius: 50%; left: 50%; top: 47px; transform: translateX(-50%); }
-.rider-gallery__card > .micro { font-size: 8px; color: #907556; }
-.rider-gallery__card img { position: relative; display: block; margin: 35px auto 28px; width: 160px; height: 160px; filter: drop-shadow(0 10px 12px #6e44242b); }
-.rider-gallery__card h2 { font-size: 36px; font-weight: 500; }
-.rider-gallery__card > p:not(.micro) { margin: 18px auto 0; color: #70614f; font-size: 14px; max-width: 25ch; }
 .opening-note { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; padding-top: 20px; }
 .opening-note .micro { color: var(--ash); font-size: 8px; margin-bottom: 20px; }
 .opening-note h2 { font-size: 36px; font-weight: 500; line-height: 1.08; margin-bottom: 20px; }
@@ -241,8 +238,6 @@ html[data-motion="paused"] *,html[data-motion="paused"] *::before,html[data-moti
   .chapter-in-progress h2 { font-size: 30px; }
   .guild-faq { grid-template-columns: 1fr; gap: 30px; }
   .guild-faq h2 { max-width: none; font-size: 38px; }
-  .rider-gallery { grid-template-columns: 1fr; }
-  .rider-gallery__card { padding: 30px; }
   .opening-note,.dispatch-layout { grid-template-columns: 1fr; gap: 35px; }
   .manifesto-art { position: static; }
   .manifesto-quote { font-size: 30px; }

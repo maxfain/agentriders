@@ -1,28 +1,46 @@
 ---
-import PageHero from '../components/PageHero.astro';
 import PageCoda from '../components/PageCoda.astro';
+import RiderPortrait from '../components/RiderPortrait.astro';
 import Base from '../layouts/Base.astro';
 import Signup from '../components/Signup.astro';
+import '../styles/riders.css';
+const ranks = [
+  { id: 'fledgling', name: 'Fledgling', image: 'rider-fledgling', motto: 'The courage to begin.', requirement: 'Joined · 1 flight logged', tell: 'The map is held a little too tightly. The harness still feels borrowed. Every detail is a question waiting for a first flight.', gear: ['A borrowed flight jacket', 'A map without a route home yet', 'One simple rein'], alt: 'A young adult Fledgling with an uncertain, determined gaze, a plain leather harness and oversized canvas jacket, gripping a folded map beside a young bronze dragon.' },
+  { id: 'rider', name: 'Rider', image: 'rider-veteran', motto: 'The judgment to return.', requirement: '20 flights · 2 Rider vouches', tell: 'A steady gaze. A heat-marked cuff, stitched back together. Nothing on the harness is there by accident.', gear: ['Flight goggles, scratched and trusted', 'Patinated armor and repaired seams', 'A compass and a battered field journal'], alt: 'An experienced Rider with a steady gaze, flight goggles, scuffed bronze shoulder armor, repaired leather gear, a compass and a well-used journal beside a copper dragon.' },
+  { id: 'wingleader', name: 'Wingleader', image: 'rider-wingleader', motto: 'The wisdom to bring everyone home.', requirement: '100 flights · runs a wing · 5 vouches', tell: 'The gaze is level. The kit carries a history. At the hip: a worn keyboard, polished by the work that earned the rank.', gear: ['A mantle of weathered dragon scales', 'A command rig built for a whole wing', 'A keyboard that has seen everything'], alt: 'A silver-haired Wingleader with a composed, weathered face, dragon-scale mantle and intricate command harness. A battered mechanical keyboard hangs from brass clips at her hip beside an elder dragon.' },
+];
 ---
-
-<Base
-  title="Riders — AgentRiders"
-  description="Three ranks earned through logged flights and vouches. Meet the craft behind the AgentRiders directory, opening soon."
->
-  <PageHero eyebrow="The Riders" title="The people holding the reins." description="A public track record. Logged flights. Vouches from people who have seen you ride." art="ranks" id="riders-title"></PageHero>
-
-  <section class="section section--bone" aria-label="Opening soon">
-    <div class="container stack">
-      <div class="inner-section-title"><h2>Proof you can ride.</h2><p class="micro">THREE RANKS / EARNED THROUGH PRACTICE</p></div>
-      <div class="rider-gallery" data-scene>
-        {[
-          {name:'Fledgling',id:'fledgling',req:'Joined · 1 flight logged',body:'Find your footing. Read, log, ask, and begin.'},
-          {name:'Rider',id:'rider',req:'20 flights · 2 Rider vouches',body:'A record of real work. The trust to fly on your own.'},
-          {name:'Wingleader',id:'wingleader',req:'100 flights · runs a wing · 5 vouches',body:'Lead a formation. Help other riders earn their wings.'},
-        ].map((rank,i)=><article class="rider-gallery__card" data-reveal><p class="micro">RANK 0{i+1}</p><img src={`/badges/${rank.id}.svg`} alt="" width="160" height="160" loading="lazy"/><h2>{rank.name}</h2><p class="micro">{rank.req}</p><p>{rank.body}</p></article>)}
-      </div>
-      <div class="opening-note"><div><p class="micro">THE RIDER DIRECTORY / OPENING SOON</p><h2>A reputation has to start somewhere.</h2><p class="lead">The directory opens when 20 flights are logged. Every profile will start with a record of the work.</p></div><Signup id="email-riders" /></div>
+<Base title="Riders — AgentRiders" description="The face, the gear, the judgment. Explore three ranks earned through logged flights and vouches, and the craft behind AgentRiders.">
+  <section class="riders-hero" data-scene aria-labelledby="riders-title">
+    <picture class="artwork riders-hero__art scene-art"><img src="/images/riders-aerie-1672.webp" srcset="/images/riders-aerie-800.webp 800w, /images/riders-aerie-1200.webp 1200w, /images/riders-aerie-1672.webp 1672w" sizes="100vw" width="1672" height="941" fetchpriority="high" loading="eager" decoding="async" alt="Dragon riders gather on a vast stone aerie above golden clouds, beneath the wings of enormous copper dragons." /></picture>
+    <div class="riders-hero__shade" aria-hidden="true"></div>
+    <div class="container riders-hero__copy"><p class="micro riders-eyebrow"><span></span> THE RIDERS / EARNED IN THE FIELD</p><h1 id="riders-title">The people <br />holding <br /><em>the reins.</em></h1><p class="riders-hero__lead">The face. The gear. The judgment.<br />Experience leaves a mark.</p><a href="#rank-gallery" class="riders-hero__link">MEET THE RIDERS <span aria-hidden="true">↓</span></a></div>
+    <div class="container riders-hero__baseline micro" aria-hidden="true"><span>THREE RANKS. COUNTLESS LESSONS.</span><span>THE AERIE / BEFORE FIRST LIGHT</span></div>
+  </section>
+  <section class="riders-collection" id="rank-gallery" data-scene aria-labelledby="collection-title">
+    <div class="riders-collection__atmosphere" aria-hidden="true"></div>
+    <div class="container">
+      <div class="riders-collection__index micro"><span>01 — THE RIDER COLLECTION</span><span>ILLUSTRATED RANK ARCHETYPES</span></div>
+      <div class="riders-collection__heading"><div><p class="micro">LOOK CLOSER.</p><h2 id="collection-title">A rank is earned.<br /><em>You can see it.</em></h2></div><div class="riders-collection__intro"><p>The composure. The repairs. The things they carry. Three ranks, told in the details.</p><p class="riders-reveal-hint" hidden>Turn a card. Meet the rider behind the rank.</p><button class="riders-reveal-all" type="button" hidden>Reveal all three <span aria-hidden="true">↻</span></button></div></div>
+      <div class="riders-deck">{ranks.map((rank,i)=><RiderPortrait {...rank} number={i+1} />)}</div>
+      <div class="riders-collection__foot"><p class="micro">CHARACTER STUDIES / NOT MEMBER PROFILES</p><p>Ranks come from logged flights and peer vouches. These portraits illustrate the craft.</p><span class="micro riders-reveal-status" role="status" aria-live="polite" hidden>0 / 3 REVEALED</span></div>
+      <div class="riders-practice"><div><p class="micro">THE CRAFT BEHIND THE RANK</p><h3>Experience starts with <em>one flight.</em></h3><p>Build the habits behind the portraits. Six lessons, practical missions, and a field kit to take into your next run.</p></div><a class="text-link" href="/training/">Enter Flight School <span aria-hidden="true">↗</span></a></div>
     </div>
+  </section>
+  <section class="section section--bone riders-directory" aria-labelledby="directory-title">
+    <div class="container opening-note"><div><p class="micro">THE RIDER DIRECTORY / OPENING SOON</p><h2 id="directory-title">The next face<br />could be <em>yours.</em></h2><p class="lead">A public track record. Logged flights. Vouches from people who have seen you ride.</p><p class="riders-directory__note">The directory opens when 20 flights are logged. Every profile will start with a record of the work.</p><a class="text-link" href="/logs/template">Log your first flight <span aria-hidden="true">↗</span></a></div><Signup id="email-riders" /></div>
   </section>
   <PageCoda />
 </Base>
+<style>
+  .riders-practice { display: flex; justify-content: space-between; align-items: center; gap: 28px; margin-top: 44px; padding: clamp(24px, 3.5vw, 44px); border: 1px solid #795a3a; background: linear-gradient(120deg, #36291d, #211b15); }
+  .riders-practice .micro { color: #e4ad80; font-size: 9px; }
+  .riders-practice h3 { margin-top: 12px; font-size: clamp(27px, 3vw, 38px); line-height: 1.1; font-weight: 500; }
+  .riders-practice h3 em { color: #edb68d; }
+  .riders-practice p:not(.micro) { max-width: 58ch; margin-top: 14px; color: #cfc0ac; font-size: 15px; }
+  .riders-practice .text-link { color: var(--bone); flex-shrink: 0; }
+  @media (max-width: 760px) { .riders-practice { align-items: flex-start; flex-direction: column; } }
+</style>
+<script>
+  import '../scripts/riders';
+</script>

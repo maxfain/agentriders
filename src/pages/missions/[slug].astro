@@ -1,0 +1,16 @@
+---
+import {getCollection,render} from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import TrainingHero from '../../components/TrainingHero.astro';
+import TrainingNav from '../../components/TrainingNav.astro';
+import '../../styles/training.css';
+export async function getStaticPaths(){return (await getCollection('missions')).map(mission=>({params:{slug:mission.id},props:{mission}}));}
+const {mission}=Astro.props;
+const {Content,headings}=await render(mission);
+const d=mission.data;
+---
+<Base title={`${d.title} — Practice missions — AgentRiders`} description={d.description}>
+  <TrainingHero eyebrow={`Practice mission / ${d.audience}`} title={d.title} description={d.description} art={d.art} compact><p class="school-hero__note micro">{d.duration} · GUIDED EXERCISE</p></TrainingHero>
+  <TrainingNav/>
+  <section class="section section--bone school-reading"><div class="container school-reading__layout"><aside class="school-rail"><a class="school-back micro" href="/missions/">← ALL MISSIONS</a><nav aria-label="In this mission"><p class="micro">MISSION CHECKPOINTS</p>{headings.filter(h=>h.depth===2).map(h=><a href={`#${h.slug}`}>{h.text}</a>)}</nav><a class="text-link" href="/training/kit/">Get the field kit ↓</a></aside><div class="school-reading__body"><div class="lesson-deliverable"><p class="micro">THE DELIVERABLE</p><p>{d.outcome}</p><span class="school-note">Practice material. Replace fictional inputs only when you have the right access and review process.</span></div><article class="prose school-prose"><Content/></article><div class="school-completion"><p class="micro">ONE MISSION. ONE HONEST RECORD.</p><h2>Log what actually happened.</h2><p>Include review time, failed checks, and what you changed. Do not fill gaps with estimates presented as measurements.</p><a class="text-link" href="/logs/template/">Open the flight log template ↗</a></div></div></div></section>
+</Base>

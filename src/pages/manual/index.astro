@@ -13,13 +13,13 @@ const fmt = (d: Date) => d.toISOString().slice(0, 10);
 
 <Base
   title="Field Manual — AgentRiders"
-  description="Playbooks written by riders and tested on real work: scope, budgets, kill switches, review loops and burns."
+  description="Practical references for running AI agents: scope, permissions, budgets, stop conditions, review loops, and learning from failure."
 >
-  <PageHero eyebrow="The Field Manual" title="Everything we know about holding the reins." description="Playbooks written by riders and tested on real work. Start at chapter one if you are new; skip to Burns if you already have scars." art="book" id="manual-title"></PageHero>
+  <PageHero eyebrow="The Field Manual" title="Everything we know about holding the reins." description="Practical references for the decisions every rider makes: what to delegate, where to draw the boundary, and how to know the work is done." art="book" id="manual-title"></PageHero>
 
   <section class="section section--bone" aria-label="Chapters">
     <div class="container manual-library">
-      <aside class="manual-intro"><Icon name="skills" size={40}/><p class="micro">THE CRAFT OF RIDING</p><h2>Read it.<br />Try it.<br /><em>Log it.</em></h2><p>A field guide grows through practice. Some chapters are still taking shape; each one carries its current status.</p><a class="text-link" href="/logs/template">Keep a flight record ↗</a></aside>
+      <aside class="manual-intro"><Icon name="skills" size={40}/><p class="micro">THE CRAFT OF RIDING</p><h2>Read it.<br />Try it.<br /><em>Log it.</em></h2><p>The Manual is your reference shelf. Flight School turns these ideas into six guided lessons, with a small exercise and a useful artifact at every step.</p><a class="text-link" href="/training/">Start Flight School ↗</a><a class="text-link" href="/logs/template">Keep a flight record ↗</a></aside>
       <ol class="chapters">
         {chapters.map((ch) => (
           <li>
