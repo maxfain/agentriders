@@ -100,4 +100,4 @@ export default {
 
 ## House rules for changes
 
-Tokens and type live in `src/styles/global.css`; the illustrated experience lives in `src/styles/experience.css`. Preserve ink/bone/ember, Fraunces/Instrument Sans/JetBrains Mono, honest example labels, and static content collections. Artwork and optional motion are now part of the approved direction. No invented riders, testimonials, counts, or published flights. No tracking. Respect reduced-motion preferences and retain keyboard navigation.
+Tokens and type live in `src/styles/global.css`; the illustrated experience lives in `src/styles/experience.css`. Preserve ink/bone/ember, Fraunces/Instrument Sans/JetBrains Mono, honest example labels, and static content collections. Artwork and optional motion are now part of the approved direction. No invented riders, testimonials, counts, or published flights. Analytics is the Google tag in `src/layouts/Base.astro` only (disclosed on /privacy) — no session recorders, no ad pixels, nothing else. Respect reduced-motion preferences and retain keyboard navigation.
