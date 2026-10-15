@@ -41,6 +41,15 @@ test('schema: rejects bad enums and missing required fields', () => {
   assert.throws(() => logFrontmatterSchema.parse(noReins));
 });
 
+test('schema: rejects shape-valid but calendar-invalid dates (build-breaker guard)', () => {
+  for (const bad of ['2026-13-45', '2026-02-30', '2026-00-10', '2026-04-31', '2025-02-29']) {
+    assert.throws(() => logFrontmatterSchema.parse({ ...sample, date: bad }), new RegExp('.'), bad);
+  }
+  for (const good of ['2026-02-28', '2024-02-29', '2026-12-31', '2026-01-01']) {
+    assert.equal(logFrontmatterSchema.parse({ ...sample, date: good }).date, good);
+  }
+});
+
 test('schema: burns defaults to empty array', () => {
   const { burns, ...noBurns } = sample;
   assert.deepEqual(logFrontmatterSchema.parse(noBurns).burns, []);

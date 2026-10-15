@@ -1,5 +1,12 @@
 import type { APIRoute } from 'astro';
-import { slugTaken, publishedSlugExists, type SubmissionRow } from '../../../../lib/submissions.ts';
+import {
+  slugTaken,
+  publishedSlugExists,
+  ownsPublishedLog,
+  countInFlight,
+  MAX_IN_FLIGHT,
+  type SubmissionRow,
+} from '../../../../lib/submissions.ts';
 
 export const prerender = false;
 
@@ -22,11 +29,23 @@ export const POST: APIRoute = async ({ locals, params }) => {
     return json(409, { error: `A ${row.status} submission can't be submitted.` });
   }
 
+  // The in-flight cap lives here too — drafts don't count, so without this
+  // a rider could stockpile drafts and submit them all past the limit.
+  // changes_requested rows already count, so exclude this one from the tally.
+  if (row.status !== 'changes_requested' && (await countInFlight(env.DB, rider.id)) >= MAX_IN_FLIGHT) {
+    return json(409, {
+      error: `You have ${MAX_IN_FLIGHT} submissions in review already. Finish those first.`,
+    });
+  }
   if (await slugTaken(env.DB, row.slug, row.id)) {
     return json(409, { error: `Another submission already holds "${row.slug}".` });
   }
   if (row.kind === 'new' && (await publishedSlugExists(env.DB, row.slug))) {
     return json(409, { error: `A published log already lives at /logs/${row.slug}.` });
+  }
+  // Re-verify edit ownership at the trust boundary before it enters review.
+  if (row.kind === 'edit' && !(await ownsPublishedLog(env.DB, row.target_log_slug ?? row.slug, rider.id))) {
+    return json(403, { error: 'You can only edit a flight log you published.' });
   }
 
   const now = new Date().toISOString();

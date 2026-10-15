@@ -4,6 +4,7 @@ import {
   buildSubmission,
   slugTaken,
   publishedSlugExists,
+  ownsPublishedLog,
   EDITABLE_STATUSES,
   type SubmissionRow,
 } from '../../../lib/submissions.ts';
@@ -79,11 +80,17 @@ export const PUT: APIRoute = async ({ locals, params, request }) => {
   if (built.kind === 'new' && built.slug !== row.slug && (await publishedSlugExists(env.DB, built.slug))) {
     return json(409, { error: `A published log already lives at /logs/${built.slug}.` });
   }
+  // An edit must still target a log the rider authored (the kind or target
+  // can change on a PUT, so re-check here, not only at create).
+  if (built.kind === 'edit' && !(await ownsPublishedLog(env.DB, built.target_log_slug!, rider.id))) {
+    return json(403, { error: 'You can only edit a flight log you published.' });
+  }
 
   const now = new Date().toISOString();
-  await env.DB.prepare(
+  const result = await env.DB.prepare(
     `UPDATE submissions SET kind = ?, target_log_slug = ?, slug = ?, title = ?,
-       frontmatter_json = ?, body_md = ?, updated_at = ? WHERE id = ? AND rider_id = ?`,
+       frontmatter_json = ?, body_md = ?, updated_at = ? WHERE id = ? AND rider_id = ?
+       AND status IN ('draft','changes_requested')`,
   )
     .bind(
       built.kind,
@@ -97,6 +104,10 @@ export const PUT: APIRoute = async ({ locals, params, request }) => {
       rider.id,
     )
     .run();
+  // Status changed under us (e.g. just submitted) → nothing updated.
+  if (result.meta.changes !== 1) {
+    return json(409, { error: 'This submission can no longer be edited.' });
+  }
 
   return json(200, { id: row.id, slug: built.slug, status: row.status });
 };

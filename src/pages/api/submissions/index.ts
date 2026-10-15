@@ -6,6 +6,7 @@ import {
   countInFlight,
   slugTaken,
   publishedSlugExists,
+  ownsPublishedLog,
   MAX_IN_FLIGHT,
   MAX_PER_DAY,
 } from '../../../lib/submissions.ts';
@@ -57,8 +58,9 @@ export const POST: APIRoute = async ({ locals, request }) => {
   if (built.kind === 'new' && (await publishedSlugExists(env.DB, built.slug))) {
     return json(409, { error: `A published log already lives at /logs/${built.slug}.` });
   }
-  if (built.kind === 'edit' && !(await publishedSlugExists(env.DB, built.target_log_slug!))) {
-    return json(404, { error: 'That log does not exist to edit.' });
+  // An edit must target a log the rider actually authored.
+  if (built.kind === 'edit' && !(await ownsPublishedLog(env.DB, built.target_log_slug!, rider.id))) {
+    return json(403, { error: 'You can only edit a flight log you published.' });
   }
 
   const id = crypto.randomUUID();

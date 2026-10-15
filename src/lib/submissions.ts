@@ -64,12 +64,26 @@ export function buildSubmission(payload: ComposerPayload, handle: string): Built
   const frontmatter = logFrontmatterSchema.parse({ ...fields, rider: handle, draft: false });
 
   const kind = payload.kind === 'edit' ? 'edit' : 'new';
-  const rawSlug = (payload.slug ?? '').trim() || slugify(frontmatter.title);
-  const slug = rawSlug.toLowerCase();
-  if (!isValidSlug(slug)) {
-    throw new Error('Could not form a valid slug from the title — add a short custom slug.');
+
+  let slug: string;
+  let targetLogSlug: string | null;
+  if (kind === 'edit') {
+    // An edit targets one existing log: its slug IS the target and can't be
+    // repointed (preventing an edit from clobbering a different log). The
+    // target must be a valid slug — it becomes a committed file path.
+    targetLogSlug = (payload.target_log_slug ?? payload.slug ?? '').trim().toLowerCase();
+    if (!isValidSlug(targetLogSlug)) {
+      throw new Error('That edit has no valid target log.');
+    }
+    slug = targetLogSlug;
+  } else {
+    const rawSlug = (payload.slug ?? '').trim() || slugify(frontmatter.title);
+    slug = rawSlug.toLowerCase();
+    if (!isValidSlug(slug)) {
+      throw new Error('Could not form a valid slug from the title — add a short custom slug.');
+    }
+    targetLogSlug = null;
   }
-  const targetLogSlug = kind === 'edit' ? (payload.target_log_slug ?? slug) : null;
 
   return {
     slug,
@@ -112,6 +126,23 @@ export async function publishedSlugExists(db: D1Database, slug: string): Promise
   const row = await db
     .prepare('SELECT slug FROM published_logs WHERE slug = ?')
     .bind(slug)
+    .first<{ slug: string }>();
+  return !!row;
+}
+
+/**
+ * Whether a rider may edit the published log at `slug`: it must exist AND be
+ * authored by them. The real trust boundary for edits — the composer page's
+ * UI check is not enough, since the API can be called directly.
+ */
+export async function ownsPublishedLog(
+  db: D1Database,
+  slug: string,
+  riderId: string,
+): Promise<boolean> {
+  const row = await db
+    .prepare('SELECT slug FROM published_logs WHERE slug = ? AND rider_id = ?')
+    .bind(slug, riderId)
     .first<{ slug: string }>();
   return !!row;
 }

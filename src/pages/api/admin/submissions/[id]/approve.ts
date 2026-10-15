@@ -63,7 +63,8 @@ export const POST: APIRoute = async ({ locals, params }) => {
          (slug, rider_id, title, date, task, outcome, burns_count, submission_id, published_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(slug) DO UPDATE SET
-         rider_id = excluded.rider_id, title = excluded.title, date = excluded.date,
+         rider_id = COALESCE(published_logs.rider_id, excluded.rider_id),
+         title = excluded.title, date = excluded.date,
          task = excluded.task, outcome = excluded.outcome,
          burns_count = excluded.burns_count, submission_id = excluded.submission_id`,
     ).bind(

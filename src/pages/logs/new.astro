@@ -164,9 +164,9 @@ const reins = fm.reins ?? { scope: '', budget: '', kill_switch: '', autonomy: ''
           <div id="burns-list">
             {burns.map((b) => (
               <div class="burn-row">
-                <input class="burn-what" type="text" maxlength="280" placeholder="What burned" value={b.what} />
-                <input class="burn-recovery" type="text" maxlength="280" placeholder="Recovery" value={b.recovery} />
-                <input class="burn-cost" type="number" min="0" step="0.01" placeholder="$0" value={b.cost_usd} />
+                <input class="burn-what" type="text" maxlength="280" placeholder="What burned" aria-label="What burned" value={b.what} />
+                <input class="burn-recovery" type="text" maxlength="280" placeholder="Recovery" aria-label="Recovery" value={b.recovery} />
+                <input class="burn-cost" type="number" min="0" step="0.01" placeholder="$0" aria-label="Cost in USD" value={b.cost_usd} />
                 <button type="button" class="burn-remove btn btn--ink" aria-label="Remove burn">×</button>
               </div>
             ))}
@@ -251,9 +251,9 @@ const reins = fm.reins ?? { scope: '', budget: '', kill_switch: '', autonomy: ''
       const div = document.createElement('div');
       div.className = 'burn-row';
       div.innerHTML =
-        '<input class="burn-what" type="text" maxlength="280" placeholder="What burned">' +
-        '<input class="burn-recovery" type="text" maxlength="280" placeholder="Recovery">' +
-        '<input class="burn-cost" type="number" min="0" step="0.01" placeholder="$0">' +
+        '<input class="burn-what" type="text" maxlength="280" placeholder="What burned" aria-label="What burned">' +
+        '<input class="burn-recovery" type="text" maxlength="280" placeholder="Recovery" aria-label="Recovery">' +
+        '<input class="burn-cost" type="number" min="0" step="0.01" placeholder="$0" aria-label="Cost in USD">' +
         '<button type="button" class="burn-remove btn btn--ink" aria-label="Remove burn">×</button>';
       (div.querySelector('.burn-what') as HTMLInputElement).value = what;
       (div.querySelector('.burn-recovery') as HTMLInputElement).value = recovery;

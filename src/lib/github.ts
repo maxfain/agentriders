@@ -96,7 +96,12 @@ export async function commitLogFile(env: Env, input: CommitInput): Promise<strin
 
   const existing = await getLogFile(env, slug);
   if (kind === 'new' && existing) {
-    throw new Error(`A log already exists at ${logPath(slug)}.`);
+    // Idempotent re-approve: a prior approve may have committed the file and
+    // then failed to persist its DB state (orphan). If the live content is
+    // byte-identical to what we'd write, adopt it as success instead of
+    // stranding the submission; only a genuinely different file is a clash.
+    if (existing.markdown === markdown) return existing.sha;
+    throw new Error(`A different log already exists at ${logPath(slug)}.`);
   }
   if (kind === 'edit' && !existing) {
     throw new Error(`No log to edit at ${logPath(slug)}.`);

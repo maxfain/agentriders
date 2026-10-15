@@ -47,15 +47,18 @@ export async function reconcile(
     const logs = (await res.json()) as LogsJsonEntry[];
     if (!Array.isArray(logs)) return { ran: false, published: 0, mirrored: 0 };
 
-    // Resolve handles → rider ids in one query.
+    // Resolve handles → rider ids. D1 caps bound parameters per query, so
+    // chunk rather than build one unbounded IN (...) as the site grows.
     const handles = [...new Set(logs.map((l) => l.rider).filter(Boolean))];
     const handleToId = new Map<string, string>();
-    if (handles.length) {
-      const placeholders = handles.map(() => '?').join(',');
+    const CHUNK = 80;
+    for (let i = 0; i < handles.length; i += CHUNK) {
+      const batch = handles.slice(i, i + CHUNK);
+      const placeholders = batch.map(() => '?').join(',');
       const rows = await env.DB.prepare(
         `SELECT id, handle FROM riders WHERE handle IN (${placeholders})`,
       )
-        .bind(...handles)
+        .bind(...batch)
         .all<{ id: string; handle: string }>();
       for (const r of rows.results ?? []) handleToId.set(r.handle, r.id);
     }
@@ -63,11 +66,13 @@ export async function reconcile(
     // Which approved submissions can now flip to published (their slug is live).
     const liveSlugs = new Set(logs.map((l) => slugFromUrl(l.url)).filter(Boolean) as string[]);
     const approved = await env.DB.prepare(
-      "SELECT id, slug, rider_id FROM submissions WHERE status = 'approved'",
-    ).all<{ id: string; slug: string; rider_id: string }>();
-    const slugToSubmission = new Map<string, { id: string; rider_id: string }>();
+      "SELECT id, slug, rider_id, kind FROM submissions WHERE status = 'approved'",
+    ).all<{ id: string; slug: string; rider_id: string; kind: string }>();
+    const slugToSubmission = new Map<string, { id: string; rider_id: string; kind: string }>();
     for (const s of approved.results ?? []) {
-      if (liveSlugs.has(s.slug)) slugToSubmission.set(s.slug, { id: s.id, rider_id: s.rider_id });
+      if (liveSlugs.has(s.slug)) {
+        slugToSubmission.set(s.slug, { id: s.id, rider_id: s.rider_id, kind: s.kind });
+      }
     }
 
     const now = new Date().toISOString();
@@ -80,31 +85,39 @@ export async function reconcile(
       const submission = slugToSubmission.get(slug);
       const riderId = submission?.rider_id ?? handleToId.get(log.rider) ?? null;
 
-      statements.push(
-        env.DB.prepare(
-          `INSERT INTO published_logs
-             (slug, rider_id, title, date, task, outcome, burns_count, submission_id, published_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-           ON CONFLICT(slug) DO UPDATE SET
-             rider_id = COALESCE(excluded.rider_id, published_logs.rider_id),
-             title = excluded.title,
-             date = excluded.date,
-             task = excluded.task,
-             outcome = excluded.outcome,
-             burns_count = excluded.burns_count,
-             submission_id = COALESCE(published_logs.submission_id, excluded.submission_id)`,
-        ).bind(
-          slug,
-          riderId,
-          log.title,
-          log.date,
-          log.task,
-          log.outcome,
-          Array.isArray(log.burns) ? log.burns.length : 0,
-          submission?.id ?? null,
-          now,
-        ),
-      );
+      // For an EDIT being flipped this pass, /logs.json still carries the OLD
+      // content (the ~2-min rebuild hasn't landed), while approve already
+      // wrote the fresh values optimistically — so don't overwrite them from
+      // stale /logs.json. A later reconcile, after the rebuild, upserts the
+      // now-fresh values (the submission is 'published' by then, not here).
+      const skipMirrorWrite = submission?.kind === 'edit';
+      if (!skipMirrorWrite) {
+        statements.push(
+          env.DB.prepare(
+            `INSERT INTO published_logs
+               (slug, rider_id, title, date, task, outcome, burns_count, submission_id, published_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+             ON CONFLICT(slug) DO UPDATE SET
+               rider_id = COALESCE(excluded.rider_id, published_logs.rider_id),
+               title = excluded.title,
+               date = excluded.date,
+               task = excluded.task,
+               outcome = excluded.outcome,
+               burns_count = excluded.burns_count,
+               submission_id = COALESCE(published_logs.submission_id, excluded.submission_id)`,
+          ).bind(
+            slug,
+            riderId,
+            log.title,
+            log.date,
+            log.task,
+            log.outcome,
+            Array.isArray(log.burns) ? log.burns.length : 0,
+            submission?.id ?? null,
+            now,
+          ),
+        );
+      }
 
       if (submission) {
         statements.push(

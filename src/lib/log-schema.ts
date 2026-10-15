@@ -32,7 +32,14 @@ export const logFrontmatterShape = {
   title: z.string().min(1).max(140),
   date: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Use an ISO date, yyyy-mm-dd.'),
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Use an ISO date, yyyy-mm-dd.')
+    // A shape-valid but calendar-invalid date (2026-13-45) would pass the
+    // regex, then crash the content collection's z.coerce.date() at build.
+    .refine((s) => {
+      const [y, m, d] = s.split('-').map(Number);
+      const dt = new Date(Date.UTC(y, m - 1, d));
+      return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+    }, 'Not a real calendar date.'),
   rider: z.string().min(1).max(60),
   mount: z.string().min(1).max(80),
   model: z.string().max(80).optional(),
