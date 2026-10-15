@@ -13,12 +13,12 @@ const active = (href: string) => {
     <nav class="nav" aria-label="Primary">
       {links.map(([href, label]) => <a href={href} aria-current={active(href) ? 'page' : undefined}>{label}</a>)}
     </nav>
-    <a class="btn btn--ember header-join" href="/guild">Join the Guild <Arrow /></a>
+    <a class="btn btn--ember header-join" href="/guild" data-auth-link><span data-auth-label>Join the Guild</span> <Arrow /></a>
     <details class="mobile-menu">
       <summary aria-label="Navigation menu"><span></span><span></span></summary>
       <nav aria-label="Mobile navigation">
         {links.map(([href, label], i) => <a href={href} aria-current={active(href) ? 'page' : undefined}><span class="micro">0{i + 1}</span>{label}<Arrow /></a>)}
-        <a href="/guild" class="mobile-menu__join">Join the Guild <Arrow /></a>
+        <a href="/guild" class="mobile-menu__join" data-auth-link><span data-auth-label>Join the Guild</span> <Arrow /></a>
       </nav>
     </details>
   </div>
@@ -32,6 +32,27 @@ const active = (href: string) => {
   }
 </style>
 <script>
+  // Static pages stay static; the only personalization is this swap of the
+  // join button to the signed-in rider's handle. The ar_signedin hint
+  // cookie (set on login, cleared on logout) keeps anonymous page views
+  // from calling the API at all. Fails silent and signed-out.
+  if (document.cookie.includes('ar_signedin=1')) {
+    fetch('/api/me', { headers: { Accept: 'application/json' } })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((me) => {
+        if (!me?.authenticated) {
+          document.cookie = 'ar_signedin=; Max-Age=0; path=/';
+          return;
+        }
+        for (const link of document.querySelectorAll<HTMLAnchorElement>('[data-auth-link]')) {
+          link.href = me.pending ? '/join' : '/me';
+          const label = link.querySelector('[data-auth-label]');
+          if (label) label.textContent = me.pending ? 'Finish joining' : `@${me.handle}`;
+        }
+      })
+      .catch(() => {});
+  }
+
   const menu = document.querySelector<HTMLDetailsElement>('.mobile-menu');
   if (menu) {
     document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && menu.open) { menu.open = false; menu.querySelector('summary')?.focus(); } });

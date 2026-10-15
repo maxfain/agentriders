@@ -8,3 +8,6 @@ public/og.png
 
 # wrangler local dev state (local D1/KV)
 .wrangler/
+
+# local dev secrets (see .dev.vars.example)
+.dev.vars
