@@ -80,6 +80,9 @@ a:hover { color: var(--ember); }
 .btn--ember:hover { background: #F06A43; }
 .btn--outline { border-color: #5A534B; color: var(--text-on-ink) !important; background: transparent; }
 .btn--outline:hover { border-color: var(--text-on-ink); }
+/* Outline button for bone/light sections — dark text, legible on bone. */
+.btn--ink { border-color: var(--bone-line); color: var(--text-on-bone) !important; background: transparent; }
+.btn--ink:hover { border-color: var(--ink); background: #16130F0a; }
 
 /* ---------- Header ---------- */
 .site-header { border-bottom: 1px solid var(--ink-line); }
