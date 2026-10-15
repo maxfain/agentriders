@@ -1,0 +1,17 @@
+# Local development secrets for `astro dev` / `wrangler pages dev`.
+# Copy to .dev.vars (gitignored). Production values are Pages secrets:
+#   npx wrangler pages secret put <NAME> --project-name agentriders
+
+# Any random string locally; production uses a real random secret.
+SESSION_PEPPER=dev-pepper-not-secret
+
+# Echo magic links in the /api/auth/magic response instead of emailing.
+# LOCAL DEV ONLY — never set in production.
+DEV_MAGIC_ECHO=1
+
+# From the GitHub OAuth app (callback <origin>/api/auth/github/callback).
+# GITHUB_OAUTH_CLIENT_ID=
+# GITHUB_OAUTH_CLIENT_SECRET=
+
+# From Resend, for real magic-link emails.
+# RESEND_API_KEY=

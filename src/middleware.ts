@@ -1,13 +1,17 @@
 import { defineMiddleware } from 'astro:middleware';
+import { SESSION_COOKIE, resolveSession } from './lib/session';
 
-// Runs for server routes (prerender = false) at request time, and for
-// prerendered pages once at build time — where there is no runtime, so we
-// pass straight through and the static output is untouched.
+// Runs for server routes (prerender = false) at request time, and once at
+// build time for prerendered pages — where it passes straight through so
+// the static output is untouched. The adapter populates locals.runtime
+// even during prerender (with process.env), so the build-time guard is
+// isPrerendered, not runtime truthiness.
 //
-// M0 skeleton: cross-origin write rejection + no-store on dynamic responses.
-// Session resolution (locals.rider) lands in M1.
+// Request-time duties: cross-origin write rejection (Astro's built-in
+// checkOrigin fires as well — two layers on purpose), session-cookie →
+// locals.rider resolution, and no-store on every dynamic response.
 export const onRequest = defineMiddleware(async (context, next) => {
-  if (!context.locals.runtime) return next();
+  if (context.isPrerendered || !context.locals.runtime) return next();
 
   const method = context.request.method;
   if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
@@ -17,6 +21,25 @@ export const onRequest = defineMiddleware(async (context, next) => {
         status: 403,
         headers: { 'Content-Type': 'application/json' },
       });
+    }
+  }
+
+  context.locals.rider = null;
+  context.locals.sessionId = null;
+  const { env } = context.locals.runtime;
+  const token = context.cookies.get(SESSION_COOKIE)?.value;
+  if (token && env.SESSION_PEPPER) {
+    try {
+      const resolved = await resolveSession(env.DB, env.SESSION_PEPPER, token);
+      if (resolved) {
+        context.locals.rider = resolved.rider;
+        context.locals.sessionId = resolved.sessionId;
+      } else {
+        context.cookies.delete(SESSION_COOKIE, { path: '/' });
+      }
+    } catch {
+      // A session lookup failure must never take down a public page;
+      // the request just proceeds signed out.
     }
   }
 

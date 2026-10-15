@@ -8,7 +8,7 @@
     "build": "node scripts/generate-og.mjs && astro build",
     "preview": "astro preview",
     "og": "node scripts/generate-og.mjs",
-    "test": "node --test cli/eval-detector.test.js"
+    "test": "node --test cli/eval-detector.test.js tests/auth-libs.test.ts"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^12.6.13",

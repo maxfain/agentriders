@@ -1,0 +1,163 @@
+---
+export const prerender = false;
+import Base from '../layouts/Base.astro';
+import PageHero from '../components/PageHero.astro';
+import Arrow from '../components/Arrow.astro';
+import { isPendingHandle } from '../lib/handles';
+
+const rider = Astro.locals.rider;
+if (rider && !isPendingHandle(rider.handle)) return Astro.redirect('/me');
+
+const ERRORS: Record<string, string> = {
+  oauth_state: 'That sign-in attempt expired. Start again.',
+  oauth_denied: 'GitHub sign-in was cancelled.',
+  oauth_failed: 'GitHub sign-in failed. Try again, or use an email link.',
+  link_expired: 'That sign-in link expired or was already used. Request a fresh one.',
+  link_invalid: 'That sign-in link is not valid. Request a fresh one.',
+  signin_failed: 'Sign-in hit turbulence on our side. Request a fresh link.',
+  banned: 'This account is grounded. Write to the Guild if you think that is wrong.',
+};
+const errorKey = Astro.url.searchParams.get('error');
+const error = errorKey ? (ERRORS[errorKey] ?? null) : null;
+---
+
+<Base
+  title="Join the Guild — AgentRiders"
+  description="Claim your handle. Log your flights. Earn your rank."
+>
+  <PageHero
+    eyebrow="The Guild"
+    title={rider ? 'Claim your handle.' : 'Mount up.'}
+    description={rider
+      ? 'One handle, lowercase, yours for good. It goes on every flight you log and every vouch you give.'
+      : 'Sign in to log flights under your own name. Reading stays free, no account needed.'}
+    art="seal"
+    id="join-title"
+    compact
+  ></PageHero>
+
+  <section class="section section--bone">
+    <div class="container join-layout">
+      {error && <p class="join-error" role="alert">{error}</p>}
+
+      {!rider ? (
+        <div class="join-card">
+          <a class="btn btn--ember join-github" href="/api/auth/github">Continue with GitHub <Arrow /></a>
+          <div class="join-divider micro" aria-hidden="true">OR</div>
+          <form class="signup" id="magic-form" method="post" action="/api/auth/magic">
+            <label for="magic-email">Sign in with an email link</label>
+            <div class="signup__row">
+              <input id="magic-email" name="email" type="email" autocomplete="email" required placeholder="rider@example.com" />
+              <button class="btn btn--outline" type="submit">Send link <Arrow /></button>
+            </div>
+            <p class="signup__fine" id="magic-status" role="status">The link works once and expires in 15 minutes.</p>
+          </form>
+          <noscript><p class="signup__fine">Email sign-in needs JavaScript; GitHub sign-in works without it.</p></noscript>
+        </div>
+      ) : (
+        <div class="join-card">
+          <form class="signup" id="claim-form" method="post" action="/api/riders/claim">
+            <label for="claim-handle">Your handle</label>
+            <div class="signup__row signup__row--handle">
+              <span class="join-at" aria-hidden="true">@</span>
+              <input
+                id="claim-handle"
+                name="handle"
+                type="text"
+                required
+                minlength="1"
+                maxlength="32"
+                pattern="[a-z0-9]([a-z0-9\-]{0,30}[a-z0-9])?"
+                autocomplete="username"
+                spellcheck="false"
+                placeholder="your-handle"
+              />
+            </div>
+            <label for="claim-name">Display name <span class="join-optional">(optional)</span></label>
+            <div class="signup__row">
+              <input id="claim-name" name="displayName" type="text" maxlength="60" autocomplete="name" value={rider.display_name === 'New rider' ? '' : rider.display_name} placeholder="How riders see you" />
+            </div>
+            <div class="signup__row">
+              <button class="btn btn--ember" type="submit">Claim it <Arrow /></button>
+            </div>
+            <p class="signup__fine" id="claim-status" role="status">Lowercase letters, numbers and hyphens. Choose well — it sticks.</p>
+          </form>
+        </div>
+      )}
+    </div>
+  </section>
+</Base>
+
+<style>
+  .join-layout { max-width: 560px; }
+  .join-error { margin-bottom: 24px; padding: 14px 18px; border: 1px solid var(--bone-line); border-left: 3px solid var(--ember); background: var(--bone-raised); font-size: 14px; }
+  .join-card { display: flex; flex-direction: column; gap: 22px; padding: 30px; border: 1px solid var(--bone-line); background: var(--bone-raised); }
+  .join-github { align-self: flex-start; }
+  .join-divider { display: flex; align-items: center; gap: 12px; color: var(--ash); font-size: 10px; letter-spacing: 0.2em; }
+  .join-divider::before, .join-divider::after { content: ''; flex: 1; height: 1px; background: var(--bone-line); }
+  .signup__row--handle { align-items: center; flex-wrap: nowrap; }
+  .join-at { font-family: var(--mono); font-size: 18px; color: var(--ash); }
+  .join-optional { text-transform: none; letter-spacing: 0; opacity: 0.7; }
+</style>
+
+<script>
+  const magicForm = document.getElementById('magic-form') as HTMLFormElement | null;
+  if (magicForm) {
+    const status = document.getElementById('magic-status')!;
+    magicForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const email = (document.getElementById('magic-email') as HTMLInputElement).value;
+      status.textContent = 'Sending…';
+      try {
+        const response = await fetch('/api/auth/magic', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        const body = await response.json();
+        if (response.ok) {
+          status.textContent = 'Check your inbox — the link lands within a minute.';
+          if (body.link) {
+            // Local dev echo (DEV_MAGIC_ECHO) — never present in production.
+            const a = document.createElement('a');
+            a.href = body.link;
+            a.textContent = ' Dev link.';
+            status.appendChild(a);
+          }
+        } else {
+          status.textContent = body.error ?? 'Something went wrong. Try again.';
+        }
+      } catch {
+        status.textContent = 'Network error. Try again.';
+      }
+    });
+  }
+
+  const claimForm = document.getElementById('claim-form') as HTMLFormElement | null;
+  if (claimForm) {
+    const status = document.getElementById('claim-status')!;
+    claimForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const handle = (document.getElementById('claim-handle') as HTMLInputElement).value
+        .trim()
+        .toLowerCase();
+      const displayName = (document.getElementById('claim-name') as HTMLInputElement).value.trim();
+      status.textContent = 'Claiming…';
+      try {
+        const response = await fetch('/api/riders/claim', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ handle, displayName: displayName || undefined }),
+        });
+        const body = await response.json();
+        if (response.ok) {
+          window.location.assign('/me');
+        } else {
+          status.textContent = body.error ?? 'Something went wrong. Try again.';
+        }
+      } catch {
+        status.textContent = 'Network error. Try again.';
+      }
+    });
+  }
+</script>
