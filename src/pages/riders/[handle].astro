@@ -1,0 +1,80 @@
+---
+export const prerender = false;
+import Base from '../../layouts/Base.astro';
+import PageHero from '../../components/PageHero.astro';
+import type { RiderRow } from '../../lib/session';
+
+// Public rider profile. Minimal in M2 — identity + their published flights —
+// so log-page rider links resolve. M3 layers on rank, vouches and verified
+// stats. Banned or unknown riders 404; the literal /riders/directory route
+// (M3) takes precedence over this param.
+const { env } = Astro.locals.runtime;
+const handle = (Astro.params.handle ?? '').toLowerCase();
+
+const rider = await env.DB.prepare(
+  "SELECT id, handle, display_name, bio, rank, is_admin, banned_at, created_at FROM riders WHERE handle = ? AND banned_at IS NULL AND handle NOT LIKE 'pending-%'",
+)
+  .bind(handle)
+  .first<RiderRow>();
+
+if (!rider) return new Response('Not found', { status: 404 });
+
+type Flight = { slug: string; title: string; date: string; task: string; outcome: string; burns_count: number };
+const flights = (
+  await env.DB.prepare(
+    'SELECT slug, title, date, task, outcome, burns_count FROM published_logs WHERE rider_id = ? ORDER BY date DESC',
+  )
+    .bind(rider.id)
+    .all<Flight>()
+).results ?? [];
+
+const joined = new Date(rider.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+const rankLabel = rider.rank ? rider.rank.toUpperCase() : 'UNRANKED';
+const landed = flights.filter((f) => f.outcome === 'landed').length;
+---
+
+<Base title={`@${rider.handle} — AgentRiders`} description={`${rider.display_name}'s flight record: ${flights.length} published ${flights.length === 1 ? 'flight' : 'flights'}.`}>
+  <PageHero eyebrow={`@${rider.handle}`} title={rider.display_name} description={rider.bio ?? undefined} art="ranks" id="rider-title" compact></PageHero>
+
+  <section class="section section--bone">
+    <div class="container rider-profile">
+      <dl class="rider-stats">
+        <div><dt>Rank</dt><dd>{rankLabel}</dd></div>
+        <div><dt>Flights</dt><dd>{flights.length}</dd></div>
+        <div><dt>Landed</dt><dd>{landed}</dd></div>
+        <div><dt>Joined</dt><dd>{joined}</dd></div>
+      </dl>
+
+      <h2 class="rider-flights__title">Flights</h2>
+      {flights.length === 0 ? (
+        <p class="rider-empty">No published flights yet.</p>
+      ) : (
+        <ul class="rider-flights">
+          {flights.map((f) => (
+            <li>
+              <a href={`/logs/${f.slug}`}>
+                <span class="rider-flights__name">{f.title}</span>
+                <span class="rider-flights__meta">{f.date} · {f.task} · {f.outcome}{f.burns_count > 0 ? ` · ${f.burns_count} ${f.burns_count === 1 ? 'burn' : 'burns'}` : ''}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  </section>
+</Base>
+
+<style>
+  .rider-profile { max-width: 760px; display: flex; flex-direction: column; gap: 30px; }
+  .rider-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 16px; margin: 0; }
+  .rider-stats div { border: 1px solid var(--bone-line); border-left: 3px solid var(--ember); background: var(--bone-raised); padding: 16px 18px; }
+  .rider-stats dt { font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ash); }
+  .rider-stats dd { margin: 6px 0 0; font-family: var(--display); font-size: 22px; font-weight: 600; }
+  .rider-flights__title { font-family: var(--display); font-size: 22px; margin-bottom: 6px; }
+  .rider-empty { color: var(--text-on-bone-soft); }
+  .rider-flights { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .rider-flights a { display: flex; flex-direction: column; gap: 3px; padding: 15px 18px; border: 1px solid var(--bone-line); background: var(--bone-raised); text-decoration: none; color: var(--text-on-bone); }
+  .rider-flights a:hover { border-color: var(--ink); }
+  .rider-flights__name { font-family: var(--display); font-size: 18px; font-weight: 600; }
+  .rider-flights__meta { font-size: 13px; color: var(--text-on-bone-soft); }
+</style>

@@ -1,0 +1,116 @@
+---
+export const prerender = false;
+import Base from '../../layouts/Base.astro';
+import PageHero from '../../components/PageHero.astro';
+import { reconcile } from '../../lib/reconcile';
+
+// Middleware guarantees admin; still a hard belt here.
+const { env } = Astro.locals.runtime;
+
+// Lazy reconcile on queue render keeps approved→published fresh.
+await reconcile(env, Astro.url.origin);
+
+type QueueRow = {
+  id: string; slug: string; title: string; status: string; kind: string;
+  handle: string; display_name: string; submitted_at: string | null;
+  updated_at: string; commit_sha: string | null;
+};
+
+const queue = (
+  await env.DB.prepare(
+    `SELECT s.id, s.slug, s.title, s.status, s.kind, s.submitted_at, s.updated_at, s.commit_sha,
+            r.handle, r.display_name
+     FROM submissions s JOIN riders r ON r.id = s.rider_id
+     WHERE s.status IN ('submitted','in_review','changes_requested','approved')
+     ORDER BY CASE s.status WHEN 'submitted' THEN 0 WHEN 'in_review' THEN 1
+       WHEN 'approved' THEN 2 ELSE 3 END, s.submitted_at ASC, s.updated_at ASC`,
+  ).all<QueueRow>()
+).results ?? [];
+
+// Approved-but-not-yet-published for over an hour → flag a stuck publish.
+const now = Date.now();
+const stale = queue.filter(
+  (q) => q.status === 'approved' && now - new Date(q.updated_at).getTime() > 60 * 60 * 1000,
+);
+
+const counts = {
+  published: (await env.DB.prepare('SELECT COUNT(*) AS n FROM published_logs').first<{ n: number }>())?.n ?? 0,
+};
+const GATE = 20;
+---
+
+<Base title="Review queue — AgentRiders" description="Admin: flight-log submissions.">
+  <PageHero eyebrow="Admin" title="Review queue." description="Every flight goes through here before it flies." art="ledger" id="admin-title" compact></PageHero>
+
+  <section class="section section--bone">
+    <div class="container admin">
+      <div class="admin__bar">
+        <p class="admin__gate"><strong>{counts.published}</strong> / {GATE} published — directory {counts.published >= GATE ? 'is open' : `opens at ${GATE}`}.</p>
+        <div class="admin__tools">
+          <button type="button" id="resync" class="btn btn--ink">Resync mirror</button>
+          <button type="button" id="rebuild" class="btn btn--ink">Rebuild site</button>
+        </div>
+      </div>
+      <p class="admin__status" id="admin-status" role="status"></p>
+
+      {stale.length > 0 && (
+        <p class="admin__warn" role="alert">{stale.length} approved {stale.length === 1 ? 'log has' : 'logs have'} not gone live after an hour — check the deploy.</p>
+      )}
+
+      {queue.length === 0 ? (
+        <p class="admin__empty">Queue is clear. Nothing waiting.</p>
+      ) : (
+        <ul class="admin__list">
+          {queue.map((q) => (
+            <li class={`admin__item admin__item--${q.status}`}>
+              <a href={`/admin/submissions/${q.id}`}>
+                <span class="admin__item-status">{q.status.replace('_', ' ')}</span>
+                <span class="admin__item-title">{q.title}</span>
+                <span class="admin__item-meta">@{q.handle} · {q.kind}{q.kind === 'edit' ? ` /logs/${q.slug}` : ''} · {q.submitted_at ? new Date(q.submitted_at).toLocaleDateString('en-US') : 'draft'}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  </section>
+</Base>
+
+<style>
+  .admin { max-width: 820px; }
+  .admin__bar { display: flex; justify-content: space-between; align-items: center; gap: 18px; flex-wrap: wrap; margin-bottom: 16px; }
+  .admin__gate { font-size: 15px; color: var(--text-on-bone-soft); }
+  .admin__gate strong { font-size: 20px; color: var(--text-on-bone); }
+  .admin__tools { display: flex; gap: 10px; }
+  .admin__tools .btn { min-height: 42px; font-size: 10px; }
+  .admin__status { min-height: 1.4em; font-size: 14px; color: var(--text-on-bone-soft); }
+  .admin__warn { padding: 12px 16px; border-left: 3px solid var(--ember); background: var(--bone-raised); font-size: 14px; margin-bottom: 18px; }
+  .admin__empty { color: var(--text-on-bone-soft); padding: 30px 0; }
+  .admin__list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .admin__item a { display: grid; grid-template-columns: 130px 1fr; grid-template-areas: "status title" "status meta"; gap: 2px 16px; padding: 16px 18px; border: 1px solid var(--bone-line); background: var(--bone-raised); text-decoration: none; color: var(--text-on-bone); align-items: center; }
+  .admin__item a:hover { border-color: var(--ink); }
+  .admin__item-status { grid-area: status; font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ash); }
+  .admin__item--submitted .admin__item-status { color: var(--ember-text); }
+  .admin__item-title { grid-area: title; font-family: var(--display); font-size: 19px; font-weight: 600; }
+  .admin__item-meta { grid-area: meta; font-size: 13px; color: var(--text-on-bone-soft); }
+</style>
+
+<script>
+  const status = document.getElementById('admin-status')!;
+  const call = async (btn: string, url: string, done: string) => {
+    const el = document.getElementById(btn)!;
+    el.addEventListener('click', async () => {
+      status.textContent = 'Working…';
+      try {
+        const res = await fetch(url, { method: 'POST' });
+        const body = await res.json().catch(() => ({}));
+        status.textContent = res.ok ? done + (body.published ? ` (${body.published} published)` : '') : (body.error || 'Failed.');
+        if (res.ok && btn === 'resync') setTimeout(() => location.reload(), 800);
+      } catch {
+        status.textContent = 'Network error.';
+      }
+    });
+  };
+  call('resync', '/api/admin/reconcile', 'Mirror resynced.');
+  call('rebuild', '/api/admin/rebuild', 'Rebuild triggered.');
+</script>

@@ -1,5 +1,6 @@
 import { defineMiddleware } from 'astro:middleware';
 import { SESSION_COOKIE, resolveSession } from './lib/session';
+import { isAdmin } from './lib/admin';
 
 // Runs for server routes (prerender = false) at request time, and once at
 // build time for prerendered pages — where it passes straight through so
@@ -41,6 +42,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
       // A session lookup failure must never take down a public page;
       // the request just proceeds signed out.
     }
+  }
+
+  // The admin surface doesn't exist for anyone else — 404, not 403, so its
+  // shape isn't even confirmed. Covers /admin pages and /api/admin routes.
+  const path = context.url.pathname;
+  if ((path === '/admin' || path.startsWith('/admin/') || path.startsWith('/api/admin')) && !isAdmin(context.locals.rider)) {
+    return new Response('Not found', { status: 404, headers: { 'Content-Type': 'text/plain' } });
   }
 
   const response = await next();

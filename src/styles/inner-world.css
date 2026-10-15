@@ -21,6 +21,8 @@
 .page-hero--compact .relic { height: 270px; transform: scale(.8); }
 .page-hero--seal .page-hero__layout { grid-template-columns: 1.3fr 1fr; }
 .page-hero__meta { margin-top: 24px; font: 10px/1.6 var(--mono); color: #bfa78e; }
+.page-hero__meta a { color: #ffdbad; text-decoration: underline; text-underline-offset: 2px; }
+.verified-badge { display: inline-block; margin-left: 10px; padding: 2px 8px; border: 1px solid #e4572e66; color: #ffb38a; letter-spacing: 0.08em; border-radius: 3px; }
 /* The book, ledger, letter and seal are HTML/SVG, with real type and fine edges. */
 .relic { height: 385px; position: relative; display: grid; place-items: center; perspective: 1100px; }
 .relic__orbits { position: absolute; width: 370px; height: 370px; max-width: 100%; border-radius: 50%; }
