@@ -14,15 +14,13 @@
     {
       "binding": "DB",
       "database_name": "agentriders",
-      // TODO(M0): replace with the real id from `wrangler d1 create agentriders`
-      "database_id": "00000000-0000-0000-0000-000000000000"
+      "database_id": "98530674-d902-47ca-9565-05adc286aac1"
     }
   ],
   "kv_namespaces": [
     {
       "binding": "RATE",
-      // TODO(M0): replace with the real id from `wrangler kv namespace create RATE`
-      "id": "00000000000000000000000000000000"
+      "id": "aac75f752f77464e99293c204c39ca9c"
     }
   ]
 }
