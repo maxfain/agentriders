@@ -1,0 +1,354 @@
+---
+export const prerender = false;
+import Base from '../../layouts/Base.astro';
+import PageHero from '../../components/PageHero.astro';
+import { TASK_VALUES, OUTCOME_VALUES, type LogFrontmatter } from '../../lib/log-schema';
+import { getLogFile } from '../../lib/github';
+import { parseAndValidateLog } from '../../lib/frontmatter';
+import type { SubmissionRow } from '../../lib/submissions';
+
+const rider = Astro.locals.rider;
+if (!rider) return Astro.redirect('/join');
+if (rider.handle.startsWith('pending-')) return Astro.redirect('/join');
+
+const { env } = Astro.locals.runtime;
+const url = Astro.url;
+const submissionId = url.searchParams.get('id');
+const editSlug = url.searchParams.get('edit');
+
+type Prefill = {
+  id: string | null;
+  kind: 'new' | 'edit';
+  targetSlug: string | null;
+  slug: string;
+  status: string;
+  reviewerNotes: string | null;
+  body: string;
+  fm: Partial<LogFrontmatter>;
+  notice: string | null;
+};
+
+const blank: Prefill = {
+  id: null, kind: 'new', targetSlug: null, slug: '', status: 'draft',
+  reviewerNotes: null, body: '', notice: null,
+  fm: { date: new Date().toISOString().slice(0, 10), burns: [] },
+};
+
+let prefill: Prefill = blank;
+
+if (submissionId) {
+  const row = await env.DB.prepare('SELECT * FROM submissions WHERE id = ? AND rider_id = ?')
+    .bind(submissionId, rider.id)
+    .first<SubmissionRow>();
+  if (row) {
+    prefill = {
+      id: row.id, kind: row.kind as 'new' | 'edit', targetSlug: row.target_log_slug,
+      slug: row.slug, status: row.status, reviewerNotes: row.reviewer_notes,
+      body: row.body_md, fm: JSON.parse(row.frontmatter_json), notice: null,
+    };
+  }
+} else if (editSlug) {
+  // Edit an existing published log — only the rider who owns it.
+  const owned = await env.DB.prepare(
+    'SELECT slug FROM published_logs WHERE slug = ? AND rider_id = ?',
+  )
+    .bind(editSlug, rider.id)
+    .first<{ slug: string }>();
+  if (!owned) {
+    prefill = { ...blank, notice: 'You can only edit a flight log you published.' };
+  } else {
+    try {
+      const file = await getLogFile(env, editSlug);
+      if (file) {
+        const { frontmatter, body } = parseAndValidateLog(file.markdown);
+        prefill = {
+          id: null, kind: 'edit', targetSlug: editSlug, slug: editSlug, status: 'draft',
+          reviewerNotes: null, body, fm: frontmatter, notice: null,
+        };
+      }
+    } catch {
+      prefill = { ...blank, notice: 'Could not load that log to edit right now — try again shortly.' };
+    }
+  }
+}
+
+const fm = prefill.fm;
+const burns = Array.isArray(fm.burns) && fm.burns.length ? fm.burns : [];
+const reins = fm.reins ?? { scope: '', budget: '', kill_switch: '', autonomy: '' };
+---
+
+<Base
+  title="Log a flight — AgentRiders"
+  description="Compose a flight log and submit it to the review queue."
+>
+  <PageHero
+    eyebrow={prefill.kind === 'edit' ? 'Edit flight log' : 'Log a flight'}
+    title={prefill.kind === 'edit' ? 'Revise your flight.' : 'Log your flight.'}
+    description="Leave the numbers in. The review queue reads every field; keep it honest and it publishes with your handle on it."
+    art="ledger"
+    id="new-title"
+    compact
+  ></PageHero>
+
+  <section class="section section--bone">
+    <div class="container composer">
+      <p class="composer__as">Publishing as <strong>@{rider.handle}</strong>{prefill.kind === 'edit' && <> · editing <code>/logs/{prefill.targetSlug}</code></>}</p>
+      {prefill.notice && <p class="composer__notice" role="alert">{prefill.notice}</p>}
+      {prefill.status === 'changes_requested' && prefill.reviewerNotes && (
+        <div class="composer__changes" role="alert">
+          <p class="micro">CHANGES REQUESTED</p>
+          <p>{prefill.reviewerNotes}</p>
+        </div>
+      )}
+
+      <form id="composer" data-id={prefill.id ?? ''} data-kind={prefill.kind} data-target={prefill.targetSlug ?? ''} data-status={prefill.status}>
+        <div class="field">
+          <label for="f-title">Title</label>
+          <input id="f-title" name="title" type="text" maxlength="140" required value={fm.title ?? ''} placeholder="Migrated 214 unit tests to Vitest" />
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="f-date">Date</label>
+            <input id="f-date" name="date" type="date" required value={fm.date ?? ''} />
+          </div>
+          <div class="field">
+            <label for="f-slug">Slug <span class="field__hint">(optional)</span></label>
+            <input id="f-slug" name="slug" type="text" maxlength="80" value={prefill.slug} placeholder="auto from title" pattern="[a-z0-9]([a-z0-9\-]{0,78}[a-z0-9])?" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="f-mount">Mount <span class="field__hint">(agent / framework)</span></label>
+            <input id="f-mount" name="mount" type="text" maxlength="80" required value={fm.mount ?? ''} placeholder="Claude Code" />
+          </div>
+          <div class="field">
+            <label for="f-model">Model <span class="field__hint">(optional)</span></label>
+            <input id="f-model" name="model" type="text" maxlength="80" value={fm.model ?? ''} placeholder="Claude Opus 4.8" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="f-harness">Harness <span class="field__hint">(optional)</span></label>
+            <input id="f-harness" name="harness" type="text" maxlength="80" value={fm.harness ?? ''} placeholder="Claude Code CLI" />
+          </div>
+          <div class="field">
+            <label for="f-task">Task</label>
+            <select id="f-task" name="task" required>
+              {TASK_VALUES.map((t) => <option value={t} selected={fm.task === t}>{t}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="f-duration">Duration</label>
+            <input id="f-duration" name="duration" type="text" maxlength="40" required value={fm.duration ?? ''} placeholder="3h 10m" />
+          </div>
+          <div class="field">
+            <label for="f-cost">Cost (USD)</label>
+            <input id="f-cost" name="cost_usd" type="number" min="0" step="0.01" required value={fm.cost_usd ?? ''} placeholder="41" />
+          </div>
+          <div class="field">
+            <label for="f-outcome">Outcome</label>
+            <select id="f-outcome" name="outcome" required>
+              {OUTCOME_VALUES.map((o) => <option value={o} selected={fm.outcome === o}>{o}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <fieldset class="burns">
+          <legend>Burns <span class="field__hint">(what went wrong — leave empty if nothing did)</span></legend>
+          <div id="burns-list">
+            {burns.map((b) => (
+              <div class="burn-row">
+                <input class="burn-what" type="text" maxlength="280" placeholder="What burned" value={b.what} />
+                <input class="burn-recovery" type="text" maxlength="280" placeholder="Recovery" value={b.recovery} />
+                <input class="burn-cost" type="number" min="0" step="0.01" placeholder="$0" value={b.cost_usd} />
+                <button type="button" class="burn-remove btn btn--ink" aria-label="Remove burn">×</button>
+              </div>
+            ))}
+          </div>
+          <button type="button" id="add-burn" class="btn btn--ink">+ Add a burn</button>
+        </fieldset>
+
+        <div class="field">
+          <label for="f-lesson">Lesson</label>
+          <textarea id="f-lesson" name="lesson" maxlength="500" required rows="2" placeholder="Give it a branch, not the repo.">{fm.lesson ?? ''}</textarea>
+        </div>
+
+        <fieldset class="reins">
+          <legend>The reins <span class="field__hint">(how you held it)</span></legend>
+          <div class="field">
+            <label for="f-scope">Scope</label>
+            <input id="f-scope" name="scope" type="text" maxlength="280" required value={reins.scope} placeholder="acme/web, branch only" />
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="f-budget">Budget</label>
+              <input id="f-budget" name="budget" type="text" maxlength="120" required value={reins.budget} placeholder="$50 per flight" />
+            </div>
+            <div class="field">
+              <label for="f-kill">Kill switch</label>
+              <input id="f-kill" name="kill_switch" type="text" maxlength="120" required value={reins.kill_switch} placeholder="on, pause on any reply" />
+            </div>
+            <div class="field">
+              <label for="f-autonomy">Autonomy</label>
+              <input id="f-autonomy" name="autonomy" type="text" maxlength="120" required value={reins.autonomy} placeholder="Fledgling, spot-checked" />
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="field">
+          <label for="f-body">The story <span class="field__hint">(optional markdown — the full flight)</span></label>
+          <textarea id="f-body" name="body_md" maxlength="20000" rows="10" placeholder="What you asked for, what it did, where it burned, what you'd do differently.">{prefill.body}</textarea>
+        </div>
+
+        <div class="composer__actions">
+          <button type="button" id="save-draft" class="btn btn--ink">Save draft</button>
+          <button type="submit" id="submit-review" class="btn btn--ember">Submit for review</button>
+          <a class="text-link" href="/me">Back to your ledger</a>
+        </div>
+        <p class="composer__status" id="composer-status" role="status"></p>
+        <noscript><p class="field__hint">Composing a log needs JavaScript. The <a href="/logs/template">git template</a> works without it.</p></noscript>
+      </form>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .composer { max-width: 760px; }
+  .composer__as { font-size: 14px; color: var(--text-on-bone-soft); margin-bottom: 20px; }
+  .composer__as code, .composer__changes code { font-family: var(--mono); font-size: 12px; }
+  .composer__notice, .composer__changes { padding: 14px 18px; border: 1px solid var(--bone-line); border-left: 3px solid var(--ember); background: var(--bone-raised); margin-bottom: 22px; }
+  .composer__changes .micro { color: var(--ember-text); font-size: 9px; margin-bottom: 6px; }
+  #composer { display: flex; flex-direction: column; gap: 22px; }
+  .field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+  .field-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; }
+  .field label, .burns legend, .reins legend { font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ash); }
+  .field__hint { text-transform: none; letter-spacing: 0; opacity: 0.7; }
+  .field input, .field select, .field textarea, .burn-row input { font-family: inherit; font-size: 15px; padding: 11px 13px; border: 1px solid var(--bone-line); background: var(--bone-raised); color: var(--text-on-bone); border-radius: var(--radius); width: 100%; }
+  .field textarea { resize: vertical; line-height: 1.55; }
+  .burns, .reins { border: 1px solid var(--bone-line); padding: 18px; display: flex; flex-direction: column; gap: 14px; border-radius: var(--radius); }
+  .burn-row { display: grid; grid-template-columns: 1fr 1fr 90px auto; gap: 10px; align-items: center; }
+  .burn-remove { min-height: 40px; padding: 0 14px; }
+  #add-burn { align-self: flex-start; min-height: 42px; }
+  .composer__actions { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+  .composer__status { font-size: 14px; color: var(--text-on-bone-soft); min-height: 1.4em; }
+  @media (max-width: 600px) { .burn-row { grid-template-columns: 1fr 1fr; } .burn-row .burn-cost { grid-column: 1; } }
+</style>
+
+<script>
+  const form = document.getElementById('composer') as HTMLFormElement | null;
+  if (form) {
+    const status = document.getElementById('composer-status')!;
+    const burnsList = document.getElementById('burns-list')!;
+    let submissionId = form.dataset.id || null;
+
+    const burnRow = (what = '', recovery = '', cost = '') => {
+      const div = document.createElement('div');
+      div.className = 'burn-row';
+      div.innerHTML =
+        '<input class="burn-what" type="text" maxlength="280" placeholder="What burned">' +
+        '<input class="burn-recovery" type="text" maxlength="280" placeholder="Recovery">' +
+        '<input class="burn-cost" type="number" min="0" step="0.01" placeholder="$0">' +
+        '<button type="button" class="burn-remove btn btn--ink" aria-label="Remove burn">×</button>';
+      (div.querySelector('.burn-what') as HTMLInputElement).value = what;
+      (div.querySelector('.burn-recovery') as HTMLInputElement).value = recovery;
+      (div.querySelector('.burn-cost') as HTMLInputElement).value = cost;
+      return div;
+    };
+
+    document.getElementById('add-burn')!.addEventListener('click', () => {
+      burnsList.appendChild(burnRow());
+    });
+    burnsList.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      if (t.classList.contains('burn-remove')) t.closest('.burn-row')?.remove();
+    });
+
+    const val = (name: string) =>
+      (form.elements.namedItem(name) as HTMLInputElement | null)?.value.trim() ?? '';
+
+    const collect = () => {
+      const burns = [...burnsList.querySelectorAll('.burn-row')]
+        .map((row) => ({
+          what: (row.querySelector('.burn-what') as HTMLInputElement).value.trim(),
+          recovery: (row.querySelector('.burn-recovery') as HTMLInputElement).value.trim(),
+          cost_usd: Number((row.querySelector('.burn-cost') as HTMLInputElement).value || 0),
+        }))
+        .filter((b) => b.what || b.recovery);
+      return {
+        kind: form.dataset.kind || 'new',
+        target_log_slug: form.dataset.target || undefined,
+        slug: val('slug') || undefined,
+        title: val('title'),
+        date: val('date'),
+        mount: val('mount'),
+        model: val('model') || undefined,
+        harness: val('harness') || undefined,
+        task: val('task'),
+        duration: val('duration'),
+        cost_usd: Number(val('cost_usd') || 0),
+        outcome: val('outcome'),
+        burns,
+        lesson: val('lesson'),
+        reins: {
+          scope: val('scope'), budget: val('budget'),
+          kill_switch: val('kill_switch'), autonomy: val('autonomy'),
+        },
+        body_md: (form.elements.namedItem('body_md') as HTMLTextAreaElement).value,
+      };
+    };
+
+    const save = async () => {
+      const payload = collect();
+      const url = submissionId ? `/api/submissions/${submissionId}` : '/api/submissions';
+      const res = await fetch(url, {
+        method: submissionId ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const detail = body.issues?.[0]
+          ? `${body.error} (${body.issues[0].path?.join('.')}: ${body.issues[0].message})`
+          : body.error || 'Something went wrong.';
+        throw new Error(detail);
+      }
+      if (body.id) {
+        submissionId = body.id;
+        form.dataset.id = body.id;
+        history.replaceState(null, '', `/logs/new?id=${body.id}`);
+      }
+      return body;
+    };
+
+    document.getElementById('save-draft')!.addEventListener('click', async () => {
+      status.textContent = 'Saving…';
+      try {
+        await save();
+        status.textContent = 'Draft saved.';
+      } catch (e) {
+        status.textContent = (e as Error).message;
+      }
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!form.reportValidity()) return;
+      status.textContent = 'Submitting…';
+      try {
+        await save();
+        const res = await fetch(`/api/submissions/${submissionId}/submit`, { method: 'POST' });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.error || 'Could not submit.');
+        window.location.assign('/me?submitted=1');
+      } catch (e) {
+        status.textContent = (e as Error).message;
+      }
+    });
+  }
+</script>

@@ -8,14 +8,15 @@
     "build": "node scripts/generate-og.mjs && astro build",
     "preview": "astro preview",
     "og": "node scripts/generate-og.mjs",
-    "test": "node --test cli/eval-detector.test.js tests/auth-libs.test.ts"
+    "test": "node --test cli/eval-detector.test.js tests/*.test.ts"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^12.6.13",
     "@fontsource-variable/fraunces": "5.3.0",
     "@fontsource-variable/instrument-sans": "5.3.0",
     "@fontsource-variable/jetbrains-mono": "5.3.0",
-    "astro": "5.18.2"
+    "astro": "5.18.2",
+    "yaml": "^2.8.1"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261015.1",

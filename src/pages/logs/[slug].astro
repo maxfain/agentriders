@@ -2,13 +2,23 @@
 import { getCollection, render } from 'astro:content';
 import PageHero from '../../components/PageHero.astro';
 import Base from '../../layouts/Base.astro';
+import { fetchSiteState, riderLink, isVerified } from '../../lib/build-state';
 
 export async function getStaticPaths() {
+  // One build-time fetch of live site state decides rider links + badges.
+  const state = await fetchSiteState();
   const logs = await getCollection('logs', ({ data }) => !data.draft);
-  return logs.map((log) => ({ params: { slug: log.id }, props: { log } }));
+  return logs.map((log) => ({
+    params: { slug: log.id },
+    props: {
+      log,
+      riderHref: riderLink(log.data.rider, state),
+      verified: isVerified(log.id, state),
+    },
+  }));
 }
 
-const { log } = Astro.props;
+const { log, riderHref, verified } = Astro.props;
 const { Content } = await render(log);
 const d = log.data;
 const date = d.date.toISOString().slice(0, 10);
@@ -17,7 +27,7 @@ const hasBody = log.body ? log.body.replace(/<!--[\s\S]*?-->/g, '').trim().lengt
 ---
 
 <Base title={`${d.title} — Flight Logs — AgentRiders`} description={`${d.mount} · ${d.duration} · $${d.cost_usd} · ${burns} ${burns === 1 ? 'burn' : 'burns'}. Lesson: ${d.lesson}`}>
-  <PageHero eyebrow={`Flight Log / ${date}`} title={d.title} description={undefined} art="ledger" compact><p class="page-hero__meta">Rider: {d.rider} · <a href="/logs">All flights</a></p></PageHero>
+  <PageHero eyebrow={`Flight Log / ${date}`} title={d.title} description={undefined} art="ledger" compact><p class="page-hero__meta">Rider: {riderHref ? <a href={riderHref}>{d.rider}</a> : d.rider}{verified && <span class="verified-badge" title="Signed by a registered device via the agentriders CLI">✦ Verified flight</span>} · <a href="/logs">All flights</a></p></PageHero>
 
   <section class="section section--bone">
     <div class="container">
