@@ -1,14 +1,26 @@
-// Workers static-assets config, used by Cloudflare's "import a repository"
-// (Workers Builds) flow: build command `npm run build`, deploy command
-// `npx wrangler deploy`. Assets-only Worker — no server code, it just
-// serves dist/. The classic Pages git-integration flow ignores this file
-// and still works with build output directory `dist` (see README § Deploy).
+// Cloudflare Pages configuration. With pages_build_output_dir set, the
+// Pages git build reads this file, so the D1/KV bindings are
+// version-controlled here. Secrets are NOT in this file — set them with
+// `wrangler pages secret put` or in the dashboard.
+// `astro dev` reads the same bindings through the adapter's platformProxy
+// (local miniflare D1/KV under .wrangler/).
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "agentriders",
   "compatibility_date": "2026-09-26",
-  "assets": {
-    "directory": "./dist",
-    "not_found_handling": "404-page"
-  }
+  "compatibility_flags": ["nodejs_compat"],
+  "pages_build_output_dir": "./dist",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "agentriders",
+      "database_id": "98530674-d902-47ca-9565-05adc286aac1"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "RATE",
+      "id": "aac75f752f77464e99293c204c39ca9c"
+    }
+  ]
 }

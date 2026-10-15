@@ -5,3 +5,6 @@ dist/
 
 # generated at build by scripts/generate-og.mjs
 public/og.png
+
+# wrangler local dev state (local D1/KV)
+.wrangler/
