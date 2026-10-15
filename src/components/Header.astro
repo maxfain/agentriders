@@ -40,7 +40,8 @@ const active = (href: string) => {
     fetch('/api/me', { headers: { Accept: 'application/json' } })
       .then((response) => (response.ok ? response.json() : null))
       .then((me) => {
-        if (!me?.authenticated) {
+        if (!me) return; // transient failure — keep the hint, try next page
+        if (!me.authenticated) {
           document.cookie = 'ar_signedin=; Max-Age=0; path=/';
           return;
         }

@@ -39,18 +39,35 @@ export async function findOrCreateRider(
     banned_at: null,
     created_at: now,
   };
-  await db.batch([
-    db
-      .prepare(
-        'INSERT INTO riders (id, handle, display_name, rank, is_admin, created_at) VALUES (?, ?, ?, NULL, 0, ?)',
-      )
-      .bind(rider.id, rider.handle, rider.display_name, now),
-    db
-      .prepare(
-        'INSERT INTO identities (id, rider_id, provider, provider_id, email, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-      )
-      .bind(crypto.randomUUID(), rider.id, provider, providerId, opts.email ?? null, now),
-  ]);
+  try {
+    await db.batch([
+      db
+        .prepare(
+          'INSERT INTO riders (id, handle, display_name, rank, is_admin, created_at) VALUES (?, ?, ?, NULL, 0, ?)',
+        )
+        .bind(rider.id, rider.handle, rider.display_name, now),
+      db
+        .prepare(
+          'INSERT INTO identities (id, rider_id, provider, provider_id, email, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+        )
+        .bind(crypto.randomUUID(), rider.id, provider, providerId, opts.email ?? null, now),
+    ]);
+  } catch (error) {
+    // Two first sign-ins for the same identity racing: the batch rolls
+    // back whole, so the loser re-reads and joins the winner's rider.
+    if (`${(error as Error).message}`.includes('UNIQUE constraint failed')) {
+      const winner = await db
+        .prepare(
+          `SELECT r.id, r.handle, r.display_name, r.bio, r.rank, r.is_admin, r.banned_at, r.created_at
+           FROM identities i JOIN riders r ON r.id = i.rider_id
+           WHERE i.provider = ? AND i.provider_id = ?`,
+        )
+        .bind(provider, providerId)
+        .first<RiderRow>();
+      if (winner) return winner;
+    }
+    throw error;
+  }
   return rider;
 }
 

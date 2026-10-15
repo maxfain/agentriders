@@ -42,6 +42,12 @@ export const POST: APIRoute = async ({ locals, request, url }) => {
     return json(429, { error: 'Too many sign-in links requested. Try again in an hour.' });
   }
 
+  // Opportunistic purge keeps the table bounded: spent and expired rows
+  // (which carry plaintext emails) have no reason to outlive the hour.
+  await env.DB.prepare('DELETE FROM magic_link_tokens WHERE expires_at < ?')
+    .bind(new Date(Date.now() - 60 * 60 * 1000).toISOString())
+    .run();
+
   const token = randomToken(32);
   const now = Date.now();
   await env.DB.prepare(

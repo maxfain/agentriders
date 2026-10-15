@@ -14,6 +14,7 @@ const ERRORS: Record<string, string> = {
   oauth_failed: 'GitHub sign-in failed. Try again, or use an email link.',
   link_expired: 'That sign-in link expired or was already used. Request a fresh one.',
   link_invalid: 'That sign-in link is not valid. Request a fresh one.',
+  signin_failed: 'Sign-in hit turbulence on our side. Request a fresh link.',
   banned: 'This account is grounded. Write to the Guild if you think that is wrong.',
 };
 const errorKey = Astro.url.searchParams.get('error');
@@ -43,19 +44,19 @@ const error = errorKey ? (ERRORS[errorKey] ?? null) : null;
         <div class="join-card">
           <a class="btn btn--ember join-github" href="/api/auth/github">Continue with GitHub <Arrow /></a>
           <div class="join-divider micro" aria-hidden="true">OR</div>
-          <form class="signup" id="magic-form">
+          <form class="signup" id="magic-form" method="post" action="/api/auth/magic">
             <label for="magic-email">Sign in with an email link</label>
             <div class="signup__row">
               <input id="magic-email" name="email" type="email" autocomplete="email" required placeholder="rider@example.com" />
               <button class="btn btn--outline" type="submit">Send link <Arrow /></button>
             </div>
-            <p class="signup__fine" id="magic-status">The link works once and expires in 15 minutes.</p>
+            <p class="signup__fine" id="magic-status" role="status">The link works once and expires in 15 minutes.</p>
           </form>
           <noscript><p class="signup__fine">Email sign-in needs JavaScript; GitHub sign-in works without it.</p></noscript>
         </div>
       ) : (
         <div class="join-card">
-          <form class="signup" id="claim-form">
+          <form class="signup" id="claim-form" method="post" action="/api/riders/claim">
             <label for="claim-handle">Your handle</label>
             <div class="signup__row signup__row--handle">
               <span class="join-at" aria-hidden="true">@</span>
@@ -66,7 +67,7 @@ const error = errorKey ? (ERRORS[errorKey] ?? null) : null;
                 required
                 minlength="1"
                 maxlength="32"
-                pattern="[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?"
+                pattern="[a-z0-9]([a-z0-9\-]{0,30}[a-z0-9])?"
                 autocomplete="username"
                 spellcheck="false"
                 placeholder="your-handle"
@@ -79,7 +80,7 @@ const error = errorKey ? (ERRORS[errorKey] ?? null) : null;
             <div class="signup__row">
               <button class="btn btn--ember" type="submit">Claim it <Arrow /></button>
             </div>
-            <p class="signup__fine" id="claim-status">Lowercase letters, numbers and hyphens. Choose well — it sticks.</p>
+            <p class="signup__fine" id="claim-status" role="status">Lowercase letters, numbers and hyphens. Choose well — it sticks.</p>
           </form>
         </div>
       )}
