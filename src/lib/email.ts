@@ -1,8 +1,8 @@
 // Outbound email through Resend. One sender for now: magic links from
-// fly@mail.agentriders.com (the subdomain insulates the root domain's
-// reputation; DNS records live in Cloudflare).
+// fly@agentriders.com — Resend has the root domain verified (its
+// DKIM/SPF records coexist with Cloudflare Email Routing's inbound MX).
 
-const FROM = 'AgentRiders <fly@mail.agentriders.com>';
+const FROM = 'AgentRiders <fly@agentriders.com>';
 
 export async function sendMagicLinkEmail(
   apiKey: string,
