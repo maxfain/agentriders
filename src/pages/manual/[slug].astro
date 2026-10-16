@@ -4,6 +4,7 @@ import PageHero from '../../components/PageHero.astro';
 import Base from '../../layouts/Base.astro';
 import ChapterRail from '../../components/ChapterRail.astro';
 import FieldDiagram from '../../components/FieldDiagram.astro';
+import { breadcrumbs, techArticle } from '../../lib/seo';
 
 export async function getStaticPaths() {
   const chapters = await getCollection('manual', ({ data }) => !data.draft);
@@ -18,10 +19,22 @@ const position = chapters.findIndex((item) => item.id === chapter.id);
 const previous = chapters[position - 1];
 const next = chapters[position + 1];
 const hasBody = chapter.body ? chapter.body.replace(/<!--[\s\S]*?-->/g, '').trim().length > 0 : false;
+// The H1 is the short title (before the colon); the <title> and JSON-LD mirror it.
+const shortTitle = d.title.split(':')[0];
+const updated = d.updated.toISOString().slice(0, 10);
+const path = `/manual/${chapter.id}/`;
+const jsonLd = [
+  breadcrumbs([{ name: 'Home', path: '/' }, { name: 'The Field Manual', path: '/manual/' }, { name: shortTitle, path }]),
+  techArticle({
+    headline: shortTitle, description: d.description, path,
+    datePublished: d.published, dateModified: d.updated,
+    authorName: d.author, authorPath: '/about/', seriesName: 'The Field Manual', position: d.chapter,
+  }),
+];
 ---
 
-<Base title={`${d.title} — Field Manual — AgentRiders`} description={d.description}>
-  <PageHero eyebrow={`Chapter ${String(d.chapter).padStart(2, '0')} / The Field Manual`} title={d.title.split(':')[0]} description={d.description} art="book" compact><p class="page-hero__meta">{hasBody ? `Updated ${d.updated.toISOString().slice(0,10)}` : "CHAPTER IN PROGRESS"}</p></PageHero>
+<Base title={`${shortTitle} — Field Manual — AgentRiders`} description={d.description} ogType="article" publishedTime={d.published} modifiedTime={d.updated} jsonLd={jsonLd}>
+  <PageHero eyebrow={`Chapter ${String(d.chapter).padStart(2, '0')} / The Field Manual`} title={shortTitle} description={d.description} art="book" compact><p class="page-hero__meta">{hasBody ? <>Updated <time datetime={updated}>{updated}</time></> : "CHAPTER IN PROGRESS"}</p></PageHero>
 
   <section class="section section--bone">
     <div class="container chapter-reading">

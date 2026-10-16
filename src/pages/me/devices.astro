@@ -56,11 +56,12 @@ const records = rawRecords.map((r) => {
 
 const fmt = (iso: string) =>
   new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+const day = (iso: string) => new Date(iso).toISOString().slice(0, 10);
 const dur = (s: number | null) => (s == null ? '—' : s >= 3600 ? `${(s / 3600).toFixed(1)}h` : `${Math.round(s / 60)}m`);
 const verifiedCount = records.filter((r) => r.matched).length;
 ---
 
-<Base title="Devices & verified flights — AgentRiders" description="Pair the agentriders CLI and manage your signed flight records.">
+<Base title="Devices & verified flights — AgentRiders" description="Pair the agentriders CLI and manage your signed flight records." noindex>
   <PageHero
     eyebrow={`@${rider.handle}`}
     title="Devices & verified flights"
@@ -97,7 +98,7 @@ agentriders login</code></pre>
               <li class={`dev-row${d.revoked_at ? ' dev-row--off' : ''}`}>
                 <div>
                   <span class="dev-row__name">{d.name ?? 'Unnamed device'}</span>
-                  <span class="dev-row__meta">{d.id.slice(0, 12)}… · added {fmt(d.created_at)}{d.revoked_at ? ' · revoked' : ''}</span>
+                  <span class="dev-row__meta">{d.id.slice(0, 12)}… · added <time datetime={day(d.created_at)}>{fmt(d.created_at)}</time>{d.revoked_at ? ' · revoked' : ''}</span>
                 </div>
                 {!d.revoked_at && (
                   <button type="button" class="dev-action" data-revoke={d.id}>Revoke</button>
@@ -119,7 +120,7 @@ agentriders login</code></pre>
             {records.map((r) => (
               <li class="rec-row" data-rec={r.id}>
                 <div class="rec-main">
-                  <span class="rec-when">{r.started_at ? fmt(r.started_at) : fmt(r.created_at)} · {dur(r.duration_seconds)}</span>
+                  <span class="rec-when"><time datetime={day(r.started_at ?? r.created_at)}>{fmt(r.started_at ?? r.created_at)}</time> · {dur(r.duration_seconds)}</span>
                   <span class="rec-meta">
                     {r.models.join(', ') || 'model n/a'}
                     {typeof r.score === 'number' && r.score > 0 ? ` · eval ${r.score}` : ''}

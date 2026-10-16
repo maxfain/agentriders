@@ -4,11 +4,13 @@ import PageCoda from '../components/PageCoda.astro';
 import Base from '../layouts/Base.astro';
 import Signup from '../components/Signup.astro';
 import Icon from '../components/Icon.astro';
+import { breadcrumbs } from '../lib/seo';
 ---
 
 <Base
   title="Join the Guild — AgentRiders"
   description="Reading is free. The Guild is where riders compare notes, run flights together, and get vouched."
+  jsonLd={breadcrumbs([{ name: 'Home', path: '/' }, { name: 'The Guild', path: '/guild/' }])}
 >
   <PageHero eyebrow="The Guild" title="Find your wing." description="Reading is free. The Guild is where riders compare notes, run flights together, and get vouched." art="horizon" id="guild-title"></PageHero>
 

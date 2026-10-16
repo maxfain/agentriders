@@ -4,6 +4,7 @@ import PageHero from '../../components/PageHero.astro';
 import PageCoda from '../../components/PageCoda.astro';
 import Base from '../../layouts/Base.astro';
 import Icon from '../../components/Icon.astro';
+import { breadcrumbs } from '../../lib/seo';
 
 const chapters = (await getCollection('manual', ({ data }) => !data.draft)).sort(
   (a, b) => a.data.chapter - b.data.chapter,
@@ -14,6 +15,7 @@ const fmt = (d: Date) => d.toISOString().slice(0, 10);
 <Base
   title="Field Manual — AgentRiders"
   description="Practical references for running AI agents: scope, permissions, budgets, stop conditions, review loops, and learning from failure."
+  jsonLd={breadcrumbs([{ name: 'Home', path: '/' }, { name: 'The Field Manual', path: '/manual/' }])}
 >
   <PageHero eyebrow="The Field Manual" title="Everything we know about holding the reins." description="Practical references for the decisions every rider makes: what to delegate, where to draw the boundary, and how to know the work is done." art="book" id="manual-title"></PageHero>
 
@@ -29,7 +31,7 @@ const fmt = (d: Date) => d.toISOString().slice(0, 10);
                 {ch.data.startHere && <p class="tag">Start here</p>}
                 <h2><a href={`/manual/${ch.id}/`}>{ch.data.title}</a></h2>
                 <p>{ch.data.description}</p>
-                <p class="chapter__meta">{ch.body?.replace(/<!--[\s\S]*?-->/g, "").trim() ? `Updated ${fmt(ch.data.updated)}` : "Chapter in progress"}</p>
+                <p class="chapter__meta">{ch.body?.replace(/<!--[\s\S]*?-->/g, "").trim() ? <>Updated <time datetime={fmt(ch.data.updated)}>{fmt(ch.data.updated)}</time></> : "Chapter in progress"}</p>
               </div>
             </article>
           </li>

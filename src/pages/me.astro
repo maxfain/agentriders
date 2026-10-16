@@ -28,12 +28,14 @@ const joined = new Date(rider.created_at).toLocaleDateString('en-US', {
   month: 'long',
   day: 'numeric',
 });
+const joinedDay = new Date(rider.created_at).toISOString().slice(0, 10);
 const rankLabel = rider.rank ? rider.rank[0].toUpperCase() + rider.rank.slice(1) : 'Unranked';
 ---
 
 <Base
   title="Your ledger — AgentRiders"
   description="Your flights, vouches and rank, in one place."
+  noindex
 >
   <PageHero
     eyebrow={`@${rider.handle}`}
@@ -58,7 +60,7 @@ const rankLabel = rider.rank ? rider.rank[0].toUpperCase() + rider.rank.slice(1)
         </div>
         <div class="me-card">
           <p class="micro">JOINED</p>
-          <p class="me-card__value">{joined}</p>
+          <p class="me-card__value"><time datetime={joinedDay}>{joined}</time></p>
           <p class="me-card__fine">Member of the founding season.</p>
         </div>
       </div>

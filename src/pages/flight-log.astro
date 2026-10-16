@@ -3,11 +3,13 @@ import PageHero from '../components/PageHero.astro';
 import Base from '../layouts/Base.astro';
 import Signup from '../components/Signup.astro';
 import Mark from '../components/Mark.astro';
+import { breadcrumbs } from '../lib/seo';
 ---
 
 <Base
-  title="Flight Log — AgentRiders"
+  title="The Flight Log newsletter — AgentRiders"
   description="One field-tested lesson a week, from riders who left the numbers in. No vendor demos."
+  jsonLd={breadcrumbs([{ name: 'Home', path: '/' }, { name: 'The weekly newsletter', path: '/flight-log/' }])}
 >
   <PageHero eyebrow="The weekly newsletter" title="A little wiser. Every flight." description="One field-tested lesson a week, from riders who left the numbers in." art="dispatch" id="fl-title"></PageHero>
 

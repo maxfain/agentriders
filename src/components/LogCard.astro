@@ -13,7 +13,7 @@ const burns = d.burns.length;
 const date = d.date.toISOString().slice(0, 10);
 ---
 <article class="log">
-  <div class="log__meta"><span>{date}</span><span>{d.mount}</span></div>
+  <div class="log__meta"><span><time datetime={date}>{date}</time></span><span>{d.mount}</span></div>
   <Title><a href={`/logs/${log.id}/`}>{d.title}</a></Title>
   <dl class="stats">
     <div><dt>Flight</dt><dd>{d.duration}</dd></div>

@@ -4,7 +4,7 @@ import {
   SITE, ORG_ID, WEBSITE_ID, DATASET_ID,
   abs, canonicalUrl, clampTitle, clampDescription, jsonLdString, siteGraph,
   orgGraph, website, breadcrumbs, techArticle, article, profilePage,
-  learningResource, dataset, softwareApplication,
+  learningResource, isoDuration, dataset, softwareApplication,
 } from '../src/lib/seo.ts';
 import { fetchSiteState } from '../src/lib/build-state.ts';
 
@@ -145,6 +145,22 @@ test('learningResource: LearningResource + Article inside the free Flight School
   assert.equal(l.isPartOf.name, 'Flight School');
   assert.equal(l.isPartOf.url, `${SITE}/training/`);
   assert.equal(l.isPartOf.isAccessibleForFree, true);
+  assert.ok(!('audience' in l));
+
+  const mission = learningResource({
+    name: 'Research with receipts', description: 'd', path: '/missions/research-with-receipts/',
+    audience: 'Founders', timeRequired: 'PT50M',
+  });
+  assert.ok(!('educationalLevel' in mission));
+  assert.deepEqual(mission.audience, { '@type': 'Audience', audienceType: 'Founders' });
+});
+
+test('isoDuration: minutes and hours, ranges keep the upper bound, prose yields nothing', () => {
+  assert.equal(isoDuration('25-minute exercise'), 'PT25M');
+  assert.equal(isoDuration('35–50 minutes'), 'PT50M');
+  assert.equal(isoDuration('30-45 min'), 'PT45M');
+  assert.equal(isoDuration('2 hours'), 'PT2H');
+  assert.equal(isoDuration('a long afternoon'), undefined);
 });
 
 test('dataset: CC BY 4.0 license and a JSON distribution at /logs.json', () => {

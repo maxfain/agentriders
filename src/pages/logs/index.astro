@@ -6,10 +6,28 @@ import Base from '../../layouts/Base.astro';
 import Icon from '../../components/Icon.astro';
 import LogCard from '../../components/LogCard.astro';
 import { slugify } from '../../lib/facets';
+import { breadcrumbs, dataset } from '../../lib/seo';
 
 const logs = (await getCollection('logs', ({ data }) => !data.draft)).sort(
   (a, b) => b.data.date.valueOf() - a.data.date.valueOf(),
 );
+
+// The corpus as a Dataset (docs/seo-aeo-plan.md §4.5): distributed as
+// /logs.json, covering the first to the newest published flight.
+const day = (d: Date) => d.toISOString().slice(0, 10);
+const newest = logs[0]?.data.date;
+const oldest = logs[logs.length - 1]?.data.date;
+const jsonLd = [
+  breadcrumbs([{ name: 'Home', path: '/' }, { name: 'Flight Logs', path: '/logs/' }]),
+  dataset({
+    name: 'AgentRiders Flight Logs',
+    description: 'Every published flight log as a metadata-only record: mount, model, harness, task, duration, cost in USD, outcome, burns, lesson and reins — never prompts, code or file paths. Verified flights are signed by the rider’s registered device.',
+    path: '/logs/',
+    dataUrl: '/logs.json',
+    dateModified: newest,
+    temporalCoverage: oldest && newest ? `${day(oldest)}/${day(newest)}` : undefined,
+  }),
+];
 
 // Static facets, computed at build from published logs only.
 const facet = (label: string) => {
@@ -36,6 +54,8 @@ const burned = logs.filter((l) => l.data.burns.length > 0);
 <Base
   title="Flight Logs — AgentRiders"
   description="Real agent runs with the numbers left in: duration, cost, burns and the lesson, written by the rider who held the reins."
+  jsonLd={jsonLd}
+  alternates={[{ href: '/logs.json', type: 'application/json', title: 'AgentRiders Flight Logs (JSON)' }]}
 >
   <PageHero eyebrow="The Flight Logs" title="Real flights. Numbers left in." description="Every log is one agent, one task, one outcome, written by the rider who held the reins." art="ledger" id="logs-title"><div class="page-hero__actions"><a class="btn btn--ember" href="/logs/template/">Log a flight ↗</a></div></PageHero>
 
@@ -64,7 +84,7 @@ const burned = logs.filter((l) => l.data.burns.length > 0);
             )}
           </nav>
           <div class="log-grid">
-            {logs.map((log) => <LogCard log={log} />)}
+            {logs.map((log) => <LogCard log={log} level={2} />)}
           </div>
         </>
       ) : (

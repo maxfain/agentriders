@@ -7,14 +7,21 @@ import { canVouch, vouchesReceived, vouchesGiven, existingVouch } from '../../li
 import { riderEvalStats } from '../../lib/flight-records';
 import { isAdmin } from '../../lib/admin';
 import type { RiderRow } from '../../lib/session';
+import { breadcrumbs, profilePage } from '../../lib/seo';
 
 // Public rider profile: identity, rank + when it was earned, the flight
 // record, and vouches (received and given, each with a name on it). A
 // signed-in Rider sees a vouch form. Verified-flight stats arrive in M4.
 // Banned or unknown riders 404; the literal /riders/directory route wins.
+// Anonymous responses carry no Cache-Control of their own, so the
+// middleware's public rule applies and the profile renders in full signed out.
 const { env } = Astro.locals.runtime;
 const viewer = Astro.locals.rider;
 const handle = (Astro.params.handle ?? '').toLowerCase();
+
+// One URL per rider: a mixed-case handle is the same profile, so it 301s to
+// the lowercase form before any lookup.
+if (Astro.params.handle !== handle) return Astro.redirect(`/riders/${handle}/`, 301);
 
 const viewerIsAdmin = isAdmin(viewer);
 
@@ -25,8 +32,11 @@ const rider = await env.DB.prepare(
   .first<RiderRow>();
 
 // Banned riders 404 for everyone except admins (who can see them to unban).
+// A bodiless 404 makes Astro serve the prerendered, branded /404 page under
+// this status; Astro.rewrite('/404') throws here, because an on-demand route
+// can't rewrite to a static one on this adapter (see middleware.ts).
 if (!rider || (rider.banned_at && !viewerIsAdmin)) {
-  return new Response('Not found', { status: 404 });
+  return new Response(null, { status: 404 });
 }
 
 type Flight = { slug: string; title: string; date: string; task: string; outcome: string; burns_count: number };
@@ -51,14 +61,29 @@ const vouchRemoved = myVouch?.status === 'removed';
 
 const fmt = (iso: string) =>
   new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+// Machine-readable forms for <time datetime>: the day, or the month for "Joined".
+const day = (iso: string) => new Date(iso).toISOString().slice(0, 10);
 // Short month + title-case rank: these sit in narrow stat cards, and uppercase
 // display type ("WINGLEADER") is wide enough to overflow a card on a laptop.
 const joined = new Date(rider.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
 const rankLabel = rider.rank ? rider.rank[0].toUpperCase() + rider.rank.slice(1) : 'Unranked';
 const landed = flights.filter((f) => f.outcome === 'landed').length;
+const flightsLabel = `${flights.length} ${flights.length === 1 ? 'flight' : 'flights'}`;
+
+// Index gate (docs/seo-aeo-plan.md §4.4): a profile is indexable from its
+// first published flight. The ProfilePage mirrors the stat cards.
+const path = `/riders/${rider.handle}/`;
+const jsonLd = [
+  breadcrumbs([{ name: 'Home', path: '/' }, { name: 'The Riders', path: '/riders/' }, { name: `@${rider.handle}`, path }]),
+  profilePage({
+    name: rider.display_name, handle: rider.handle, path, description: rider.bio ?? undefined,
+    dateCreated: rider.created_at, dateModified: flights[0]?.date,
+    flights: flights.length, vouches: received.length,
+  }),
+];
 ---
 
-<Base title={`@${rider.handle} — AgentRiders`} description={`${rider.display_name}'s flight record: ${flights.length} published ${flights.length === 1 ? 'flight' : 'flights'}, ${received.length} ${received.length === 1 ? 'vouch' : 'vouches'}.`}>
+<Base title={`${rider.display_name} (@${rider.handle}): ${flightsLabel}, ${rankLabel} — AgentRiders`} description={`${rider.display_name}'s flight record: ${flights.length} published ${flights.length === 1 ? 'flight' : 'flights'}, ${received.length} ${received.length === 1 ? 'vouch' : 'vouches'}.`} noindex={flights.length === 0} jsonLd={jsonLd}>
   <PageHero eyebrow={`@${rider.handle}`} title={rider.display_name} description={rider.bio ?? undefined} art="ranks" id="rider-title" compact></PageHero>
 
   <section class="section section--bone">
@@ -67,11 +92,11 @@ const landed = flights.filter((f) => f.outcome === 'landed').length;
         <p class="rider-banned" role="alert">This rider is banned (hidden from the public). Admin view only.</p>
       )}
       <dl class="rider-stats">
-        <div><dt>Rank</dt><dd>{rankLabel}</dd>{earnedAt && <p class="rider-stats__fine">earned {fmt(earnedAt)}</p>}</div>
+        <div><dt>Rank</dt><dd>{rankLabel}</dd>{earnedAt && <p class="rider-stats__fine">earned <time datetime={day(earnedAt)}>{fmt(earnedAt)}</time></p>}</div>
         <div><dt>Flights</dt><dd>{flights.length}</dd>{evalStats.verified > 0 && <p class="rider-stats__fine">{evalStats.verified} verified ✦</p>}</div>
         <div><dt>Landed</dt><dd>{landed}</dd></div>
         <div><dt>Vouches</dt><dd>{received.length}</dd></div>
-        <div><dt>Joined</dt><dd>{joined}</dd></div>
+        <div><dt>Joined</dt><dd><time datetime={day(rider.created_at).slice(0, 7)}>{joined}</time></dd></div>
       </dl>
 
       {(evalStats.verified > 0 || evalStats.evalRuns > 0) && (
@@ -97,7 +122,7 @@ const landed = flights.filter((f) => f.outcome === 'landed').length;
                 <li>
                   <a href={`/logs/${f.slug}/`}>
                     <span class="rider-flights__name">{f.title}</span>
-                    <span class="rider-flights__meta">{f.date} · {f.task} · {f.outcome}{f.burns_count > 0 ? ` · ${f.burns_count} ${f.burns_count === 1 ? 'burn' : 'burns'}` : ''}</span>
+                    <span class="rider-flights__meta"><time datetime={f.date}>{f.date}</time> · {f.task} · {f.outcome}{f.burns_count > 0 ? ` · ${f.burns_count} ${f.burns_count === 1 ? 'burn' : 'burns'}` : ''}</span>
                   </a>
                 </li>
               ))}
@@ -135,7 +160,7 @@ const landed = flights.filter((f) => f.outcome === 'landed').length;
               {received.map((v) => (
                 <li class="vouch">
                   <p class="vouch__statement">“{v.statement}”</p>
-                  <p class="vouch__by"><a href={`/riders/${v.handle}/`}>@{v.handle}</a>{v.rank && <span class="vouch__rank">{v.rank}</span>} · {fmt(v.created_at)}{viewerIsAdmin && <button type="button" class="vouch-remove" data-id={v.id} aria-label="Remove this vouch (moderation)">remove</button>}</p>
+                  <p class="vouch__by"><a href={`/riders/${v.handle}/`}>@{v.handle}</a>{v.rank && <span class="vouch__rank">{v.rank}</span>} · <time datetime={day(v.created_at)}>{fmt(v.created_at)}</time>{viewerIsAdmin &&<button type="button" class="vouch-remove" data-id={v.id} aria-label="Remove this vouch (moderation)">remove</button>}</p>
                 </li>
               ))}
             </ul>
@@ -148,7 +173,7 @@ const landed = flights.filter((f) => f.outcome === 'landed').length;
                 {given.map((v) => (
                   <li class="vouch">
                     <p class="vouch__statement">“{v.statement}”</p>
-                    <p class="vouch__by">for <a href={`/riders/${v.handle}/`}>@{v.handle}</a> · {fmt(v.created_at)}{isSelf && <button type="button" class="vouch-revoke" data-id={v.id} aria-label="Revoke this vouch">revoke</button>}</p>
+                    <p class="vouch__by">for <a href={`/riders/${v.handle}/`}>@{v.handle}</a> · <time datetime={day(v.created_at)}>{fmt(v.created_at)}</time>{isSelf &&<button type="button" class="vouch-revoke" data-id={v.id} aria-label="Revoke this vouch">revoke</button>}</p>
                   </li>
                 ))}
               </ul>

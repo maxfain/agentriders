@@ -3,11 +3,13 @@ import PageHero from '../components/PageHero.astro';
 import PageCoda from '../components/PageCoda.astro';
 import Base from '../layouts/Base.astro';
 import Artwork from '../components/Artwork.astro';
+import { breadcrumbs } from '../lib/seo';
 ---
 
 <Base
-  title="Why riders — AgentRiders"
+  title="About AgentRiders — the guild for people who run AI agents"
   description="Everyone is building dragons. We are here for the people who ride them."
+  jsonLd={breadcrumbs([{ name: 'Home', path: '/' }, { name: 'About', path: '/about/' }])}
 >
   <PageHero eyebrow="About" title="Why riders." description="Everyone is building dragons. We are here for the people who ride them." art="eye" id="about-title"></PageHero>
 

@@ -78,8 +78,9 @@ const reins = fm.reins ?? { scope: '', budget: '', kill_switch: '', autonomy: ''
 ---
 
 <Base
-  title="Log a flight — AgentRiders"
+  title="Compose a flight log — AgentRiders"
   description="Compose a flight log and submit it to the review queue."
+  noindex
 >
   <PageHero
     eyebrow={prefill.kind === 'edit' ? 'Edit flight log' : 'Log a flight'}
@@ -249,11 +250,14 @@ const reins = fm.reins ?? { scope: '', budget: '', kill_switch: '', autonomy: ''
 </style>
 
 <script>
+  import { track, beacon } from '../../scripts/track';
+
   const form = document.getElementById('composer') as HTMLFormElement | null;
   if (form) {
     const status = document.getElementById('composer-status')!;
     const burnsList = document.getElementById('burns-list')!;
     let submissionId = form.dataset.id || null;
+    track('log_started', { kind: form.dataset.kind, resumed: !!submissionId });
 
     const burnRow = (what = '', recovery = '', cost = '') => {
       const div = document.createElement('div');
@@ -331,7 +335,7 @@ const reins = fm.reins ?? { scope: '', budget: '', kill_switch: '', autonomy: ''
       if (body.id) {
         submissionId = body.id;
         form.dataset.id = body.id;
-        history.replaceState(null, '', `/logs/new?id=${body.id}`);
+        history.replaceState(null, '', `/logs/new/?id=${body.id}`);
       }
       return body;
     };
@@ -355,6 +359,7 @@ const reins = fm.reins ?? { scope: '', budget: '', kill_switch: '', autonomy: ''
         const res = await fetch(`/api/submissions/${submissionId}/submit`, { method: 'POST' });
         const body = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(body.error || 'Could not submit.');
+        track('log_submitted', { ...beacon, kind: form.dataset.kind });
         window.location.assign('/me/?submitted=1');
       } catch (e) {
         status.textContent = (e as Error).message;

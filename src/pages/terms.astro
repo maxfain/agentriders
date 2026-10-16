@@ -1,11 +1,13 @@
 ---
 import PageHero from '../components/PageHero.astro';
 import Base from '../layouts/Base.astro';
+import { breadcrumbs } from '../lib/seo';
 ---
 
 <Base
   title="Terms — AgentRiders"
   description="The terms for reading and using AgentRiders: field notes, not advice; content belongs to its authors."
+  jsonLd={breadcrumbs([{ name: 'Home', path: '/' }, { name: 'Terms', path: '/terms/' }])}
 >
   <PageHero eyebrow="The fine print" title="Terms." description="A few ground rules for the field." art="seal" id="terms-title" compact></PageHero>
 

@@ -1,6 +1,7 @@
 ---
 import PageHero from '../../components/PageHero.astro';
 import Base from '../../layouts/Base.astro';
+import { breadcrumbs } from '../../lib/seo';
 
 const template = `---
 title: "Migrated 214 unit tests to Vitest"
@@ -33,6 +34,7 @@ what burned, and what you changed. Keep the numbers in.`;
 <Base
   title="Log a flight — AgentRiders"
   description="The markdown template every published flight log uses: mount, duration, cost, burns, lesson and reins."
+  jsonLd={breadcrumbs([{ name: 'Home', path: '/' }, { name: 'Flight Logs', path: '/logs/' }, { name: 'The Flight Record', path: '/logs/template/' }])}
 >
   <PageHero eyebrow="The Flight Record" title="Log a flight." description="One agent, one task, one outcome. Copy the frontmatter, fill every field, leave the numbers in." art="ledger" id="template-title" compact></PageHero>
 

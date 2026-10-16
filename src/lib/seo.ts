@@ -240,12 +240,28 @@ export function profilePage(p: {
   });
 }
 
-/** LearningResource + Article for a lesson or mission, inside Flight School. */
+/**
+ * ISO 8601 duration for the planning strings lessons and missions carry
+ * ("25-minute exercise" → PT25M, "35–50 minutes" → PT50M). A range keeps its
+ * upper bound: the budget, not the hope. Anything else yields undefined.
+ */
+export function isoDuration(text: string): string | undefined {
+  const m = text.match(/(\d+)(?:\s*[-–]\s*(\d+))?\s*-?\s*(min|hour|hr|h)/i);
+  if (!m) return undefined;
+  const n = Math.max(Number(m[1]), Number(m[2] ?? 0));
+  return `PT${n}${/^min/i.test(m[3]) ? 'M' : 'H'}`;
+}
+
+/**
+ * LearningResource + Article for a lesson or mission, inside Flight School.
+ * Lessons carry a rank (educationalLevel); missions name their audience.
+ */
 export function learningResource(l: {
   name: string;
   description: string;
   path: string;
-  level: string;
+  level?: string;
+  audience?: string;
   timeRequired?: string;
   teaches?: string;
   datePublished?: Dateish;
@@ -264,6 +280,7 @@ export function learningResource(l: {
     url,
     mainEntityOfPage: url,
     educationalLevel: l.level,
+    audience: l.audience ? { '@type': 'Audience', audienceType: l.audience } : undefined,
     timeRequired: l.timeRequired,
     teaches: l.teaches,
     datePublished: isoDate(l.datePublished),

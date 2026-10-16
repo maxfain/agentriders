@@ -55,7 +55,7 @@ const canDecide = row.status === 'submitted' || row.status === 'in_review';
 const d = frontmatter;
 ---
 
-<Base title={`Review: ${row.title} — AgentRiders`} description="Admin review.">
+<Base title={`Review: ${row.title} — AgentRiders`} description="Admin review." noindex>
   <PageHero eyebrow={`Review / ${row.status.replace('_', ' ')}`} title={row.title} description={`@${row.rider_handle} · ${row.kind}${row.kind === 'edit' ? ` of /logs/${row.target_log_slug}` : ''}`} art="ledger" id="review-title" compact></PageHero>
 
   <section class="section section--bone">

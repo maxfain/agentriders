@@ -23,8 +23,9 @@ const error = errorKey ? (ERRORS[errorKey] ?? null) : null;
 ---
 
 <Base
-  title="Join the Guild — AgentRiders"
+  title="Sign in or claim your handle — AgentRiders"
   description="Claim your handle. Log your flights. Earn your rank."
+  noindex
 >
   <PageHero
     eyebrow="The Guild"
@@ -102,7 +103,10 @@ const error = errorKey ? (ERRORS[errorKey] ?? null) : null;
 </style>
 
 <script>
+  import { track, beacon } from '../scripts/track';
+
   const magicForm = document.getElementById('magic-form') as HTMLFormElement | null;
+  track('join_view', { step: magicForm ? 'sign_in' : 'claim' });
   if (magicForm) {
     const status = document.getElementById('magic-status')!;
     magicForm.addEventListener('submit', async (event) => {
@@ -152,6 +156,7 @@ const error = errorKey ? (ERRORS[errorKey] ?? null) : null;
         });
         const body = await response.json();
         if (response.ok) {
+          track('handle_claimed', beacon);
           window.location.assign('/me/');
         } else {
           status.textContent = body.error ?? 'Something went wrong. Try again.';
