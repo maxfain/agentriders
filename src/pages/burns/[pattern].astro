@@ -1,0 +1,140 @@
+---
+import { getCollection, render } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import PageHero from '../../components/PageHero.astro';
+import { breadcrumbs, techArticle, smarten } from '../../lib/seo';
+
+// One page per burns-registry entry (docs/seo-aeo-plan.md §3.2, §4.4, S3).
+// DocArticle-style reading column: summary-under-H1 + byline on the hero, the
+// draft body, a build-time "Logged examples" join against the logs
+// collection, a "Related" trail (registry + the chapter and lesson the pattern
+// names), and the questions section. JSON-LD is TechArticle + breadcrumbs; the
+// Max Faingezicht byline resolves to the shared #founder @id inside techArticle.
+export async function getStaticPaths() {
+  const entries = await getCollection('burnPatterns');
+  const logs = await getCollection('logs', ({ data }) => !data.draft);
+  const manual = await getCollection('manual');
+  const training = await getCollection('training');
+  const manualTitle = new Map(manual.map((m) => [m.id, m.data.title.split(':')[0]]));
+  const trainingTitle = new Map(training.map((t) => [t.id, t.data.title.split(':')[0]]));
+
+  return entries.map((entry) => {
+    // A burn names its pattern by slug (log-schema burnSchema.pattern,
+    // backfilled in the logs). A checklist entry has no pattern slug, so it
+    // never claims logged examples. Newest flight first.
+    const examples = entry.data.pattern
+      ? logs
+          .flatMap((log) =>
+            log.data.burns
+              .filter((b) => b.pattern === entry.data.pattern)
+              .map((burn) => ({ log, burn })),
+          )
+          .sort((a, b) => b.log.data.date.valueOf() - a.log.data.date.valueOf())
+      : [];
+
+    // "Related": the registry, then the Field Manual chapter and Flight School
+    // lesson this pattern names, with their real titles as anchor text. The
+    // slugs are post-S1 canonical routes (verified to resolve).
+    const related: { label: string; href: string }[] = [{ label: 'The burns registry', href: '/burns/' }];
+    if (entry.data.related_chapter) {
+      related.push({
+        label: manualTitle.get(entry.data.related_chapter) ?? 'The Field Manual',
+        href: `/manual/${entry.data.related_chapter}/`,
+      });
+    }
+    if (entry.data.related_lesson) {
+      related.push({
+        label: trainingTitle.get(entry.data.related_lesson) ?? 'Flight School',
+        href: `/training/${entry.data.related_lesson}/`,
+      });
+    }
+
+    return { params: { pattern: entry.id }, props: { entry, examples, related } };
+  });
+}
+
+const { entry, examples, related } = Astro.props;
+const { Content } = await render(entry);
+const d = entry.data;
+const path = `/burns/${entry.id}/`;
+const shortTitle = d.title.split(':')[0];
+const published = d.published.toISOString().slice(0, 10);
+const updated = d.updated.toISOString().slice(0, 10);
+const statusLabel = d.status === 'logged' ? 'Logged' : d.status === 'illustrative' ? 'Illustrative' : undefined;
+
+const jsonLd = [
+  breadcrumbs([
+    { name: 'Home', path: '/' },
+    { name: 'Burns', path: '/burns/' },
+    { name: shortTitle, path },
+  ]),
+  techArticle({
+    headline: shortTitle,
+    description: d.description,
+    path,
+    datePublished: d.published,
+    dateModified: d.updated,
+    authorName: d.author,
+    authorPath: '/about/',
+    seriesName: 'The Burns Registry',
+    keywords: d.pattern ? [d.plain_name, d.pattern] : [d.plain_name],
+  }),
+];
+---
+
+<Base
+  title={`${d.seoTitle ?? shortTitle} — AgentRiders`}
+  description={d.description}
+  ogType="article"
+  publishedTime={d.published}
+  modifiedTime={d.updated}
+  jsonLd={jsonLd}
+>
+  <PageHero eyebrow="The Record / Burns" title={shortTitle} art="ledger" compact>
+    <p class="summary">{smarten(d.summary)}</p>
+    <p class="page-hero__meta">By <a href="/about/#author" rel="author">{d.author}</a> · Published <time datetime={published}>{published}</time> · Updated <time datetime={updated}>{updated}</time></p>
+  </PageHero>
+
+  <section class="section section--bone">
+    <div class="container">
+      <div class="doc-reading">
+        {statusLabel && (
+          <p class="burn-status-line"><span class:list={['burn-status', `burn-status--${d.status}`]}>{statusLabel}</span></p>
+        )}
+        <article class="prose"><Content /></article>
+
+        {d.pattern && (
+          <section class="doc-related" aria-labelledby="logged-title">
+            <h2 id="logged-title">Logged examples</h2>
+            {examples.length > 0 ? (
+              <ul class="burnlist">
+                {examples.map(({ log, burn }) => (
+                  <li>
+                    <span class="what">{burn.what}</span>
+                    <span class="recovery">Recovery: {burn.recovery} · cost ${burn.cost_usd} · <a href={`/logs/${log.id}/`}>{log.data.title}</a>, <time datetime={log.data.date.toISOString().slice(0, 10)}>{log.data.date.toISOString().slice(0, 10)}</time></span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>No flight has logged this pattern yet. When a rider files a <a href="/logs/new/">flight log</a> with a burn tagged <code>{d.pattern}</code>, it appears here.</p>
+            )}
+          </section>
+        )}
+
+        <nav class="doc-related" aria-label="Related">
+          <h2>Related</h2>
+          <div class="doc-related__links">
+            {related.map((r) => <a href={r.href}>{r.label}</a>)}
+          </div>
+        </nav>
+
+        {d.faq.length > 0 && (
+          <section class="faq" aria-labelledby="faq-title">
+            <h2 id="faq-title">Questions riders ask</h2>
+            {d.faq.map((item) => (<><h3>{smarten(item.q)}</h3><p>{smarten(item.a)}</p></>))}
+          </section>
+        )}
+      </div>
+    </div>
+  </section>
+</Base>

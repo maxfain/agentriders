@@ -1,0 +1,90 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import PageHero from '../../components/PageHero.astro';
+import { breadcrumbs, smarten, canonicalUrl } from '../../lib/seo';
+import { Content as Intro, frontmatter } from './_intro.md';
+
+// The burns registry hub (docs/seo-aeo-plan.md §3.2, §4.4, S3). The intro is
+// the _intro.md body (the registry's own words); the template renders the
+// list below it — every pattern page with its plain_name, a logged /
+// illustrative / checklist badge, and its literal summary. JSON-LD is
+// breadcrumbs + an ItemList of the pattern pages.
+const entries = (await getCollection('burnPatterns')).sort((a, b) => {
+  // Logged patterns first, then illustrative, then the checklist; within a
+  // group, alphabetical by the plain name a reader scans.
+  const rank = (e: (typeof a)) => (e.data.status === 'logged' ? 0 : e.data.status === 'illustrative' ? 1 : 2);
+  return rank(a) - rank(b) || a.data.plain_name.localeCompare(b.data.plain_name);
+});
+
+const d = frontmatter;
+const shortTitle = d.title.split(':')[0];
+const published = new Date(d.published).toISOString().slice(0, 10);
+const updated = new Date(d.updated).toISOString().slice(0, 10);
+const path = '/burns/';
+
+const badge = (status?: string) =>
+  status === 'logged'
+    ? { cls: 'logged', label: 'Logged' }
+    : status === 'illustrative'
+      ? { cls: 'illustrative', label: 'Illustrative' }
+      : { cls: 'checklist', label: 'Checklist' };
+
+const jsonLd = [
+  breadcrumbs([
+    { name: 'Home', path: '/' },
+    { name: 'Burns', path },
+  ]),
+  {
+    '@type': 'ItemList',
+    '@id': `${canonicalUrl(path)}#patterns`,
+    name: 'The burns registry',
+    itemListElement: entries.map((e, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      url: canonicalUrl(`/burns/${e.id}/`),
+      name: e.data.plain_name,
+    })),
+  },
+];
+---
+
+<Base
+  title={`${d.seoTitle ?? shortTitle} — AgentRiders`}
+  description={d.description}
+  ogType="article"
+  publishedTime={d.published}
+  modifiedTime={d.updated}
+  jsonLd={jsonLd}
+>
+  <PageHero eyebrow="The Record / Burns" title={shortTitle} art="seal" compact>
+    <p class="summary">{smarten(d.summary)}</p>
+    <p class="page-hero__meta">By <a href="/about/#author" rel="author">{d.author}</a> · Published <time datetime={published}>{published}</time> · Updated <time datetime={updated}>{updated}</time></p>
+  </PageHero>
+
+  <section class="section section--bone">
+    <div class="container">
+      <div class="doc-reading">
+        <article class="prose"><Intro /></article>
+
+        <section class="burns-registry" aria-labelledby="registry-title">
+          <h2 id="registry-title">Every pattern in the registry</h2>
+          <ul class="burns-index">
+            {entries.map((e) => {
+              const b = badge(e.data.status);
+              return (
+                <li class="burns-index__item">
+                  <p class="burns-index__head">
+                    <a href={`/burns/${e.id}/`}>{e.data.plain_name}</a>
+                    <span class:list={['burn-status', `burn-status--${b.cls}`]}>{b.label}</span>
+                  </p>
+                  <p class="burns-index__summary">{smarten(e.data.summary)}</p>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      </div>
+    </div>
+  </section>
+</Base>

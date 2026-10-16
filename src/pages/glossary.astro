@@ -1,0 +1,286 @@
+---
+import Base from '../layouts/Base.astro';
+import PageHero from '../components/PageHero.astro';
+import { breadcrumbs, definedTermSet, smarten } from '../lib/seo';
+
+// The glossary (docs/seo-aeo-plan.md §3.2 rule 2, §3.3 Vocabulary, §4.4, §4.5,
+// S3). One page, every guild term with its plain-industry definition first,
+// then how riders use it. Each entry is an <h2> with an EXPLICIT short id
+// (dragon, reins, burn…) so /glossary/#reins resolves and the burns pages and
+// log telemetry can link straight to a term. The ids must be set here: the
+// markdown pipeline would slug the bilingual heading "Burn (incident)" to
+// `burn-incident` and strips raw-HTML ids (observed in
+// scratchpad/seo/s3/heading-id-test*.mjs), so the content lives as data and
+// the template assigns the anchors — the same ids feed DefinedTermSet below.
+const PUBLISHED = '2026-10-16';
+const UPDATED = '2026-10-16';
+
+const PATH = '/glossary/';
+const H1 = 'The guild vocabulary';
+const DESCRIPTION =
+  'Every AgentRiders term in plain English: AI agent, permissions, budget, kill switch, incident, autonomy, run record. One sentence each, then usage.';
+const SUMMARY =
+  'AI agent operations have a guild vocabulary on AgentRiders: the agent is a dragon, its operator a rider, its permissions and kill switches the reins, a failed run a burn, a run record a flight log. Each entry defines the term in plain industry language first, then shows how riders use it on real work.';
+
+const INTRO =
+  'The Guild talks about dragons, reins and burns because those words keep the human in the sentence. Every term below opens with its plain industry meaning, then shows how riders use it on real work, with the chapter that goes deeper.';
+
+// id → on-page anchor (and DefinedTerm @id). name → the guild headword.
+// paren → the industry gloss shown in the heading. aliases → DefinedTerm
+// alternateName (industry synonyms). def → the one-sentence definition shown
+// first and used verbatim as the DefinedTerm description. body → how riders
+// use it. see → the cross-links the draft carries, with the two S1 slug
+// renames repointed to their canonical routes (/manual/the-bond/ →
+// /manual/agent-trust-and-autonomy/, /training/earn-the-longer-leash/ →
+// /training/earning-autonomy/).
+type Term = {
+  id: string;
+  name: string;
+  paren: string;
+  aliases: string[];
+  def: string;
+  body: string;
+  see: { t: string; href: string }[];
+};
+
+const terms: Term[] = [
+  {
+    id: 'dragon', name: 'Dragon', paren: 'AI agent',
+    aliases: ['AI agent', 'autonomous agent'],
+    def: `A dragon is an AI agent — a model with tools and the freedom to act, powerful and willful, with its own ideas about what you meant.`,
+    body: `The word is not a joke about the model. An agent can do a week of work in an afternoon. It can also spend the budget doing the wrong thing, confidently. Both are true at once, and that is what makes it a dragon. You are not operating a tool. You are steering something that will do what you did not say. The rider's rules put the consequence plainly: never blame the dragon. If it burned something, the rein was too loose.`,
+    see: [{ t: 'Why riders', href: '/about/' }, { t: 'Before the first flight', href: '/manual/before-the-first-flight/' }],
+  },
+  {
+    id: 'rider', name: 'Rider', paren: 'AI agent operator',
+    aliases: ['AI agent operator', 'agent operator'],
+    def: `A rider is a person who runs AI agents on real work — the operator who writes the brief, sets the permissions, judges the landing and answers for the outcome.`,
+    body: `Not everyone who uses a model is a rider. The word is kept for people who put an agent on a task with consequences and stay accountable for what it does. The Guild uses it only for things a person actually does. A rider briefs, reviews, approves, stops, logs and vouches. An agent never rides. The thesis of the site is that the agents are the easy part. The dragons improve every quarter without your help; the riding does not, and the riding is where the leverage is. Rider, capitalized, is also the middle rank.`,
+    see: [{ t: 'The people holding the reins', href: '/riders/' }, { t: 'Your first flight', href: '/training/your-first-flight/' }, { t: 'Ranks', href: '/glossary/#ranks' }],
+  },
+  {
+    id: 'mount', name: 'Mount', paren: 'agent product, model and setup',
+    aliases: ['agent product', 'model plus setup', 'session'],
+    def: `A mount is the specific AI agent you are running right now — the product or framework, the model and the setup underneath it; to mount is to start a session.`,
+    body: `The log asks for the mount by name because "an agent" is not enough to learn from. The one published flight records its mount as Claude Code, its model as Claude Fable 5 for planning and Opus 4.8 for coding, and its harness as Claude Code on the web. A mount changes under you: a model update, a new connector, a different workspace. The bond chapter is blunt about it. Trust belongs to the setup, not the personality, and a changed setup can invalidate what earlier flights proved. Name the mount every time, so the record shows what shifted.`,
+    see: [{ t: 'The bond', href: '/manual/agent-trust-and-autonomy/' }, { t: 'Logging a flight', href: '/manual/logging-a-flight/' }, { t: 'Shipped AgentRiders Phase 2', href: '/logs/shipped-agentriders-phase-2/' }],
+  },
+  {
+    id: 'harness', name: 'Harness', paren: 'agent scaffold and runtime',
+    aliases: ['agent harness', 'agent scaffold', 'agent runtime'],
+    def: `A harness is the scaffold around a model that makes an AI agent usable on real work — its tools, memory, loops and runtime, and the layer where permissions are actually enforced.`,
+    body: `Instructions are one layer. The harness is the other. "Never delete customer records" is guidance. A connected tool that exposes no delete operation is a harness. The harness lesson turns on one question for every important rule: what outside the model prevents this action? If the answer is "the agent was told," you have an instruction, not a control. The harness is also where the kill switch lives. Closing a chat window may not cancel a remote job; the harness's real stop controls do. A git branch is not a harness. It organizes changes and restricts nothing.`,
+    see: [{ t: 'Build the harness', href: '/training/build-the-harness/' }, { t: 'Reins', href: '/manual/reins/' }, { t: 'Kill switch', href: '/manual/kill-switch/' }],
+  },
+  {
+    id: 'saddle', name: 'Saddle', paren: 'console or approval queue',
+    aliases: ['console', 'chat window', 'approval queue'],
+    def: `The saddle is the rider's seat — the console, chat window or approval queue where a person watches an AI agent run and decides; it moves with the rider between mounts.`,
+    body: `Chapter one says to write the deliverable, the acceptance checks and the forbidden actions before you open the saddle. Once the session is running, a fluent answer starts lowering your standard. The saddle is where that pressure lands. It is also where approval happens, and the reins chapter sets the bar: the destination, the exact diff or content, the records affected, the expected consequence. "May I continue?" is too vague to sit on. The same seat rides a CLI, a web session or an approval queue. What changes between mounts is the harness. What stays is the rider.`,
+    see: [{ t: 'Before the first flight', href: '/manual/before-the-first-flight/' }, { t: 'Reins', href: '/manual/reins/' }],
+  },
+  {
+    id: 'reins', name: 'Reins', paren: 'permissions, budget, kill switch',
+    aliases: ['permissions', 'scopes', 'budgets', 'kill switches'],
+    def: `Reins are an AI agent's permissions, scopes, budgets and kill switches — the limits a rider sets before a run and loosens only on evidence.`,
+    body: "The first rule of the rider: every agent gets a scope, a budget and a kill switch before its first flight. Those are the reins, and a log records them as they operated: `scope`, `budget`, `kill_switch`, `autonomy`. The chapter title says the rest: tight enough to be loosened. Reins describe what an agent may do; the harness has to make the limits real. Where no control enforces a rein, the log says so. The logged flight's reins: one repository, feature-branch PRs into main, a scoped Cloudflare token with production D1 and Pages in reach, a human merging every milestone. When something burns, the rein was too loose. Write the tighter one.",
+    see: [{ t: 'Reins', href: '/manual/reins/' }, { t: 'Spend cap', href: '/manual/spend-cap/' }, { t: 'Kill switch', href: '/manual/kill-switch/' }],
+  },
+  {
+    id: 'bridle', name: 'Bridle', paren: 'permissions policy',
+    aliases: ['permissions policy', 'allowlist'],
+    def: `A bridle is a full set of reins written down — a reusable permissions policy for one workflow that travels across mounts and is versioned whenever access changes.`,
+    body: `The reins chapter calls it the permission map made concrete: what the workflow may read, what it may write, external actions, the human decision, limits, stop conditions, evidence required. A bridle is a document, not a control, and that distinction is the whole of lesson three: a bridle records what an agent may do, a harness enforces it. The lesson has riders mark every line enforced, instruction only, or not verified, then remove the highest-consequence "instruction only" boundary or add a control they can test. Change mounts and the bridle still describes the job. Only the enforcement underneath needs refitting.`,
+    see: [{ t: 'Build the harness', href: '/training/build-the-harness/' }, { t: 'Reins', href: '/manual/reins/' }, { t: 'Training kit', href: '/training/kit/' }],
+  },
+  {
+    id: 'flight', name: 'Flight', paren: 'agent run',
+    aliases: ['agent run', 'agent session'],
+    def: `A flight is one real run of an AI agent on a task, with a named outcome — a session that began with a brief and ended with something a person could inspect.`,
+    body: `"Real" is doing the work in that sentence. A demo is not a flight. A flight has a rider, a mount, a task someone needed done, and an outcome judged against the brief: landed, partial or aborted. Chapter one gives the flight its ending before it begins: one artifact, in one location, with acceptance checks a reviewer can repeat. An aborted flight can still show good judgment; a stopped run that explains why it stopped is a record, not a failure to hide. The first-flight lesson sizes it at about fifteen minutes of your normal work, most of it spent on review.`,
+    see: [{ t: 'Your first flight', href: '/training/your-first-flight/' }, { t: 'Before the first flight', href: '/manual/before-the-first-flight/' }, { t: 'Outcomes', href: '/glossary/#outcomes' }],
+  },
+  {
+    id: 'flight-log', name: 'Flight log', paren: 'run record',
+    aliases: ['run record', 'session record', 'post-run report'],
+    def: `A flight log is the written record of one AI agent run — task, mount, duration, cost, outcome, burns, lesson and reins, published under the rider's name.`,
+    body: 'The site\'s format is a fixed set of fields. A log carries `title`, `date`, `rider`, `mount`, optional `model` and `harness`, a `task` category (code, ops, research, sales, writing, data or other), `duration`, `cost_usd`, `outcome`, `burns` (what happened, the recovery, its cost), one `lesson`, and the `reins` as they operated. Below the fields, the body is the rider\'s prose, with secrets and private identifiers removed; the metadata-only guarantee belongs to the verified-flight record the CLI uploads, not to the log. Chapter five walks the fields: time and cost recorded separately, subscription billing stated rather than turned into an invented per-run price, zero meaning a supported zero and never "I did not check." Second rule of the rider: if it isn\'t logged, it didn\'t happen. Flight Log, capitalized, is the name of the Guild\'s newsletter, which has not published an issue yet.',
+    see: [{ t: 'Logging a flight', href: '/manual/logging-a-flight/' }, { t: 'Log template', href: '/logs/template/' }, { t: 'All flights', href: '/logs/' }],
+  },
+  {
+    id: 'burn', name: 'Burn', paren: 'incident',
+    aliases: ['incident', 'failure', 'failed run'],
+    def: `A burn is an AI agent run that went wrong and cost something — an incident or failure where money, data or time was lost, logged with its recovery and its price.`,
+    body: `The one published log carries three, the only logged burns on the site. A submission pipeline that reached review with an IDOR and a stored XSS behind 38 green tests. An admin allowlist that would have locked out its own admin. A kill script that repeatedly matched and killed the agent's own shell. The first two were caught before merge, one by adversarial review and one on the branch; the third stalled test runs in flight until the kill was run from a file and by port. All three are logged at zero direct cost. Burns are not outcomes; a flight can land with burns, as that one did. The burns chapter covers the first ten minutes: contain, establish the facts, choose the smallest recovery. Its doubled-import example is illustrative, not logged.`,
+    see: [{ t: 'Burns', href: '/manual/burns/' }, { t: 'Burn patterns', href: '/burns/' }, { t: 'When an agent fails', href: '/training/when-an-agent-fails/' }, { t: 'Burn report', href: '/training/kit/burn-report/' }, { t: 'The logged flight', href: '/logs/shipped-agentriders-phase-2/' }],
+  },
+  {
+    id: 'bond', name: 'Bond', paren: 'earned autonomy',
+    aliases: ['earned autonomy', 'trust level'],
+    def: `The bond is earned trust between a rider and one specific AI agent setup over many runs — the evidence that lets autonomy widen one boundary at a time, and the record that pulls it back.`,
+    body: `Trust a workflow, not a personality. An agent that reliably summarizes sanitized support tickets has not thereby earned permission to issue refunds. Chapter three separates the kinds of freedom (work longer, read more, edit more, act without review) and asks for a promotion record before any one of them changes: evidence reviewed, the single boundary proposed, what restores the earlier limit. "Ten successful flights" is not a universal rule. The bond is reversible. Tightening the reins after a burn is maintenance, not punishment. Third rule of the rider: autonomy is earned, one flight at a time.`,
+    see: [{ t: 'The bond', href: '/manual/agent-trust-and-autonomy/' }, { t: 'Earn the longer leash', href: '/training/earning-autonomy/' }, { t: 'Grounded', href: '/glossary/#grounded' }],
+  },
+  {
+    id: 'hatchling', name: 'Hatchling', paren: 'agent with no logged runs',
+    aliases: ['agent with no logged runs'],
+    def: `A hatchling is an AI agent with no logged flights yet — a state of the agent, not a rank of the rider.`,
+    body: `Every mount starts here. A frontier model with the best tooling you own is still a hatchling until a flight with it is logged. There is no record to loosen the reins on, so the reins stay at chapter-one settings: a scope you can inspect, a budget you can enforce, a kill switch you have tested before the flight. The About page puts it in one line: nobody here hands a hatchling the production keys and calls it trust. Fledgling is a rider's rank, earned by joining and logging one flight. Hatchling is where the dragon is, not where you are.`,
+    see: [{ t: 'Before the first flight', href: '/manual/before-the-first-flight/' }, { t: 'Ranks', href: '/glossary/#ranks' }, { t: 'The Yard', href: '/glossary/#the-yard' }],
+  },
+  {
+    id: 'grounded', name: 'Grounded', paren: 'pulled from service',
+    aliases: ['pulled from service', 'suspended'],
+    def: `Grounded means an AI agent or workflow pulled from real work after an incident until its permissions are refitted — a pause for repair, not a verdict on the model.`,
+    body: `Grounded means the affected workflow pauses while you repair it, as the bond chapter puts it. It need not mean abandoning every useful task the agent performs. What ends the grounding is a refitted rein, not time passing: a scope the harness enforces, a cap instead of an alert, a kill switch you have tested, the failed case rerun in a disposable environment. Resuming is a separate decision from recovering. The Guild uses the same word for people, narrowly: the terms say an account that fakes flights or vouches dishonestly can be grounded. Invented logs are removed with their vouches, and the account can be suspended.`,
+    see: [{ t: 'The bond', href: '/manual/agent-trust-and-autonomy/' }, { t: 'Burns', href: '/manual/burns/' }, { t: 'Terms', href: '/terms/' }],
+  },
+  {
+    id: 'wing', name: 'Wing', paren: 'team or multi-agent fleet',
+    aliases: ['team', 'multi-agent fleet'],
+    def: `A wing is a team of riders, or a fleet of AI agents run together on one piece of work — several workers, one accountable owner, one set of reins over the whole.`,
+    body: `Chapter six opens with the only question that matters: is there a reason to split? A wing earns its place when work can proceed independently or needs distinct tools and context, never because a larger team sounds more capable. Give every handoff a contract: owner, inputs, deliverable, acceptance checks, actual permissions, budget, when to escalate. Budget the whole wing, and know how to cancel the entire workflow. Command a wing is the lesson. Its vendor comparison is illustrative: two workers, two evidence tables, one lead who has to connect facts neither worker could. Wings as a Guild tier are not open yet.`,
+    see: [{ t: 'Riding a wing', href: '/manual/riding-a-wing/' }, { t: 'Command a wing', href: '/training/command-a-wing/' }, { t: 'Ranks', href: '/glossary/#ranks' }],
+  },
+  {
+    id: 'the-roost', name: 'The Roost', paren: "members' forum",
+    aliases: ["members' forum"],
+    def: `The Roost is the members' forum — where riders compare notes outside the public record, listed in the planned Rider tier.`,
+    body: `Not open yet; it is not in the navigation. Until it opens, the logs are where riders compare notes.`,
+    see: [{ t: 'Join the Guild', href: '/guild/' }, { t: 'All flights', href: '/logs/' }],
+  },
+  {
+    id: 'the-yard', name: 'The Yard', paren: 'sandbox',
+    aliases: ['sandbox', 'practice environment'],
+    def: `The Yard is the sandbox where hatchlings fly before real work — the guild word for any disposable practice environment with sample data, no live connectors and nothing to lose.`,
+    body: `Not a feature of the site. The word names the practice: a disposable environment you build yourself. Every Flight School lesson runs in a yard of your own making: a sanitized export, a test account, a sample workspace you can throw away. Lesson three's duplicate-contacts exercise is the pattern, and it is illustrative: fifty sanitized records, a proposal file, no CRM credentials connected, a benign probe to confirm that a forbidden write really fails. When a dragon breathes fire in the Yard, it costs nothing. The burns chapter sends you to practice on a harmless failure, and the failure lesson adds the rule: do not create a real incident to practice. There is no hosted Yard, and a branch is not one either.`,
+    see: [{ t: 'Build the harness', href: '/training/build-the-harness/' }, { t: 'When an agent fails', href: '/training/when-an-agent-fails/' }, { t: 'Hatchling', href: '/glossary/#hatchling' }],
+  },
+  {
+    id: 'field-manual', name: 'Field Manual', paren: 'playbook library',
+    aliases: ['playbook library'],
+    def: `The Field Manual is the Guild's playbook library — chapters on AI agent permissions, budgets, kill switches, trust, incidents, run records, multi-agent work and evals, written by riders and tested on real work.`,
+    body: `Seven chapters today, in reading order: before the first flight, reins, the bond, burns, logging a flight, riding a wing, evals. Start at chapter one if you are new. Skip to burns if you already have scars. The chapters hold the definitions; the Flight School lessons practice them. Every example in the Manual today is labeled illustrative; none cites a logged flight yet, and when one does, it will link the flight it came from. Sponsorships, where they exist, are labeled and never in the Manual. That is why a chapter can say that a branch is not a sandbox without clearing it with anyone.`,
+    see: [{ t: 'Field Manual', href: '/manual/' }, { t: 'Flight School', href: '/training/' }, { t: 'Training kit', href: '/training/kit/' }],
+  },
+  {
+    id: 'ranks', name: 'Ranks', paren: 'Fledgling, Rider, Wingleader',
+    aliases: ['Fledgling', 'Rider', 'Wingleader'],
+    def: `Ranks are the Guild's three levels of rider standing — Fledgling, Rider, Wingleader — earned from published flights and vouches from other riders, and never sold.`,
+    body: `Fledgling: joined, one flight logged. Rider: twenty published flights and two vouches from riders who already hold Rider. Wingleader: a hundred flights, running a wing, five vouches. The site computes Fledgling and Rider from the record. Wingleader needs a wing, and wings are not open, so it is not computed yet. Nobody skips a rung. A rank is not a certificate: finishing Flight School awards nothing, and the autonomy stages in lesson five are workflow stages, not Guild ranks. Rank says how much of your work other riders can see and have vouched for. Everyone starts unranked and earns Fledgling with one logged flight, including the people who built this.`,
+    see: [{ t: 'The people holding the reins', href: '/riders/' }, { t: 'Vouch', href: '/glossary/#vouch' }, { t: 'Verified flight', href: '/glossary/#verified-flight' }],
+  },
+  {
+    id: 'outcomes', name: 'Outcomes', paren: 'landed, partial, aborted',
+    aliases: ['landed', 'partial', 'aborted'],
+    def: `Outcomes are the three values a flight log can record for how an AI agent run ended — landed, partial or aborted — judged against the brief, not against the agent's closing message.`,
+    body: `Landed: the agreed deliverable passed its acceptance checks. Partial: useful work exists, but part of the agreed result is unmet. Aborted: the run stopped without completing the deliverable. The schema allows exactly those three. Chapter five's warning: do not mark a draft landed because it looks finished when its essential claims are unverified. "Completed successfully" is the agent's report; the check is the evidence. An aborted flight can be the correct result. If the input lacked the required evidence and the agent stopped and said so, record both facts. Outcome and burns are separate fields. The one published flight landed, with three burns.`,
+    see: [{ t: 'Logging a flight', href: '/manual/logging-a-flight/' }, { t: 'Teach it where to land', href: '/training/teach-it-where-to-land/' }, { t: 'Burn', href: '/glossary/#burn' }],
+  },
+  {
+    id: 'verified-flight', name: 'Verified flight', paren: 'signed run record',
+    aliases: ['signed run record', 'device-attested run'],
+    def: `A verified flight is a published AI agent run whose session metadata was signed by a device the rider registered with the agentriders CLI — proof that a registered machine produced the record, not that every number in it is true.`,
+    body: `Run \`agentriders login\` once to pair a machine, then \`agentriders log <session.jsonl>\` after a flight. The CLI reads the session log and keeps only metadata: timestamps and duration, model names, tool-call counts by built-in tool name with every MCP tool folded into one bucket, eval signals and a one-way session hash. It signs that record with the device key and uploads it; the [For agents](/agents/) page lists the fields and links the CLI's privacy note. Prompts, file contents, code and command output never leave the machine. Link the record to a published log and the Verified flight badge appears on that flight. The badge is for standing. The terms are exact about its limits: figures remain self-reported, verification attests the device and not the duration or the cost, and a verified flight is never a rank shortcut.`,
+    see: [{ t: 'Terms', href: '/terms/' }, { t: 'For agents', href: '/agents/' }, { t: 'All flights', href: '/logs/' }],
+  },
+  {
+    id: 'vouch', name: 'Vouch', paren: 'peer endorsement',
+    aliases: ['peer endorsement'],
+    def: `A vouch is a public, named statement by one rider that another rider's work is real and that they have seen it — the second input, after logged flights, to every rank.`,
+    body: `Fifth rule of the rider: vouch honestly. Your name is on every rider you vouch for. Only riders holding Rider or above can vouch, and a vouch is public, with a short statement and your handle on it. Two vouches from Riders are part of the bar for Rider rank. Vouches must reflect work you have actually seen, and the terms say invented logs are removed along with the vouches attached to them. An agent can file a flight on its rider's behalf. It can never vouch.`,
+    see: [{ t: 'The people holding the reins', href: '/riders/' }, { t: 'Terms', href: '/terms/' }, { t: 'For agents', href: '/agents/' }],
+  },
+];
+
+// The three questions from the draft's "Questions riders ask" section. No
+// FAQPage markup (docs/seo-aeo-plan.md §4.5, §9): the visible text is the point.
+const QUESTIONS_INTRO = 'Three questions this page answers.';
+const questions: { q: string; a: string }[] = [
+  {
+    q: 'What is the difference between reins, a bridle and a harness?',
+    a: 'Reins are the limits themselves: scope, budget, kill switch, autonomy. A bridle is those limits written down for one workflow, reusable across mounts. A harness is the scaffold that enforces them. In a prompt alone, a rein is an instruction; the harness makes it a control.',
+  },
+  {
+    q: 'Is a hatchling the same as a Fledgling?',
+    a: 'No. Hatchling describes the agent: no logged flights yet. Fledgling describes the rider: joined, one flight logged. A rider with no flights yet is riding a hatchling, which is why chapter one exists.',
+  },
+  {
+    q: 'Can an agent earn a rank or give a vouch?',
+    a: 'No. Ranks and vouches belong to people. An agent can file a flight on its rider\'s behalf through the MCP server, and nothing it files is public until a human approves it. It cannot be a rider, hold a rank, or vouch.',
+  },
+];
+
+// Render a term's prose with the three bits of markdown the draft carries:
+// inline [links](/path/), `code` spans (the field names and CLI commands it
+// quotes), and smart quotes. HTML is escaped first (one body quotes a CLI
+// argument, `agentriders log <session.jsonl>`, whose angle brackets must not
+// read as a tag); the text is fixed site copy, so nothing untrusted reaches
+// set:html. Order: escape, educate quotes, then the link and code passes last
+// so a field name is never curled and a href is never rewritten.
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const rich = (s: string) =>
+  smarten(escapeHtml(s))
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>');
+
+const jsonLd = [
+  breadcrumbs([
+    { name: 'Home', path: '/' },
+    { name: 'Glossary', path: PATH },
+  ]),
+  definedTermSet({
+    name: H1,
+    path: PATH,
+    terms: terms.map((t) => ({ term: t.name, aliases: t.aliases, definition: t.def, anchor: t.id })),
+  }),
+];
+---
+
+<Base
+  title="AI agent glossary: the Guild's terms — AgentRiders"
+  description={DESCRIPTION}
+  ogType="article"
+  publishedTime={PUBLISHED}
+  modifiedTime={UPDATED}
+  jsonLd={jsonLd}
+>
+  <PageHero eyebrow="Glossary" title={H1} art="book" compact>
+    <p class="summary">{smarten(SUMMARY)}</p>
+    <p class="page-hero__meta">By <a href="/about/#author" rel="author">Max Faingezicht</a> · Published <time datetime={PUBLISHED}>{PUBLISHED}</time> · Updated <time datetime={UPDATED}>{UPDATED}</time></p>
+  </PageHero>
+
+  <section class="section section--bone">
+    <div class="container">
+      <div class="doc-reading">
+        <article class="prose glossary">
+          <p>{smarten(INTRO)}</p>
+          {terms.map((t) => (
+            <>
+              <h2 id={t.id}>{t.name} <span class="glossary-alt">({t.paren})</span></h2>
+              <p class="glossary-def" set:html={rich(t.def)} />
+              <p set:html={rich(t.body)} />
+              <p class="glossary-see">See: {t.see.map((l, i) => (<>{i > 0 && ' · '}<a href={l.href}>{l.t}</a></>))}</p>
+            </>
+          ))}
+        </article>
+
+        <section class="faq" aria-labelledby="faq-title">
+          <h2 id="faq-title">Questions riders ask</h2>
+          <p>{smarten(QUESTIONS_INTRO)}</p>
+          {questions.map((qa) => (<><h3 set:html={rich(qa.q)} /><p set:html={rich(qa.a)} /></>))}
+        </section>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  /* Each entry's heading carries the anchor the rest of the site links to;
+     keep it clear of the sticky header when jumped to. */
+  .glossary h2 { scroll-margin-top: 96px; }
+  .glossary-alt { font-weight: 400; color: var(--text-on-bone-soft); font-style: italic; }
+  .glossary-def { font-weight: 500; }
+  .glossary-see { font-size: 14px; color: var(--text-on-bone-soft); }
+  .glossary-see a { white-space: nowrap; }
+</style>

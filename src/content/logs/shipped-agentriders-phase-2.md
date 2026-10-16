@@ -13,12 +13,15 @@ burns:
   - what: "The first M2 submission pipeline reached the review stage with an IDOR (any rider could hijack or lock another rider’s published log through the edit path) and a stored XSS (rider markdown rendered as raw HTML)."
     recovery: "A 46-agent adversarial review caught both before merge; fixed at every trust boundary and re-verified with a 23-step end-to-end run."
     cost_usd: 0
+    pattern: green-tests-unsafe-ship
   - what: "The admin allowlist was hardcoded to the handle max, but the owner claimed @maxcr — the admin surface would have 404'd for its own admin."
     recovery: "Corrected the allowlist on the branch before merge and granted is_admin in D1."
     cost_usd: 0
+    pattern: wrong-principal
   - what: "A local dev-server kill script repeatedly matched and killed the agent’s own shell (exit 144), stalling test runs."
     recovery: "Ran the kill from a file and by port instead of an inline process-name pattern."
     cost_usd: 0
+    pattern: agent-killed-its-own-shell
 lesson: "\"Tests pass\" is not \"safe to ship\": agent-written code needs an adversarial review pass before merge — ours caught an IDOR and a stored XSS that 38 green tests missed."
 reins:
   scope: "maxfain/agentriders only — feature-branch PRs into main; Cloudflare account via a scoped API token; production D1 + Pages"

@@ -10,6 +10,8 @@ AgentRiders treats AI agents as dragons and the humans who run them as riders. F
 - [Missions](https://agentriders.com/missions/): bounded practice tasks for engineering, research, and operations
 - [Field kit](https://agentriders.com/training/kit/): reusable briefs, review criteria, and run records
 - [Field Manual](https://agentriders.com/manual/): playbooks on scope, budgets, kill switches, review loops and burns
+- [Burns registry](https://agentriders.com/burns/): named AI agent failure modes, each labeled logged or illustrative
+- [Glossary](https://agentriders.com/glossary/): the guild vocabulary — one-sentence definitions with anchors like /glossary/#reins
 - [Flight Logs](https://agentriders.com/logs/): real agent runs with the numbers left in
 - [Flight data](https://agentriders.com/data/): the evidence layer — how runs are counted, the log schema, and the one logged case study
 - [Riders](https://agentriders.com/riders/): directory of riders and their track records
@@ -37,6 +39,21 @@ AgentRiders treats AI agents as dragons and the humans who run them as riders. F
 - [Kill switch for an AI agent](https://agentriders.com/manual/kill-switch/): five reins that stop a run, with a test for each
 - [Cap what a flight can spend](https://agentriders.com/manual/spend-cap/): why an alert is not a cap, and where a hard limit actually lives
 - [Scope, cap and kill compared](https://agentriders.com/manual/scope-cap-kill-compared/): permissions, budgets and stop controls in Claude Code, Cursor, Codex CLI and Gemini CLI
+
+## Burns registry
+
+Named AI agent failure modes. Each page gives the signals, the first ten minutes, the recovery and the reins that prevent it, labeled logged (a published flight log records the burn) or illustrative (drawn from the Field Manual or Flight School). No counts or rates by pattern until enough burns are logged.
+
+- [Burns registry](https://agentriders.com/burns/): the index of named failure patterns, logged vs illustrative
+- [Green tests, unsafe ship](https://agentriders.com/burns/green-tests-unsafe-ship/): logged — code that passes every test and still carries an IDOR or stored XSS
+- [Wrong principal](https://agentriders.com/burns/wrong-principal/): logged — an admin allowlist hardcoded to the wrong handle, nearly locking out the owner
+- [Agent killed its own shell](https://agentriders.com/burns/agent-killed-its-own-shell/): logged — a process-name kill pattern matched the shell running the agent and stopped it mid-test
+- [Alert is not a cap](https://agentriders.com/burns/alert-is-not-a-cap/): illustrative — monitoring mistaken for enforcement; a spend alert fires and the agent keeps running
+- [Branch is not a sandbox](https://agentriders.com/burns/branch-is-not-a-sandbox/): illustrative — a false isolation boundary; an agent on a git branch keeps its credentials and network reach
+- [Confident closing message](https://agentriders.com/burns/confident-closing-message/): illustrative — a false completion report; the agent says done when nothing landed or was checked
+- [Data treated as orders](https://agentriders.com/burns/data-treated-as-orders/): illustrative — prompt injection via data the agent read
+- [Duplicate write after timeout](https://agentriders.com/burns/duplicate-write-after-timeout/): illustrative — a non-idempotent retry; a write times out, the agent retries, every record lands twice
+- [First ten minutes](https://agentriders.com/burns/first-ten-minutes/): a printable incident-response checklist — contain, establish facts, choose the smallest recovery
 
 ## Flight data
 
