@@ -12,7 +12,7 @@ export function configDir() {
   return process.env.AGENTRIDERS_HOME || path.join(os.homedir(), '.agentriders');
 }
 
-function keyPath() {
+export function keyPath() {
   return path.join(configDir(), 'key.json');
 }
 

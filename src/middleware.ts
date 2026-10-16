@@ -1,5 +1,6 @@
 import { defineMiddleware } from 'astro:middleware';
 import { SESSION_COOKIE, resolveSession } from './lib/session';
+import { resolveDeviceAuth } from './lib/device-auth';
 import { isAdmin } from './lib/admin';
 
 // Runs for server routes (prerender = false) at request time, and once at
@@ -50,10 +51,25 @@ export const onRequest = defineMiddleware(async (context, next) => {
     }
   }
 
+  // Device-signature auth (CLI / MCP) as a fallback when there is no cookie
+  // session. sessionId stays null — the admin gate below uses that to keep a
+  // device identity out of /admin even if the device belongs to an admin.
+  if (!context.locals.rider) {
+    try {
+      const viaDevice = await resolveDeviceAuth(env, context.request, context.url);
+      if (viaDevice) context.locals.rider = viaDevice;
+    } catch {
+      // Device auth never breaks the request path.
+    }
+  }
+
   // The admin surface doesn't exist for anyone else — 404, not 403, so its
   // shape isn't even confirmed. Covers /admin pages and /api/admin routes.
+  // A cookie session is required: device auth (sessionId === null) never
+  // reaches admin.
   const path = context.url.pathname;
-  if ((path === '/admin' || path.startsWith('/admin/') || path.startsWith('/api/admin')) && !isAdmin(context.locals.rider)) {
+  const adminPath = path === '/admin' || path.startsWith('/admin/') || path.startsWith('/api/admin');
+  if (adminPath && (!isAdmin(context.locals.rider) || !context.locals.sessionId)) {
     return new Response('Not found', { status: 404, headers: { 'Content-Type': 'text/plain' } });
   }
 
