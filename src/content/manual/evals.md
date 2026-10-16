@@ -1,13 +1,23 @@
 ---
 title: "Evals: how a rider keeps a dragon accountable"
+seoTitle: "How to evaluate AI agent work (evals)"
 chapter: 7
-description: "Repeatable checks of an agent's work — golden sets, assertions, judges — and the loop that makes them count."
+description: "How to evaluate an AI agent's work with repeatable checks: golden sets, rule-based assertions, LLM-as-judge, human spot-checks, and a tracked pass rate."
+summary: "An eval is a repeatable check that an AI agent produced the right output: an input, an expected outcome written before the run, a scorer, and a recorded pass or fail. Four kinds cover almost everything: golden-set regression, rule-based assertions, LLM-as-judge and human spot-checks. Start with 3–5 real inputs and track the pass rate after every change."
 published: 2026-09-27
 updated: 2026-09-27
+author: "Max Faingezicht"
 draft: false
+faq:
+  - q: "How do I evaluate an AI agent's work?"
+    a: "Write an eval: an input, an expected outcome written down before the run, a scorer, and a recorded pass or fail. Start with 3–5 real inputs from a task the agent already does, write a dozen lines of assertions, and record the pass rate. That baseline is allowed to be bad. It is not allowed to be unknown."
+  - q: "What are golden sets and assertions for agent output?"
+    a: "A golden set is a fixed set of inputs with known-good outputs, run after every change to the prompt, the model or the permissions, so drift shows up in the set, not in production. Assertions are deterministic rule checks: the JSON parses, the schema validates, the file compiles, a forbidden string is absent. Cheap and fast; start there."
+  - q: "How often should I re-run evals on an AI agent?"
+    a: "After every meaningful change: the prompt, the model, or the permissions (what riders call the reins). Track the pass rate over time, not pass or fail once. Keep the number from every run. A pass rate tracked over time tells you when a change helped, when it broke something else, and when the model changed under you."
 ---
 
-## What an eval is
+## What is an eval for an AI agent?
 
 An eval is a repeatable check that your agent produced the right output. Not "it worked once while I watched." A check you can run again tomorrow, after the model updates, after you loosen the reins.
 
@@ -15,13 +25,13 @@ Every eval has the same anatomy: an input, an expected outcome, a scorer, and a 
 
 If any of the four is missing, it isn't an eval. It's a vibe.
 
-## Why it matters for riders
+## Evals keep an AI agent accountable for flights you did not watch
 
 You will not be watching every flight. That is the point of riding: the dragon works while you do something else. An eval is how you stay accountable for work you didn't watch, and how the dragon stays accountable to you.
 
 The bond chapter says loosen the reins on evidence. Evals are the evidence. A rider with a pass rate loosens the reins on numbers; a rider without one loosens them on mood. This is a discipline, not a chore — the same discipline as logging: nobody trusts a flight that wasn't logged, and nobody should trust an output that was never checked twice.
 
-## Types of evals
+## Four types of eval: golden sets, assertions, judges, spot-checks
 
 Four kinds cover almost everything. Pick the cheapest one that would catch the failure you fear.
 
@@ -30,7 +40,7 @@ Four kinds cover almost everything. Pick the cheapest one that would catch the f
 - **LLM-as-judge.** A second model scores what rules can't: tone, correctness, completeness. Useful and fallible — judges drift too, so anchor them with the next kind.
 - **Human spot-check.** You, reading a sample on a schedule. Slowest and most honest. Use it to calibrate the other three, not to replace them.
 
-## Writing your first eval
+## How to write your first AI agent eval
 
 Take a task your agent already does every week. Not a new one — one with real stakes and real examples.
 
@@ -41,7 +51,7 @@ Take a task your agent already does every week. Not a new one — one with real 
 
 That number — 3 of 5, whatever it is — is your baseline. It is allowed to be bad. It is not allowed to be unknown.
 
-## Practicing the loop
+## The eval loop: run, check the pass rate, adjust, run again
 
 The eval is not the discipline. The loop is: write the eval, run the agent, check the pass rate, adjust the prompt or the reins, run it again.
 

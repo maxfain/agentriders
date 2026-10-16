@@ -1,9 +1,12 @@
 ---
 title: "Teach it where to land"
+seoTitle: "Acceptance checks: verify an AI agent finished"
 order: 2
-description: "Define success before the run. Build checks that catch convincing work that is still wrong."
+description: "Acceptance checks for an AI agent task: define success before the run, split hard failures from quality, and catch polished work that is still wrong."
+summary: "Acceptance checks verify an AI agent finished the task: conditions a reviewer can see, written before the run so a fluent answer cannot lower your standard. Sort them: must be true, must not happen, should be good. A critical boundary violation fails even when the prose is excellent. That is how checks catch convincing work that is still wrong."
 published: 2026-09-29
 updated: 2026-09-29
+author: "Max Faingezicht"
 duration: "35-minute exercise"
 level: "Fledgling"
 art: "workbench"
@@ -19,9 +22,16 @@ strongPrompt: |
   promise refunds, invent account facts, or send any response.
   Return each draft with its unresolved questions. I will score policy
   accuracy, evidence, and usefulness separately before accepting it.
+faq:
+  - q: "How do I verify an AI agent finished the task?"
+    a: "Write acceptance checks before you read the output: conditions a reviewer can see, such as “every company has an official source” or “a targeted test shows the requested behavior works”. Name the reviewer or mechanism for each check. Then review every result and explain why each case passed or failed using evidence beyond the agent's own verdict."
+  - q: "What are acceptance criteria for an AI agent task?"
+    a: "Three kinds of checks. Must be true: required fields exist, arithmetic reconciles, cited facts are supported. Must not happen: unauthorized writes, unsupported promises, invented sources, changes outside scope. Should be good: clear organization, appropriate tone, enough explanation. A critical boundary violation fails even when the prose is excellent; do not average it away with style points."
+  - q: "How do acceptance checks catch convincing output that is wrong?"
+    a: "Write the checks before reading the output, so a fluent answer cannot lower your standard, and never use the agent's confidence as a score. In the refund example, a warm, confident refund promise on the missing-date ticket is marked failed: the expected behavior was a question, not a guessed date."
 ---
 
-## Make “good” observable
+## Acceptance checks make “good” observable
 
 “Accurate, concise, and helpful” expresses taste. It does not tell you whether an agent completed the work. Acceptance checks translate the goal into things a reviewer can see.
 
@@ -61,7 +71,7 @@ The operator uses this acceptance table:
 
 Suppose the draft says “your refund is approved” on the missing-date case. Mark that case failed. The fix is not just “be more careful.” Add an explicit eligibility rule, rerun the case, and check that the change has not broken the clearly eligible example.
 
-## Build a small set with sharp edges
+## Build a small test set with sharp edges
 
 Choose several inputs you understand well. Include a normal case, an incomplete case, an ambiguous case, and a case that should trigger a stop or escalation. These are practice cases, not a statistical claim about production reliability.
 

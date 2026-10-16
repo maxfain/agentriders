@@ -1,9 +1,12 @@
 ---
 title: "Build the harness"
+seoTitle: "Limit what an AI agent can access: the harness"
 order: 3
-description: "Turn written boundaries into real controls. Give an agent the access needed for this task and a way to stop."
+description: "Enforce boundaries for an AI agent: map the task to the access it needs, name what enforces each rule, and test one denied action. A 40-minute exercise."
+summary: "Give an AI agent only the access the task needs. Enforce the limit outside the model. Instructions in a prompt are not controls. For each boundary, name what prevents the action: a read-only account, a tool exposing only permitted operations, a separate workspace, or a required approval. The 40-minute exercise ends with one denied-action test and a practiced stop."
 published: 2026-09-29
 updated: 2026-09-29
+author: "Max Faingezicht"
 duration: "40-minute exercise"
 level: "Rider"
 art: "workbench"
@@ -19,9 +22,16 @@ strongPrompt: |
   Stop after 50 records and report unresolved cases separately.
   The environment contains only an export and an output folder;
   no CRM credentials or sending tools are connected.
+faq:
+  - q: "How do I limit what an AI agent can access?"
+    a: "List the operations the task needs. Reading a report does not require editing the database; drafting an email does not require sending it. Set each boundary at the smallest practical scope: an isolated input directory, read-only inputs, a writable output folder, and no sending or mutation tools connected. A sanitized export with no live connector is a useful first harness."
+  - q: "How do I enforce boundaries for an AI agent?"
+    a: "For each rule, ask what outside the model prevents the action. Controls include a read-only account, a tool that exposes only permitted operations, a separate workspace, or an approval enforced before execution. If the answer is only that the agent was told, label the rule an instruction, not a control. A spending limit in a document does not stop billing."
+  - q: "How do I test that an AI agent's permissions actually work?"
+    a: "In a disposable practice environment, verify one allowed action and one harmless denied action. Can the process write to its output folder? Does a write to the protected sample input fail? Use dummy data and benign probes; never test deletion protections against real records. If a tool cannot demonstrate a boundary, reduce the connected access or keep the work supervised."
 ---
 
-## Instructions are one layer
+## Telling an AI agent a rule does not enforce it; the harness does
 
 A bridle records what an agent may do. A harness enforces the boundaries. You need to know which you have.
 
@@ -31,7 +41,7 @@ For every important rule, ask: **what outside the model prevents this action?** 
 
 You do not need an elaborate platform to practice. A sanitized export with no live connector is a useful first harness.
 
-## Map the task to access
+## Give the AI agent only the access the task needs
 
 List the operations the mission actually needs. Reading a report does not require editing the source database. Drafting an email does not require sending it. Proposing a patch does not require merging it.
 
@@ -60,7 +70,7 @@ The operator reviews a proposed merge against the original records. If the exerc
 
 This distinction makes the outcome easier to review. “Here are twelve possible duplicate groups” is an artifact. “I cleaned the CRM” is a claim that requires checking external state and may be expensive to undo.
 
-## Test the boundary before the task
+## Test the AI agent's boundaries and stop mechanism before the task
 
 In a disposable practice environment, verify one allowed action and one harmless denied action. Can the process write to its output folder? Does an attempted write to the protected sample input fail? Can it access an unrelated dummy file it should not see?
 

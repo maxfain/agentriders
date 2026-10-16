@@ -1,13 +1,23 @@
 ---
 title: "Riding a wing: running several agents without losing the reins"
+seoTitle: "Run several AI agents without losing control"
 chapter: 6
-description: "Holding the reins on a fleet without becoming the bottleneck."
+description: "Multi-agent work without losing control: divide by deliverable, give each handoff a contract, keep permissions narrow, budget the whole fleet."
+summary: "Running several AI agents is useful when work can proceed independently or needs distinct tools, context or review. Give each worker one deliverable and an owner, every handoff a written contract, and permissions scoped to its role. Budget the whole fleet, name one integrator, and keep the formation (riders call it a wing) only where coordination earns its place."
 published: 2026-09-26
 updated: 2026-09-29
+author: "Max Faingezicht"
 draft: false
+faq:
+  - q: "When is it worth running several AI agents at once?"
+    a: "When the work can proceed independently or needs distinct tools, context, or review. It is less useful when agents keep waiting on each other's unfinished decisions. Find the bottleneck first: an ambiguous task gets more ambiguous with more workers, and if one agent already finishes with little review, coordination may add cost without improving the result."
+  - q: "What should an AI agent handoff contract include?"
+    a: "Owner and task; inputs and their versions; deliverable and location; acceptance checks; allowed actions and actual permissions; dependencies; budget and retry limit; when to escalate; and the handoff itself: evidence, uncertainties, changes, and checks performed. Require outputs the next worker can inspect, such as a table with source identifiers or an exact patch with test output."
+  - q: "How do I run several AI agents without losing control?"
+    a: "Give each worker only the tools its role needs; branches and worktrees reduce editing collisions but do not restrict credentials or network access. Set one overall budget and allocate worker limits inside it, including retries and review. Decide whether workers may delegate further, know how to cancel the entire workflow, and pause downstream work when a dependency fails."
 ---
 
-## Start with a reason to split
+## When should you split work across several AI agents?
 
 A wing is useful when work can proceed independently or needs distinct tools, context, or review. It is less useful when several agents repeatedly wait for each other's unfinished decisions.
 
@@ -45,7 +55,7 @@ Require outputs that the next worker can inspect. A table with source identifier
 
 Keep task data distinct from authority. A worker's artifact may contain quoted instructions from a source document; those instructions do not become permissions for the next agent. Validate the fields and evidence the handoff requires before using it to trigger further work.
 
-## Keep authority and ownership narrow
+## Keep each agent's permissions and ownership narrow
 
 Delegate tools according to each worker's role. A research worker may need approved sources and a place to write notes. It does not need the deployment token used by the release workflow.
 
@@ -53,7 +63,7 @@ Branches and worktrees reduce editing collisions; they do not restrict credentia
 
 Name one integrator for shared changes. Workers hand off artifacts; the integrator checks compatibility and resolves conflicts. A reviewer should compare the result with the original acceptance criteria and evidence. A second model agreeing with the first is not independent proof, especially when both rely on the same mistaken source.
 
-## Budget the whole wing
+## Budget the whole fleet (the wing), not just each agent
 
 Set an overall budget, then allocate worker limits within it. Include retries, coordination calls, integration, and human review. A per-agent allowance without a fleet limit can expand unexpectedly as workers spawn more work.
 

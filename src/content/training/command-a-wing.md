@@ -1,9 +1,12 @@
 ---
 title: "Command a wing"
+seoTitle: "Multi-agent handoffs: when to split the work"
 order: 6
-description: "Split work where it helps, make handoffs explicit, and keep one owner accountable for the final result."
+description: "Multi-agent work: add a second agent only where the task has a useful boundary. Assign artifacts, make handoffs inspectable, keep one owner accountable."
+summary: "Split work between AI agents only when the task has a useful boundary: independent inputs or clear ownership. Give each worker a contract with task, sources, output, acceptance checks, budget and stop conditions. Require handoffs that carry evidence; the lead verifies the combined result and one accountable owner accepts it. The 45-minute exercise produces a two-worker mission with inspectable handoffs."
 published: 2026-09-29
 updated: 2026-09-29
+author: "Max Faingezicht"
 duration: "45-minute exercise"
 level: "Wingleader"
 art: "wing"
@@ -21,9 +24,16 @@ strongPrompt: |
   The lead combines their evidence, flags contradictions, and produces
   a draft for human review. Do not infer missing prices or integrations.
   Use the shared run budget and stop conditions in the mission brief.
+faq:
+  - q: "Is a multi-agent run faster than a single agent?"
+    a: "Not automatically. Record execution time, integration time, review time, and known tool costs. Compare against a single-agent run if you have a fair baseline; otherwise mark the benefit unmeasured. Do not call parallel work faster merely because both workers started together. More agents also create more handoffs, more outputs to inspect, and more ways to disagree."
+  - q: "How do I split a task between two AI agents?"
+    a: "Divide by artifact, not personality: a role like \"critic\" does not say what a worker must deliver. Give each worker a contract: task, allowed sources or files, expected output, acceptance checks, budget, stop conditions, and what it must not change. For code, use separate branches or worktrees where appropriate; for research, separate evidence files. The lead integrates and verifies."
+  - q: "What evidence should a worker agent hand back?"
+    a: "Enough for the next person to evaluate the work without replaying the conversation: the assigned question and the artifact produced; source links or file paths; checks performed with actual results; assumptions, unresolved questions and conflicts; actions taken, remaining permissions needed, and the next owner. If two workers disagree, preserve the disagreement and inspect its cause rather than taking a vote."
 ---
 
-## First ask whether the work splits
+## Does the task split? Independent inputs or clear ownership
 
 More agents create more handoffs, more outputs to inspect, and more ways to disagree. Add a worker because the task has a useful boundary, not because a larger team sounds more capable.
 
@@ -55,7 +65,7 @@ The integrated report therefore separates public entry price from the plan requi
 
 This is the landing: one coherent artifact, not two workers announcing completion.
 
-## Make handoffs inspectable
+## Make multi-agent handoffs inspectable
 
 Require enough evidence for the next person to evaluate the work without replaying the entire conversation. A useful handoff includes:
 

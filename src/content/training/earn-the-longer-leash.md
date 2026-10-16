@@ -1,9 +1,12 @@
 ---
 title: "Earn the longer leash"
+seoTitle: "Expand an AI agent's permissions one at a time"
 order: 5
-description: "Expand one permission at a time, using evidence from the actual workflow and a clear way to pull it back."
+description: "Expand an AI agent's permissions one at a time, on evidence from that workflow, with limits, monitoring and a rollback trigger. A 40-minute exercise."
+summary: "An AI agent earns more autonomy one permission at a time, on evidence from that exact workflow and setup. This 40-minute lesson defines four stages for one operation, from suggest to execute within limits; the exercise proposes exactly one added permission and ends with a written autonomy decision: hold, limited trial, or reduce access, with monitoring and a rollback trigger."
 published: 2026-09-29
 updated: 2026-09-29
+author: "Max Faingezicht"
 duration: "40-minute exercise"
 level: "Rider"
 art: "wing"
@@ -19,9 +22,16 @@ strongPrompt: |
   granted. Report case-level results, disagreements, review time, and
   critical failures against our acceptance set. Keep ambiguous cases
   for human review. Do not send messages or change ownership.
+faq:
+  - q: "When should I let an AI agent run unattended?"
+    a: "Only one narrowly defined operation at a time, and never without controls. The furthest stage is execute within limits: after a shadow run and acceptance cases from that same workflow and setup support it, with a capped batch, monitoring, a stop mechanism and a way to undo the changes. If evidence is missing, run more evaluation instead of promoting."
+  - q: "How do I expand an AI agent's permissions safely?"
+    a: "One permission at a time, stated precisely: the action, the cap, and the audit trail. Move a single operation through suggest, prepare, execute with approval, and execute within limits. Before each step, ask what new harm becomes possible, whether it can be reversed, and who will notice a mistake. Set the acceptance bar before reading the results."
+  - q: "What is a rollback trigger in an AI agent autonomy decision?"
+    a: "A written condition that immediately reduces or suspends the agent's access. The review pairs it with a second trigger that would justify a limited trial, plus a review date. The same review records the current evidence, unresolved failures, possible consequences, the enforcement mechanism, and who owns the decision. The decision itself is hold, limited trial, or reduce access."
 ---
 
-## Trust attaches to a workflow
+## Trust in an AI agent (the bond) attaches to one workflow and setup
 
 An agent that summarizes documents well has not thereby earned permission to change customer records. Evidence from one task supports a decision about that task, under a particular setup.
 
@@ -29,7 +39,7 @@ Name the setup in your log: model or product, instructions, tools, input type, a
 
 The bond is earned through observable work. It is also reversible. Reducing autonomy after a failure is ordinary maintenance, not a punishment.
 
-## Pick the next permission precisely
+## How to expand an AI agent's permissions, one stage at a time
 
 “Work independently” is too broad to review. “Apply the internal billing label to eligible tickets, up to twenty per day, with an audit trail” is a decision you can examine.
 
@@ -58,7 +68,7 @@ If the evidence later supports a limited rollout, she starts with a capped batch
 
 The improvement is a better-shaped responsibility, not a larger claim about intelligence.
 
-## Measure the work left for you
+## What to measure besides an AI agent's completion rate
 
 Track more than task completion. Record review minutes, corrections, escalations, critical failures, and the cost of running the workflow where available. Compare like with like: the same kind of input, the same quality standard, and the same definition of completion.
 

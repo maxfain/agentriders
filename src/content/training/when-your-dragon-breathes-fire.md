@@ -1,9 +1,12 @@
 ---
 title: "When your dragon breathes fire"
+seoTitle: "AI agent failure: stop, diagnose, recover"
 order: 4
-description: "Stop a bad run, preserve the evidence, and turn one failure into a check that survives the next revision."
+description: "Practice AI agent failure recovery: stop the run, keep the log, sort confirmed changes from guesses, write an incident report and a regression check."
+summary: "When an AI agent run goes wrong, stop it before diagnosing; a frozen interface is not confirmation. Keep the action log. Sort changes into confirmed, attempted and untouched: a timeout does not prove nothing changed. This 35-minute exercise ends with an incident report (the burn report), one bounded repair, and a regression check that catches the original mistake."
 published: 2026-09-29
 updated: 2026-09-29
+author: "Max Faingezicht"
 duration: "35-minute exercise"
 level: "Rider"
 art: "yard"
@@ -18,6 +21,13 @@ strongPrompt: |
   action log without exposing secrets. Propose a bounded recovery plan
   for review, including what evidence is needed before any retry.
   Do not resume until I authorize the specific recovery action.
+faq:
+  - q: "How do I tell which changes an AI agent actually made?"
+    a: "Make three lists. Confirmed: changes you can verify in the destination system or saved artifact. Attempted: actions in the log whose outcome you have not established. Untouched: items you have positive evidence were outside the run. Check the destination by action or record ID where possible, and keep unknown outcomes visibly unknown."
+  - q: "Should I retry when an AI agent says the update failed?"
+    a: "Not immediately. An agent saying the update failed does not establish that nothing changed; a request can time out after the service has accepted it, and a retry may repeat the action. In the worked example a retry produced fifteen drafts instead of ten. Check the destination first, and use the service's documented duplicate prevention where it exists."
+  - q: "How do I turn an AI agent failure into an incident report (a burn report) and a regression check?"
+    a: "Fill the incident report: intended outcome, observed behavior, timeline, confirmed impact, unknowns, containment, recovery, prevention. Write a check that would have caught the failure; for the doubled import, reject duplicate destination records for the same source item. Run it against the faulty output first; it must fail for the right reason. Apply the bounded fix, rerun, save both outcomes."
 ---
 
 ## Stop adding uncertainty
@@ -28,7 +38,7 @@ Use the stop mechanism you identified in the [harness lesson](/training/build-th
 
 Keep the available record of inputs, outputs, action IDs, timestamps, and errors. Avoid copying secrets or unnecessary personal data into your report. If this involves a real security incident, use your organization’s incident process and responsible owner. This lesson is a practice method for small workflow failures, not a substitute for that process.
 
-## Separate known changes from guesses
+## Sort the agent's changes: confirmed, attempted, untouched
 
 An agent saying “the update failed” does not establish that nothing changed. A request can time out after a service has accepted it. Retrying immediately may repeat the action.
 
@@ -54,7 +64,7 @@ The immediate repair restores the sample workspace. The workflow repair adds a c
 
 A generic “be careful with retries” instruction would leave the failure mechanism intact.
 
-## Find the smallest useful explanation
+## Which part of the setup made the agent's mistake possible?
 
 Avoid blaming a personality trait: “the agent got lazy,” “the model was confused.” Ask which part of the setup made the mistake possible.
 

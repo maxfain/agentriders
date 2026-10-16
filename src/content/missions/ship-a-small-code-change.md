@@ -1,12 +1,22 @@
 ---
 title: "Ship a small code change"
-description: "Give an agent a broken function, six acceptance checks, and a boundary small enough to inspect."
+seoTitle: "AI agent exercise: ship a small code change"
+description: "A 30–45 minute exercise: give a coding agent one broken function, six acceptance checks and a one-file edit boundary, then inspect before accepting."
+summary: "This 30–45 minute exercise gives a coding agent one broken function, six acceptance checks written before it starts, and permission to edit a single file. You run the checks yourself before and after, read the whole patch, add one case of your own, and log the prompt, output, time and cost. Six passing checks are evidence, not proof."
 published: 2026-09-29
 updated: 2026-09-29
+author: "Max Faingezicht"
 audience: "Engineers"
 duration: "30–45 minutes"
 art: "workbench"
 outcome: "A reviewed local patch, observed test output, and a record of what changed."
+faq:
+  - q: "How do I give a coding agent a bounded brief?"
+    a: "Tell the agent to edit only one file, leave the checks alone, add no dependencies, use no network and publish nothing. Ask it to restate the behavior and edit boundary before implementing, report the exact command and observed result or say \"not run\", and stop after one corrective attempt. A prompt sentence is not a filesystem permission."
+  - q: "What acceptance checks does this coding agent exercise use?"
+    a: "Six checks in a file kept outside the agent's edit scope: empty array, plain open and closed, whitespace and mixed case, empty strings and non-strings as unknown, an unrecognized status, and input not mutated. Run them before the edit for a baseline and again after. All six must pass, then add one case of your own."
+  - q: "How do I check a coding agent's patch before accepting it?"
+    a: "Run the checks yourself; all six must pass. Read the complete changed function and confirm the original checks are untouched and no new files, imports or dependencies appeared. Add one case of your own, write its expected counts by hand, and check the categories sum to total. Without a runtime, record \"not run\" and do not mark it complete."
 ---
 
 ## The mission
@@ -17,7 +27,7 @@ This is a practice fixture, not a report of a real flight. You need a local Node
 
 If this is your first run, read [Your first flight](/training/your-first-flight/) and copy the [mission brief](/training/kit/) before starting.
 
-## Set up the fixture
+## Set up the fixture: one function, six acceptance checks
 
 Create `summarize.cjs` with this intentionally incomplete implementation:
 
@@ -77,7 +87,7 @@ process.exitCode = passed === 6 ? 0 : 1;
 
 Run `node check.cjs` once before editing. Save the actual output as your baseline. Do not replace that observation with an expected result copied from this page.
 
-## Give the agent a bounded brief
+## Give the coding agent a bounded brief
 
 Paste the contract and both files, then use:
 
@@ -97,7 +107,7 @@ Stop after one implementation and one corrective attempt.
 
 Restrict file and tool access in the environment where possible. A sentence in the prompt is not a filesystem permission. If your tool cannot enforce a narrow edit scope, use the chat-only path and apply the proposed replacement yourself.
 
-## Inspect before accepting
+## Inspect the patch before accepting it
 
 Run the checks yourself after the edit. Read the complete changed function: it should be short enough to understand without asking the agent to explain each line. Confirm that the original checks remain unchanged and that no new files, imports, or dependencies appeared.
 
@@ -109,7 +119,7 @@ If a non-string causes an exception, point to the failing input and the original
 
 After the corrective attempt, retain any failing output and stop. A small partial result is easier to diagnose than a broad rewrite.
 
-## Log the evidence
+## Log the evidence: prompt, patch, test output, time, cost
 
 Keep the starting function, final patch, exact prompt, runtime version, and before/after command output. Record elapsed work time and review time separately. Record visible cost, or “not observable” if your tool does not expose it.
 

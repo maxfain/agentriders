@@ -1,9 +1,12 @@
 ---
 title: "Your first flight"
+seoTitle: "First task to give an AI agent: keep it small"
 order: 1
-description: "Turn one real task into a small, reviewable agent run. Learn more from the landing than the launch."
+description: "Start using an AI agent on real work: pick a task you can judge, write a six-field mission brief, run once, inspect the output, log it. 25-minute exercise."
+summary: "The first task you give an AI agent should be small enough to review in minutes and familiar enough that you can catch a plausible mistake. Pick that task, write a six-field mission brief, run once, and inspect the output yourself. The agent's completion message is a report; your check is the evidence. The exercise takes 25 minutes."
 published: 2026-09-29
 updated: 2026-09-29
+author: "Max Faingezicht"
 duration: "25-minute exercise"
 level: "Fledgling"
 art: "yard"
@@ -19,6 +22,13 @@ strongPrompt: |
   recommend a roadmap from this sample. Do not contact customers or
   change any records. If a note is ambiguous, mark it unresolved.
   I will check every row against the source notes before using it.
+faq:
+  - q: "What is a good first task to give an AI agent?"
+    a: "One that ends in an artifact you can inspect in a few minutes: a draft, a small patch, a comparison table, or a cleaned copy of a file. Pick work you understand well enough to catch a plausible mistake. Narrow \"improve this entire codebase\" to \"explain this failing test and propose a patch on a separate branch.\""
+  - q: "How do I start using AI agents for real work?"
+    a: "Start with one small, reviewable run. Fill in a six-field mission brief: outcome, inputs, scope, checks, boundaries, review. Use local sample files and leave sending tools disconnected. Run once, then open the file, compare the rows and run the relevant check. If it fails, change one part of the setup and try again."
+  - q: "How do I know if my first AI agent run passed?"
+    a: "You pass when the artifact answers the brief, every critical claim or change survives your check, no unauthorized action occurred, and you can name one specific improvement for the next run. A stopped run can still be a useful exercise if you explain why it stopped, but it is not a completed task."
 ---
 
 ## Choose work you can judge
@@ -29,7 +39,7 @@ Avoid starting with “run my sales operation” or “improve this entire codeb
 
 In this series, **training your agent** means configuring its environment, giving useful instructions, checking its work, and improving the setup. You are not necessarily retraining a model or changing its weights. You are practicing a repeatable way to work together. A successful run does not automatically teach the next session what happened; keep the instructions and lessons somewhere you deliberately load again.
 
-## Write a mission that can finish
+## How to write a mission brief an AI agent can finish
 
 Use the [mission brief](/training/mission-brief.md). Fill in six fields before opening the session:
 
@@ -56,7 +66,7 @@ Another note says, “The report takes forever.” The agent should preserve the
 
 The founder checks all five rows. If a row lacks evidence, she rejects that row. If a suggested question follows from an explicit gap, she keeps it. The useful result is a clearer next conversation, not a premature product decision.
 
-## Run once, then inspect
+## Run the agent once, then inspect the output yourself
 
 Keep the first run small enough that you can watch it. Note whether the agent asks a useful question, reaches beyond the inputs, or spends most of its time solving a problem you did not assign.
 
