@@ -460,6 +460,43 @@ export function softwareApplication(s: {
 }
 
 /**
+ * DefinedTermSet + DefinedTerm for the glossary (docs/seo-aeo-plan.md §4.5,
+ * S3). One set, one term per entry. `term` is the guild headword, `aliases`
+ * the industry synonyms (DefinedTerm.alternateName), `definition` the
+ * one-sentence meaning the page shows first, and `anchor` the on-page id, so
+ * each term's @id and url resolve to /glossary/#<anchor> — the same anchors
+ * the telemetry labels and cross-page links point at. Values mirror the
+ * visible text.
+ */
+export function definedTermSet(s: {
+  name: string;
+  path: string;
+  terms: { term: string; aliases?: string[]; definition: string; anchor: string }[];
+}) {
+  const url = canonicalUrl(s.path);
+  const setId = `${url}#vocabulary`;
+  return {
+    '@type': 'DefinedTermSet',
+    '@id': setId,
+    name: s.name,
+    url,
+    inLanguage: 'en',
+    hasDefinedTerm: s.terms.map((t) => {
+      const termUrl = `${url}#${t.anchor}`;
+      return compact({
+        '@type': 'DefinedTerm',
+        '@id': termUrl,
+        name: t.term,
+        alternateName: t.aliases && t.aliases.length > 0 ? t.aliases : undefined,
+        description: t.definition,
+        url: termUrl,
+        inDefinedTermSet: { '@id': setId },
+      });
+    }),
+  };
+}
+
+/**
  * The one JSON-LD document a page emits: Organization (and WebSite on the
  * homepage) plus whatever the page adds, in a single @graph. Page items that
  * carry their own @context lose it — the graph has one.

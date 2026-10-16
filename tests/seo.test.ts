@@ -5,6 +5,7 @@ import {
   abs, canonicalUrl, clampTitle, clampDescription, jsonLdString, siteGraph, smarten,
   orgGraph, website, breadcrumbs, techArticle, article, profilePage,
   learningResource, isoDuration, dataset, softwareApplication, founder, founderPage,
+  definedTermSet,
 } from '../src/lib/seo.ts';
 import { fetchSiteState } from '../src/lib/build-state.ts';
 
@@ -261,6 +262,42 @@ test('softwareApplication: free, MIT, with install and repository URLs', () => {
   assert.equal(s.license, 'https://spdx.org/licenses/MIT.html');
   assert.equal(s.softwareVersion, '0.1.0');
   assert.ok(!('aggregateRating' in s));
+});
+
+test('definedTermSet: one set, each term a DefinedTerm with anchor @id/url, synonyms, back-reference', () => {
+  const set = definedTermSet({
+    name: 'The guild vocabulary',
+    path: '/glossary/',
+    terms: [
+      { term: 'Burn', aliases: ['incident', 'failure'], definition: 'A burn is an AI agent run that went wrong.', anchor: 'burn' },
+      { term: 'The Roost', definition: 'The members’ forum.', anchor: 'the-roost' },
+    ],
+  });
+  assert.equal(set['@type'], 'DefinedTermSet');
+  assert.equal(set['@id'], `${SITE}/glossary/#vocabulary`);
+  assert.equal(set.name, 'The guild vocabulary');
+  assert.equal(set.url, `${SITE}/glossary/`);
+  assert.equal(set.hasDefinedTerm.length, 2);
+
+  const burn = set.hasDefinedTerm[0];
+  assert.equal(burn['@type'], 'DefinedTerm');
+  // The @id and url resolve to the on-page anchor, so /glossary/#burn is the term.
+  assert.equal(burn['@id'], `${SITE}/glossary/#burn`);
+  assert.equal(burn.url, `${SITE}/glossary/#burn`);
+  assert.equal(burn.name, 'Burn');
+  assert.deepEqual(burn.alternateName, ['incident', 'failure']);
+  assert.equal(burn.description, 'A burn is an AI agent run that went wrong.');
+  // Each term points back at its set.
+  assert.deepEqual(burn.inDefinedTermSet, { '@id': `${SITE}/glossary/#vocabulary` });
+
+  // A term with no synonyms drops alternateName rather than emitting [].
+  const roost = set.hasDefinedTerm[1];
+  assert.equal(roost['@id'], `${SITE}/glossary/#the-roost`);
+  assert.ok(!('alternateName' in roost));
+
+  // Merged into the page graph, the set loses no fields and keeps its @id.
+  const graph = siteGraph(set);
+  assert.deepEqual(graph['@graph'].map((n: any) => n['@type']), ['Organization', 'DefinedTermSet']);
 });
 
 // ---- site-state profiles (feeds the sitemap's rider URLs) -----------------

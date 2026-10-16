@@ -19,7 +19,7 @@ faq:
 
 ## Stop the loss before explaining it
 
-A burn can be wasted review time, an unusable artifact, a duplicate action, or damage to a shared system. The response should match the consequence. A weak draft needs correction. An agent still making unauthorized changes needs containment.
+A burn can be wasted review time, an unusable artifact, a duplicate action, or damage to a shared system. The response should match the consequence. A weak draft needs correction. An agent still making unauthorized changes needs containment. Recurring failure modes are named in the [burns registry](/burns/) — each labeled logged or illustrative, with its own signals and the reins that prevent it.
 
 The first ten minutes are for regaining control and establishing facts. They are not a promise that every incident can be repaired in ten minutes. Use your organization's incident process when customer data, credentials, payments, or production systems are involved.
 
@@ -77,6 +77,6 @@ Change the smallest relevant part of the workflow. Add a regression case that re
 
 Log direct charges, damaged or lost work, and recovery time separately. Use estimates only when labeled; leave unknown costs unresolved instead of calling them zero. Explain the control you changed and the evidence required to resume.
 
-A useful burn report helps the next rider recognize the condition earlier. Practice with a harmless failure in [When your dragon breathes fire](/training/when-an-agent-fails/), then keep the incident note from the [training kit](/training/kit/) close to your actual stop controls.
+A useful burn report helps the next rider recognize the condition earlier. Practice with a harmless failure in [When your dragon breathes fire](/training/when-an-agent-fails/), then keep the incident note from the [training kit](/training/kit/) and the one-page [first-ten-minutes checklist](/burns/first-ten-minutes/) close to your actual stop controls.
 
 **Related guides:** [Kill switch for an AI agent](/manual/kill-switch/) · [Cap what a flight can spend](/manual/spend-cap/).

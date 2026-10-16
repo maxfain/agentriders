@@ -9,17 +9,28 @@ export async function getStaticPaths() {
   // One build-time fetch of live site state decides rider links + badges.
   const state = await fetchSiteState();
   const logs = await getCollection('logs', ({ data }) => !data.draft);
+  // A burn can name a registry pattern (burnSchema.pattern, S3). Map the slug
+  // to its page id and the plain name the registry shows, so a patterned burn
+  // links to /burns/<pattern>/. Only patterns that exist in the registry are
+  // mapped, so an unknown free-text pattern renders as plain text, never a
+  // broken link.
+  const patternMap = Object.fromEntries(
+    (await getCollection('burnPatterns'))
+      .filter((p) => p.data.pattern)
+      .map((p) => [p.data.pattern, { slug: p.id, name: p.data.plain_name }]),
+  );
   return logs.map((log) => ({
     params: { slug: log.id },
     props: {
       log,
       riderHref: riderLink(log.data.rider, state),
       verified: isVerified(log.id, state),
+      patternMap,
     },
   }));
 }
 
-const { log, riderHref, verified } = Astro.props;
+const { log, riderHref, verified, patternMap } = Astro.props;
 const { Content } = await render(log);
 const d = log.data;
 const date = d.date.toISOString().slice(0, 10);
@@ -52,12 +63,15 @@ const jsonLd = [
             <div class="stack__head">
               <h2>Burns</h2>
               <ul class="burnlist">
-                {d.burns.map((b) => (
-                  <li>
-                    <span class="what">{b.what}</span>
-                    <span class="recovery">Recovery: {b.recovery} · cost ${b.cost_usd}</span>
-                  </li>
-                ))}
+                {d.burns.map((b) => {
+                  const p = b.pattern ? patternMap[b.pattern] : undefined;
+                  return (
+                    <li>
+                      <span class="what">{b.what}</span>
+                      <span class="recovery">Recovery: {b.recovery} · cost ${b.cost_usd}{p && <> · pattern <a href={`/burns/${p.slug}/`}>{p.name}</a></>}</span>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}

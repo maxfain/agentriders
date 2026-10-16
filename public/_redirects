@@ -12,5 +12,8 @@
 /training/earn-the-longer-leash  /training/earning-autonomy/  301
 /training/earn-the-longer-leash/  /training/earning-autonomy/  301
 #
-# The newsletter stays at /flight-log until /newsletter/ ships (S3); then:
-# /flight-log  /newsletter/  301
+# The newsletter moved from /flight-log to /newsletter/ (S3, §4.1). Both
+# source forms are listed so the slash-less one does not 308 to the slashed
+# form first and cost a second hop.
+/flight-log  /newsletter/  301
+/flight-log/  /newsletter/  301
