@@ -64,10 +64,10 @@ const confirmPage = (token: string, email: string) => `<!doctype html>
 // Read-only: show the confirm page if the token is still live.
 export const GET: APIRoute = async ({ locals, url, redirect, request }) => {
   const { env } = locals.runtime;
-  if (!(await verifyAllowed(env, request))) return redirect('/join?error=too_many', 302);
+  if (!(await verifyAllowed(env, request))) return redirect('/join/?error=too_many', 302);
   const token = url.searchParams.get('token') ?? '';
   if (!TOKEN_SHAPE.test(token) || !env.SESSION_PEPPER) {
-    return redirect('/join?error=link_invalid', 302);
+    return redirect('/join/?error=link_invalid', 302);
   }
   const row = await env.DB.prepare(
     'SELECT email, consumed_at, expires_at FROM magic_link_tokens WHERE token_hash = ?',
@@ -75,7 +75,7 @@ export const GET: APIRoute = async ({ locals, url, redirect, request }) => {
     .bind(await sha256Hex(`${token}${env.SESSION_PEPPER}`))
     .first<{ email: string; consumed_at: string | null; expires_at: string }>();
   if (!row || row.consumed_at || new Date(row.expires_at) <= new Date()) {
-    return redirect('/join?error=link_expired', 302);
+    return redirect('/join/?error=link_expired', 302);
   }
   return new Response(confirmPage(token, row.email), {
     headers: { 'Content-Type': 'text/html; charset=utf-8' },
@@ -87,15 +87,15 @@ export const GET: APIRoute = async ({ locals, url, redirect, request }) => {
 export const POST: APIRoute = async (context) => {
   const { locals, request, redirect } = context;
   const { env } = locals.runtime;
-  if (!(await verifyAllowed(env, request))) return redirect('/join?error=too_many', 302);
+  if (!(await verifyAllowed(env, request))) return redirect('/join/?error=too_many', 302);
   let token = '';
   try {
     token = String((await request.formData()).get('token') ?? '');
   } catch {
-    return redirect('/join?error=link_invalid', 302);
+    return redirect('/join/?error=link_invalid', 302);
   }
   if (!TOKEN_SHAPE.test(token) || !env.SESSION_PEPPER) {
-    return redirect('/join?error=link_invalid', 302);
+    return redirect('/join/?error=link_invalid', 302);
   }
 
   const tokenHash = await sha256Hex(`${token}${env.SESSION_PEPPER}`);
@@ -109,7 +109,7 @@ export const POST: APIRoute = async (context) => {
   )
     .bind(nowIso, tokenHash, nowIso)
     .first<{ email: string }>();
-  if (!consumed) return redirect('/join?error=link_expired', 302);
+  if (!consumed) return redirect('/join/?error=link_expired', 302);
 
   // The token is spent; nothing past this point may surface as a raw 500.
   try {
@@ -117,6 +117,6 @@ export const POST: APIRoute = async (context) => {
     const dest = await completeSignIn(context, env.DB, env.SESSION_PEPPER, rider);
     return redirect(dest, 302);
   } catch {
-    return redirect('/join?error=signin_failed', 302);
+    return redirect('/join/?error=signin_failed', 302);
   }
 };

@@ -35,6 +35,18 @@ test('clampTitle: short titles untouched, long ones cut at a word with an ellips
   assert.equal(clampTitle('  spaced   out  '), 'spaced out'); // whitespace collapses
 });
 
+test('clamp: counts code points, so a cut never splits an emoji into a lone surrogate', () => {
+  // The 59th character is astral and there is no space past the midpoint.
+  const out = clampTitle('a'.repeat(58) + '🚀 and more words — AgentRiders');
+  assert.ok(out.isWellFormed(), `lone surrogate: ${JSON.stringify(out)}`);
+  assert.ok(out.endsWith('🚀…'));
+  assert.equal(Array.from(out).length, 60);
+  const desc = clampDescription('b'.repeat(153) + '🚀 more words here follow after the cut');
+  assert.ok(desc.isWellFormed());
+  assert.ok(Array.from(desc).length <= 155);
+  assert.equal(clampTitle('🚀'.repeat(40)), '🚀'.repeat(40)); // 40 code points fit; 80 units would not
+});
+
 test('clampDescription: 155 by default, custom max honored', () => {
   const words = Array.from({ length: 60 }, (_, i) => `word${i}`).join(' ');
   const out = clampDescription(words);
@@ -91,21 +103,26 @@ test('breadcrumbs: positioned ListItems with canonical item URLs', () => {
   assert.equal(bc.itemListElement[1].item, `${SITE}/manual/`);
 });
 
-test('techArticle: dates as ISO, author Person, series when given, no undefined keys', () => {
+test('techArticle: dates keep their precision, the default author is the Organization, series when given', () => {
   const a = techArticle({
     headline: 'AI agent permissions (reins)', description: 'd', path: '/manual/reins',
     datePublished: '2026-09-26', dateModified: new Date('2026-09-29T00:00:00Z'),
-    authorName: 'AgentRiders', seriesName: 'The Field Manual', position: 2, keywords: ['reins'],
+    authorName: 'AgentRiders', authorPath: '/about/', seriesName: 'The Field Manual', position: 2, keywords: ['reins'],
   });
   assert.equal(a['@type'], 'TechArticle');
   assert.equal(a.url, `${SITE}/manual/reins/`);
-  assert.equal(a.datePublished, '2026-09-26T00:00:00.000Z');
+  assert.equal(a.datePublished, '2026-09-26'); // a date-only string is not expanded to a timestamp
   assert.equal(a.dateModified, '2026-09-29T00:00:00.000Z');
-  assert.equal(a.author['@type'], 'Person');
+  // "AgentRiders" is the Organization node, never a Person of the same name.
+  assert.deepEqual(a.author, { '@id': ORG_ID });
   assert.equal(a.isPartOf?.name, 'The Field Manual');
   assert.ok(!Object.values(a).includes(undefined));
-  const bare = techArticle({ headline: 'h', description: 'd', path: '/manual/x/', authorName: 'A' });
+  const bare = techArticle({ headline: 'h', description: 'd', path: '/manual/x/' });
+  assert.deepEqual(bare.author, { '@id': ORG_ID });
   assert.ok(!('isPartOf' in bare) && !('datePublished' in bare));
+  // A real byline (S1) is a Person.
+  const byline = techArticle({ headline: 'h', description: 'd', path: '/manual/x/', authorName: 'Max', authorPath: '/about/' });
+  assert.deepEqual(byline.author, { '@type': 'Person', name: 'Max', url: `${SITE}/about/` });
 });
 
 test('article: rider as Person with @handle and profile URL, part of the dataset', () => {
@@ -121,16 +138,22 @@ test('article: rider as Person with @handle and profile URL, part of the dataset
   assert.deepEqual(a.publisher, { '@id': ORG_ID });
 });
 
-test('profilePage: Person main entity with flight and vouch counters', () => {
+test('profilePage: Person main entity; flights written vs vouches received; date-only dateCreated', () => {
   const p = profilePage({
     name: 'Max', handle: 'maxcr', path: '/riders/maxcr', dateCreated: '2026-10-01',
     flights: 14, vouches: 2, sameAs: ['https://github.com/maxfain'],
   });
   assert.equal(p['@type'], 'ProfilePage');
+  assert.equal(p.dateCreated, '2026-10-01'); // never a timestamp: the page shows a month
   assert.equal(p.mainEntity['@type'], 'Person');
   assert.equal(p.mainEntity.alternateName, '@maxcr');
-  assert.equal(p.mainEntity.interactionStatistic[0].userInteractionCount, 14);
-  assert.equal(p.mainEntity.interactionStatistic[1].userInteractionCount, 2);
+  // The rider is the agent of WriteAction (flights) and the object of EndorseAction (vouches).
+  assert.equal(p.mainEntity.agentInteractionStatistic.length, 1);
+  assert.equal(p.mainEntity.agentInteractionStatistic[0].interactionType, 'https://schema.org/WriteAction');
+  assert.equal(p.mainEntity.agentInteractionStatistic[0].userInteractionCount, 14);
+  assert.equal(p.mainEntity.interactionStatistic.length, 1);
+  assert.equal(p.mainEntity.interactionStatistic[0].interactionType, 'https://schema.org/EndorseAction');
+  assert.equal(p.mainEntity.interactionStatistic[0].userInteractionCount, 2);
   assert.ok(!('sameAs' in profilePage({ name: 'M', handle: 'm', path: '/riders/m', dateCreated: '2026-10-01', flights: 1, vouches: 0, sameAs: [] }).mainEntity));
 });
 
@@ -155,19 +178,25 @@ test('learningResource: LearningResource + Article inside the free Flight School
   assert.deepEqual(mission.audience, { '@type': 'Audience', audienceType: 'Founders' });
 });
 
-test('isoDuration: minutes and hours, ranges keep the upper bound, prose yields nothing', () => {
+test('isoDuration: minutes and hours, ranges keep the upper bound, decimals and compounds, never a partial value', () => {
   assert.equal(isoDuration('25-minute exercise'), 'PT25M');
   assert.equal(isoDuration('35–50 minutes'), 'PT50M');
   assert.equal(isoDuration('30-45 min'), 'PT45M');
   assert.equal(isoDuration('2 hours'), 'PT2H');
+  assert.equal(isoDuration('1.5 hours'), 'PT1.5H'); // decimal, not PT5H
+  assert.equal(isoDuration('1h 30m'), 'PT1H30M');
+  assert.equal(isoDuration('1 hour 30 minutes'), 'PT1H30M');
+  assert.equal(isoDuration('30m then 1h'), undefined); // not hours-then-minutes: nothing, not PT30M
+  assert.equal(isoDuration('1.5h 30m'), undefined); // only the smallest component may be decimal
   assert.equal(isoDuration('a long afternoon'), undefined);
 });
 
-test('dataset: CC BY 4.0 license and a JSON distribution at /logs.json', () => {
+test('dataset: the Terms as license (no public reuse grant yet), free, JSON distribution at /logs.json', () => {
   const d = dataset({ name: 'Flight logs', description: 'd', path: '/logs/', temporalCoverage: '2026-09/..' });
   assert.equal(d['@type'], 'Dataset');
   assert.equal(d['@id'], DATASET_ID);
-  assert.equal(d.license, 'https://creativecommons.org/licenses/by/4.0/');
+  assert.equal(d.license, `${SITE}/terms/`);
+  assert.equal(d.isAccessibleForFree, true);
   assert.equal(d.distribution[0].contentUrl, `${SITE}/logs.json`);
   assert.equal(d.distribution[0].encodingFormat, 'application/json');
   assert.ok(!('aggregateRating' in d));

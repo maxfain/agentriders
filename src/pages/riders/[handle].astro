@@ -7,6 +7,7 @@ import { canVouch, vouchesReceived, vouchesGiven, existingVouch } from '../../li
 import { riderEvalStats } from '../../lib/flight-records';
 import { isAdmin } from '../../lib/admin';
 import type { RiderRow } from '../../lib/session';
+import { HANDLE_REGEX } from '../../lib/handles';
 import { breadcrumbs, profilePage } from '../../lib/seo';
 
 // Public rider profile: identity, rank + when it was earned, the flight
@@ -19,8 +20,14 @@ const { env } = Astro.locals.runtime;
 const viewer = Astro.locals.rider;
 const handle = (Astro.params.handle ?? '').toLowerCase();
 
+// Anything that is not a handle shape is a 404 before any redirect or lookup:
+// the param arrives decoded, and a Location header built from it could
+// otherwise carry CR/LF (a 500) or a backslash (a needless hop).
+if (!HANDLE_REGEX.test(handle)) return new Response(null, { status: 404 });
+
 // One URL per rider: a mixed-case handle is the same profile, so it 301s to
-// the lowercase form before any lookup.
+// the lowercase form before any lookup. (The middleware folds the slash-less
+// /riders/MaxCR into one hop; this covers /riders/MaxCR/.)
 if (Astro.params.handle !== handle) return Astro.redirect(`/riders/${handle}/`, 301);
 
 const viewerIsAdmin = isAdmin(viewer);
@@ -77,7 +84,7 @@ const jsonLd = [
   breadcrumbs([{ name: 'Home', path: '/' }, { name: 'The Riders', path: '/riders/' }, { name: `@${rider.handle}`, path }]),
   profilePage({
     name: rider.display_name, handle: rider.handle, path, description: rider.bio ?? undefined,
-    dateCreated: rider.created_at, dateModified: flights[0]?.date,
+    dateCreated: day(rider.created_at), dateModified: flights[0]?.date,
     flights: flights.length, vouches: received.length,
   }),
 ];

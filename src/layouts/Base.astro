@@ -20,8 +20,8 @@ import { abs, canonicalUrl, clampTitle, clampDescription, siteGraph } from '../l
 interface Props {
   title: string;                 // ≤60 chars after " — AgentRiders" is appended (unless the caller did)
   description: string;           // ≤155 chars
-  canonical?: string;            // absolute URL or site path; default: this page's path
-  noindex?: boolean;             // robots noindex,follow; no canonical, no og:url
+  canonical?: string;            // absolute URL or site path; default: this page's path; ignored under noindex
+  noindex?: boolean;             // robots noindex,follow; no canonical (not even an explicit one), no og:url
   ogType?: 'website' | 'article';
   ogImage?: string;              // path or URL; default /og.png
   ogImageAlt?: string;

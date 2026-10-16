@@ -19,14 +19,14 @@ export const GET: APIRoute = async (context) => {
   const expectedState = cookies.get(OAUTH_STATE_COOKIE)?.value;
   cookies.delete(OAUTH_STATE_COOKIE, { path: '/' });
 
-  if (url.searchParams.get('error')) return redirect('/join?error=oauth_denied', 302);
+  if (url.searchParams.get('error')) return redirect('/join/?error=oauth_denied', 302);
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state');
   if (!code || !state || !expectedState || state !== expectedState) {
-    return redirect('/join?error=oauth_state', 302);
+    return redirect('/join/?error=oauth_state', 302);
   }
   if (!env.GITHUB_OAUTH_CLIENT_ID || !env.GITHUB_OAUTH_CLIENT_SECRET || !env.SESSION_PEPPER) {
-    return redirect('/join?error=oauth_failed', 302);
+    return redirect('/join/?error=oauth_failed', 302);
   }
 
   try {
@@ -42,12 +42,12 @@ export const GET: APIRoute = async (context) => {
     });
     const tokenBody = (await tokenResponse.json()) as { access_token?: string };
     if (!tokenResponse.ok || !tokenBody.access_token) {
-      return redirect('/join?error=oauth_failed', 302);
+      return redirect('/join/?error=oauth_failed', 302);
     }
     const authed = { ...GITHUB_HEADERS, Authorization: `Bearer ${tokenBody.access_token}` };
 
     const userResponse = await fetch('https://api.github.com/user', { headers: authed });
-    if (!userResponse.ok) return redirect('/join?error=oauth_failed', 302);
+    if (!userResponse.ok) return redirect('/join/?error=oauth_failed', 302);
     const user = (await userResponse.json()) as GitHubUser;
 
     // Primary verified email, when the scope grants it; sign-in works
@@ -66,6 +66,6 @@ export const GET: APIRoute = async (context) => {
     const dest = await completeSignIn(context, env.DB, env.SESSION_PEPPER, rider);
     return redirect(dest, 302);
   } catch {
-    return redirect('/join?error=oauth_failed', 302);
+    return redirect('/join/?error=oauth_failed', 302);
   }
 };

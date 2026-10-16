@@ -33,14 +33,17 @@ export function canonicalUrl(pathOrUrl: string): string {
 }
 
 // Cut at a word boundary and mark the cut. Trailing separators are dropped so
-// a clamp never ends in "— …" or ": …".
+// a clamp never ends in "— …" or ": …". Lengths are code points, not UTF-16
+// units: a rider-submitted title can carry emoji, and a cut must never leave
+// half a surrogate pair in front of the ellipsis.
 function clamp(s: string, max: number): string {
   const text = s.replace(/\s+/g, ' ').trim();
-  if (text.length <= max) return text;
-  let cut = text.slice(0, max - 1);
+  const chars = Array.from(text);
+  if (chars.length <= max) return text;
+  let cut = chars.slice(0, max - 1);
   const space = cut.lastIndexOf(' ');
   if (space >= Math.floor(max / 2)) cut = cut.slice(0, space);
-  return cut.replace(/[\s—–\-:;,.(]+$/u, '') + '…';
+  return cut.join('').replace(/[\s—–\-:;,.(]+$/u, '') + '…';
 }
 
 /** <title> text, ≤60 characters (what a result page shows in full). */
@@ -67,8 +70,11 @@ export function jsonLdString(data: unknown): string {
 type Dateish = Date | string | undefined;
 
 // ISO date for JSON-LD; undefined passes through so compact() drops the key.
+// A date-only string (YYYY-MM-DD or YYYY-MM) keeps its precision: the value
+// must mirror what the page shows, never say more than it.
 function isoDate(d: Dateish): string | undefined {
   if (d === undefined) return undefined;
+  if (typeof d === 'string' && /^\d{4}-\d{2}(-\d{2})?$/.test(d)) return d;
   const date = d instanceof Date ? d : new Date(d);
   return Number.isNaN(date.valueOf()) ? undefined : date.toISOString();
 }
@@ -142,7 +148,7 @@ export function techArticle(a: {
   path: string;
   datePublished?: Dateish;
   dateModified?: Dateish;
-  authorName: string;
+  authorName?: string;
   authorPath?: string;
   seriesName?: string;
   position?: number;
@@ -158,7 +164,9 @@ export function techArticle(a: {
     mainEntityOfPage: url,
     datePublished: isoDate(a.datePublished),
     dateModified: isoDate(a.dateModified),
-    author: person(a.authorName, a.authorPath),
+    // The default byline is the guild itself: that is the Organization node,
+    // never a Person of the same name. A named author (S1) becomes a Person.
+    author: a.authorName && a.authorName !== 'AgentRiders' ? person(a.authorName, a.authorPath) : { '@id': ORG_ID },
     publisher: { '@id': ORG_ID },
     isPartOf: a.seriesName ? { '@type': 'CreativeWorkSeries', name: a.seriesName } : undefined,
     position: a.position,
@@ -232,24 +240,35 @@ export function profilePage(p: {
       url,
       description: p.description,
       sameAs: p.sameAs && p.sameAs.length > 0 ? p.sameAs : undefined,
-      interactionStatistic: [
-        counter('https://schema.org/WriteAction', 'Published flights', p.flights),
-        counter('https://schema.org/EndorseAction', 'Vouches received', p.vouches),
-      ],
+      // What the rider did (agent of the action) vs. what they received.
+      agentInteractionStatistic: [counter('https://schema.org/WriteAction', 'Published flights', p.flights)],
+      interactionStatistic: [counter('https://schema.org/EndorseAction', 'Vouches received', p.vouches)],
     }),
   });
 }
 
+// One duration component: a number or a range, then a unit. The lookbehind
+// keeps "1.5 hours" from matching at the "5".
+const DURATION = /(?<![\d.])(\d+(?:\.\d+)?)(?:\s*[-–]\s*(\d+(?:\.\d+)?))?\s*-?\s*(minutes?|mins?|hours?|hrs?|h|m)\b/gi;
+
 /**
  * ISO 8601 duration for the planning strings lessons and missions carry
- * ("25-minute exercise" → PT25M, "35–50 minutes" → PT50M). A range keeps its
- * upper bound: the budget, not the hope. Anything else yields undefined.
+ * ("25-minute exercise" → PT25M, "35–50 minutes" → PT50M, "1.5 hours" →
+ * PT1.5H, "1h 30m" → PT1H30M). A range keeps its upper bound: the budget,
+ * not the hope. Anything that does not parse whole yields undefined — never
+ * a partial value.
  */
 export function isoDuration(text: string): string | undefined {
-  const m = text.match(/(\d+)(?:\s*[-–]\s*(\d+))?\s*-?\s*(min|hour|hr|h)/i);
-  if (!m) return undefined;
-  const n = Math.max(Number(m[1]), Number(m[2] ?? 0));
-  return `PT${n}${/^min/i.test(m[3]) ? 'M' : 'H'}`;
+  const parts: { n: number; unit: 'H' | 'M' }[] = [];
+  for (const m of text.matchAll(DURATION)) {
+    parts.push({ n: Math.max(Number(m[1]), Number(m[2] ?? 0)), unit: /^h/i.test(m[3]) ? 'H' : 'M' });
+  }
+  if (parts.length === 1) return `PT${parts[0].n}${parts[0].unit}`;
+  // Compound hours-then-minutes; only the smallest component may be decimal.
+  if (parts.length === 2 && parts[0].unit === 'H' && parts[1].unit === 'M' && Number.isInteger(parts[0].n)) {
+    return `PT${parts[0].n}H${parts[1].n}M`;
+  }
+  return undefined;
 }
 
 /**
@@ -303,7 +322,12 @@ export function learningResource(l: {
 // The fields every published log carries (src/lib/log-schema.ts).
 const LOG_FIELDS = ['mount', 'model', 'harness', 'task', 'duration', 'cost_usd', 'outcome', 'burns', 'lesson', 'reins'];
 
-/** Dataset: the flight-log corpus, distributed as /logs.json under CC BY 4.0. */
+/**
+ * Dataset: the flight-log corpus, distributed as /logs.json. The license is
+ * the Terms until they grant the public a reuse right on rider-written log
+ * metadata (docs/seo-aeo-plan.md §8, decision 5); declaring CC BY 4.0 before
+ * that would be a false statement.
+ */
 export function dataset(d: {
   name: string;
   description: string;
@@ -319,7 +343,7 @@ export function dataset(d: {
     name: d.name,
     description: d.description,
     url,
-    license: 'https://creativecommons.org/licenses/by/4.0/',
+    license: `${SITE}/terms/`,
     isAccessibleForFree: true,
     creator: { '@id': ORG_ID },
     publisher: { '@id': ORG_ID },

@@ -43,7 +43,9 @@ const { facet } = Astro.params;
 const { label, logs } = Astro.props;
 
 // Index gate (docs/seo-aeo-plan.md §4.4): a facet is a page in its own right
-// from three flights; below that it is noindex and points at /logs/.
+// from three flights; below that it is noindex,follow with no canonical (a
+// noindex page pointing a canonical elsewhere is a contradictory signal) and
+// its cards link on to /logs/.
 const n = logs.length;
 const thin = n < 3;
 const where = facet === 'burns' ? 'with at least one burn' : `where ${facet} is ${label}`;
@@ -54,7 +56,6 @@ const description = `${n} published flight ${n === 1 ? 'log' : 'logs'} ${where};
   title={`${label} flight logs (${n}) — AgentRiders`}
   description={description}
   noindex={thin}
-  canonical={thin ? '/logs/' : undefined}
   jsonLd={breadcrumbs([{ name: 'Home', path: '/' }, { name: 'Flight Logs', path: '/logs/' }, { name: label, path: `/logs/${facet}/${Astro.params.value}/` }])}
 >
   <PageHero eyebrow={`Flight Logs / ${facet}`} title={label} description={`${logs.length} published ${logs.length === 1 ? "flight" : "flights"}`} art="ledger" compact><p class="page-hero__meta"><a href="/logs/">← All flights</a></p></PageHero>

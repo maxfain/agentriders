@@ -36,11 +36,19 @@ function isPrivatePath(path: string): boolean {
 // (/api/me, /api/submissions) and the CLI/MCP sign the exact path they
 // call (device-auth.ts) — a redirect would break every signed request.
 // So: pages only. GET/HEAD, no file extension, not /api/, not Astro's /_
-// internals; the query string travels with the redirect.
+// internals; the query string travels with the redirect. A mixed-case
+// profile path is lowercased in the same hop, so /riders/MaxCR costs one
+// 301, not a chain through /riders/MaxCR/ (riders/[handle].astro covers the
+// already-slashed form). context.url is Astro's normalized URL — the decoded
+// pathname re-serialized by the URL parser, which drops CR/LF and re-encodes
+// anything unsafe — so the Location header never carries a raw control
+// character; the page then 404s any decoded param that is not a handle shape.
 function slashedPath(url: URL): string | null {
   const { pathname } = url;
   if (pathname.endsWith('/') || pathname.startsWith('/api/') || pathname.startsWith('/_')) return null;
   if (/\.[a-z0-9]+$/i.test(pathname)) return null;
+  const handle = pathname.match(/^\/riders\/([^/]+)$/)?.[1];
+  if (handle && handle !== handle.toLowerCase()) return `/riders/${handle.toLowerCase()}/${url.search}`;
   return `${pathname}/${url.search}`;
 }
 
