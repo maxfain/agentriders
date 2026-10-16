@@ -1,8 +1,14 @@
 import type { APIRoute } from 'astro';
 import { sha256Hex } from '../../../../lib/crypto';
+import { rateLimit } from '../../../../lib/ratelimit';
 import { findOrCreateRider, completeSignIn } from '../../../../lib/auth';
 
 export const prerender = false;
+
+// Per-IP cap on verify attempts — defense-in-depth against token probing on
+// top of the token's own entropy and single-use consumption.
+const verifyAllowed = (env: AgentRidersEnv, request: Request) =>
+  rateLimit(env.RATE, `magicverify:${request.headers.get('CF-Connecting-IP') ?? 'unknown'}`, 30, 3600);
 
 // Sign-in is a two-step on purpose: the emailed link is a GET, and mail
 // scanners (SafeLinks, Mimecast, link previews) prefetch GETs — so the
@@ -56,8 +62,9 @@ const confirmPage = (token: string, email: string) => `<!doctype html>
 </html>`;
 
 // Read-only: show the confirm page if the token is still live.
-export const GET: APIRoute = async ({ locals, url, redirect }) => {
+export const GET: APIRoute = async ({ locals, url, redirect, request }) => {
   const { env } = locals.runtime;
+  if (!(await verifyAllowed(env, request))) return redirect('/join?error=too_many', 302);
   const token = url.searchParams.get('token') ?? '';
   if (!TOKEN_SHAPE.test(token) || !env.SESSION_PEPPER) {
     return redirect('/join?error=link_invalid', 302);
@@ -80,6 +87,7 @@ export const GET: APIRoute = async ({ locals, url, redirect }) => {
 export const POST: APIRoute = async (context) => {
   const { locals, request, redirect } = context;
   const { env } = locals.runtime;
+  if (!(await verifyAllowed(env, request))) return redirect('/join?error=too_many', 302);
   let token = '';
   try {
     token = String((await request.formData()).get('token') ?? '');
@@ -92,22 +100,20 @@ export const POST: APIRoute = async (context) => {
 
   const tokenHash = await sha256Hex(`${token}${env.SESSION_PEPPER}`);
   const nowIso = new Date().toISOString();
+  // Consume and read the email in one atomic statement — no follow-up SELECT,
+  // so a GC sweep that deletes the now-consumed token can't race the read.
   const consumed = await env.DB.prepare(
     `UPDATE magic_link_tokens SET consumed_at = ?
-     WHERE token_hash = ? AND consumed_at IS NULL AND expires_at > ?`,
+     WHERE token_hash = ? AND consumed_at IS NULL AND expires_at > ?
+     RETURNING email`,
   )
     .bind(nowIso, tokenHash, nowIso)
-    .run();
-  if (consumed.meta.changes !== 1) return redirect('/join?error=link_expired', 302);
+    .first<{ email: string }>();
+  if (!consumed) return redirect('/join?error=link_expired', 302);
 
   // The token is spent; nothing past this point may surface as a raw 500.
   try {
-    const row = await env.DB.prepare('SELECT email FROM magic_link_tokens WHERE token_hash = ?')
-      .bind(tokenHash)
-      .first<{ email: string }>();
-    if (!row) return redirect('/join?error=link_invalid', 302);
-
-    const rider = await findOrCreateRider(env.DB, 'email', row.email, { email: row.email });
+    const rider = await findOrCreateRider(env.DB, 'email', consumed.email, { email: consumed.email });
     const dest = await completeSignIn(context, env.DB, env.SESSION_PEPPER, rider);
     return redirect(dest, 302);
   } catch {

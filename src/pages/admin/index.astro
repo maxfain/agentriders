@@ -3,12 +3,21 @@ export const prerender = false;
 import Base from '../../layouts/Base.astro';
 import PageHero from '../../components/PageHero.astro';
 import { reconcile } from '../../lib/reconcile';
+import { sweepExpired } from '../../lib/gc';
 
 // Middleware guarantees admin; still a hard belt here.
 const { env } = Astro.locals.runtime;
 
 // Lazy reconcile on queue render keeps approved→published fresh.
 await reconcile(env, Astro.url.origin);
+
+// Opportunistic GC (no cron on Pages): clear abandoned expired sessions and
+// spent magic-link tokens / device codes. Bounded; never breaks the page.
+try {
+  await sweepExpired(env.DB);
+} catch {
+  /* non-critical */
+}
 
 type QueueRow = {
   id: string; slug: string; title: string; status: string; kind: string;
@@ -49,6 +58,7 @@ const GATE = 20;
         <div class="admin__tools">
           <button type="button" id="resync" class="btn btn--ink">Resync mirror</button>
           <button type="button" id="rebuild" class="btn btn--ink">Rebuild site</button>
+          <button type="button" id="gc" class="btn btn--ink">Sweep expired</button>
         </div>
       </div>
       <p class="admin__status" id="admin-status" role="status"></p>
@@ -113,4 +123,5 @@ const GATE = 20;
   };
   call('resync', '/api/admin/reconcile', 'Mirror resynced.');
   call('rebuild', '/api/admin/rebuild', 'Rebuild triggered.');
+  call('gc', '/api/admin/gc', 'Swept expired rows.');
 </script>
