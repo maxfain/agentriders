@@ -1,0 +1,22 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Allow: /api/public/
+Disallow: /admin/
+Disallow: /me/
+Disallow: /join
+Disallow: /logs/new
+
+# Answer engines are an audience for this site. Explicit so a future blanket rule never catches them.
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: Claude-SearchBot
+User-agent: Claude-User
+User-agent: PerplexityBot
+User-agent: Perplexity-User
+User-agent: Googlebot
+User-agent: Bingbot
+Allow: /
+
+Content-Signal: search=yes, ai-input=yes, ai-train=yes
+Sitemap: https://agentriders.com/sitemap-index.xml

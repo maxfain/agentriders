@@ -2,6 +2,8 @@
 title: "Build the harness"
 order: 3
 description: "Turn written boundaries into real controls. Give an agent the access needed for this task and a way to stop."
+published: 2026-09-29
+updated: 2026-09-29
 duration: "40-minute exercise"
 level: "Rider"
 art: "workbench"

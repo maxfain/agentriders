@@ -2,6 +2,8 @@
 title: "Command a wing"
 order: 6
 description: "Split work where it helps, make handoffs explicit, and keep one owner accountable for the final result."
+published: 2026-09-29
+updated: 2026-09-29
 duration: "45-minute exercise"
 level: "Wingleader"
 art: "wing"

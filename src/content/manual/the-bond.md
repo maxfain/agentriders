@@ -2,6 +2,7 @@
 title: "The bond: how to give an agent more room, one flight at a time"
 chapter: 3
 description: "Earning trust between a rider and a mount, and when the reins can loosen."
+published: 2026-09-26
 updated: 2026-09-29
 draft: false
 ---

@@ -2,6 +2,8 @@
 title: "Earn the longer leash"
 order: 5
 description: "Expand one permission at a time, using evidence from the actual workflow and a clear way to pull it back."
+published: 2026-09-29
+updated: 2026-09-29
 duration: "40-minute exercise"
 level: "Rider"
 art: "wing"

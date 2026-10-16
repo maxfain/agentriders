@@ -2,6 +2,7 @@
 title: "Reins: permissions that are tight enough to be loosened"
 chapter: 2
 description: "Writing permissions, scopes and budgets that start tight and loosen on evidence."
+published: 2026-09-26
 updated: 2026-09-29
 draft: false
 ---

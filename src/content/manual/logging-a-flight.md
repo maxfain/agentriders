@@ -2,6 +2,7 @@
 title: "Logging a flight: the template and why every field matters"
 chapter: 5
 description: "The log template, field by field, with the numbers left in."
+published: 2026-09-26
 updated: 2026-09-29
 draft: false
 ---

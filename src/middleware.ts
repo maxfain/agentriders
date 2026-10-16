@@ -15,19 +15,54 @@ function deviceAuthAllowed(path: string, method: string): boolean {
   return false;
 }
 
+// Private surfaces: never cached, never indexed. /me, /join and /logs/new are
+// per-rider. /admin must never be cached at all: a shared cache would hand
+// the review queue, a rider's email or a submission body to the next
+// visitor, and its 404-for-everyone-else shape (below) only holds while no
+// cache ever stores a real response for the path.
+function isPrivatePath(path: string): boolean {
+  return (
+    path === '/admin' || path.startsWith('/admin/') ||
+    path === '/me' || path.startsWith('/me/') ||
+    path === '/join' || path === '/join/' ||
+    path === '/logs/new' || path === '/logs/new/'
+  );
+}
+
+// Page URLs carry a trailing slash: canonicals, the sitemap and internal
+// links all agree on that form, and Cloudflare already 308s static pages
+// to it. Astro's own `trailingSlash: 'always'` can't do this for the
+// on-demand pages, because it also redirects extension-less endpoints
+// (/api/me, /api/submissions) and the CLI/MCP sign the exact path they
+// call (device-auth.ts) — a redirect would break every signed request.
+// So: pages only. GET/HEAD, no file extension, not /api/, not Astro's /_
+// internals; the query string travels with the redirect.
+function slashedPath(url: URL): string | null {
+  const { pathname } = url;
+  if (pathname.endsWith('/') || pathname.startsWith('/api/') || pathname.startsWith('/_')) return null;
+  if (/\.[a-z0-9]+$/i.test(pathname)) return null;
+  return `${pathname}/${url.search}`;
+}
+
 // Runs for server routes (prerender = false) at request time, and once at
 // build time for prerendered pages — where it passes straight through so
 // the static output is untouched. The adapter populates locals.runtime
 // even during prerender (with process.env), so the build-time guard is
 // isPrerendered, not runtime truthiness.
 //
-// Request-time duties: cross-origin write rejection (Astro's built-in
-// checkOrigin fires as well — two layers on purpose), session-cookie →
-// locals.rider resolution, and no-store on every dynamic response.
+// Request-time duties: trailing-slash redirect for pages, cross-origin
+// write rejection (Astro's built-in checkOrigin fires as well — two layers
+// on purpose), session-cookie → locals.rider resolution, and the caching
+// rule on every dynamic response.
 export const onRequest = defineMiddleware(async (context, next) => {
   if (context.isPrerendered || !context.locals.runtime) return next();
 
   const method = context.request.method;
+  if (method === 'GET' || method === 'HEAD') {
+    const slashed = slashedPath(context.url);
+    if (slashed) return context.redirect(slashed, 301);
+  }
+
   if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
     const origin = context.request.headers.get('Origin');
     const hasSessionCookie = !!context.cookies.get(SESSION_COOKIE)?.value;
@@ -83,10 +118,36 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const path = context.url.pathname;
   const adminPath = path === '/admin' || path.startsWith('/admin/') || path.startsWith('/api/admin');
   if (adminPath && (!isAdmin(context.locals.rider) || !context.locals.sessionId)) {
-    return new Response('Not found', { status: 404, headers: { 'Content-Type': 'text/plain' } });
+    // A 404 with no body makes Astro serve the prerendered /404 page (the
+    // branded one) under this status; a body here would pin plain text.
+    // (Astro.rewrite('/404') is not an option: rewriting an on-demand route
+    // to a prerendered page throws.) The headers travel with the page.
+    return new Response(null, {
+      status: 404,
+      headers: { 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' },
+    });
   }
 
   const response = await next();
-  response.headers.set('Cache-Control', 'no-store');
+
+  // Caching rule. no-store whenever the response could be personal: a
+  // signed-in rider, a write, a non-public API route, or a private surface.
+  // Otherwise the route's own Cache-Control stands (site-state.json sets
+  // one), and a successful anonymous GET of a public dynamic page — a
+  // profile, the directory — becomes briefly cacheable; errors never are,
+  // so a transient 5xx can't sit at the edge for five minutes. `Vary:
+  // Cookie` keeps a shared cache from ever answering a signed-in request
+  // with that anonymous copy.
+  const privateApi = path.startsWith('/api/') && !path.startsWith('/api/public/');
+  const personal = !!context.locals.rider || (method !== 'GET' && method !== 'HEAD');
+  if (personal || privateApi || isPrivatePath(path)) {
+    response.headers.set('Cache-Control', 'no-store');
+  } else if (response.ok && !response.headers.has('Cache-Control')) {
+    response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=300');
+    response.headers.append('Vary', 'Cookie');
+  }
+  // public/_headers carries the same rule for static assets; Pages Functions
+  // responses need it set here.
+  if (isPrivatePath(path)) response.headers.set('X-Robots-Tag', 'noindex');
   return response;
 });

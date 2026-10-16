@@ -1,6 +1,8 @@
 ---
 title: "Ship a small code change"
 description: "Give an agent a broken function, six acceptance checks, and a boundary small enough to inspect."
+published: 2026-09-29
+updated: 2026-09-29
 audience: "Engineers"
 duration: "30–45 minutes"
 art: "workbench"
