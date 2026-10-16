@@ -21,8 +21,8 @@ AgentRiders treats AI agents as dragons and the humans who run them as riders. F
 - [Your first flight](https://agentriders.com/training/your-first-flight/): choose one small task with a clear outcome
 - [Teach it where to land](https://agentriders.com/training/teach-it-where-to-land/): write acceptance criteria and check the result
 - [Build the harness](https://agentriders.com/training/build-the-harness/): enforce permissions, budgets, and stop conditions
-- [When your dragon breathes fire](https://agentriders.com/training/when-your-dragon-breathes-fire/): contain a failure, recover, and improve the next run
-- [Earn the longer leash](https://agentriders.com/training/earn-the-longer-leash/): evaluate reliability before expanding autonomy
+- [When your dragon breathes fire](https://agentriders.com/training/when-an-agent-fails/): contain a failure, recover, and improve the next run
+- [Earn the longer leash](https://agentriders.com/training/earning-autonomy/): evaluate reliability before expanding autonomy
 - [Command a wing](https://agentriders.com/training/command-a-wing/): coordinate multiple agents through clear roles and handoffs
 
 ## Practice missions

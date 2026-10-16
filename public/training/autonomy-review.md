@@ -63,4 +63,4 @@ A streak of easy successes is weak evidence for an untested hard case. Include a
 
 For external messages, money movement, deletion, or sensitive data, consider the consequence of a single miss before reducing review. A draft-only workflow can remain useful indefinitely.
 
-Next: https://agentriders.com/training/earn-the-longer-leash/
+Next: https://agentriders.com/training/earning-autonomy/

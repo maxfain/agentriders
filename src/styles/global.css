@@ -234,6 +234,17 @@ a:hover { color: var(--ember); }
 .prose li + li { margin-top: 8px; }
 .prose code { font-family: var(--mono); font-size: 0.88em; }
 .prose strong { color: var(--text-on-bone); }
+/* The literal answer leads the hero, directly under the H1 (docs/seo-aeo-plan.md
+   §3.2 rule 2, §4.3 item 2): a lede on the ink hero, measured so a 40–60-word
+   answer reads as a lede rather than a wall. One .summary per page. */
+.page-hero .summary, .school-hero .summary { margin-top: 24px; max-width: 62ch; font-size: clamp(16px, 1.55vw, 19px); line-height: 1.6; color: #ded3c5; }
+.school-hero__note a { color: #ffdbad; }
+/* "Questions riders ask": visible text after the body, before the rails. */
+.faq { max-width: 65ch; margin-top: 52px; padding-top: 32px; border-top: 1px solid var(--bone-line); }
+.faq h2 { font-size: clamp(24px, 2.6vw, 30px); line-height: 1.15; color: var(--text-on-bone); }
+.faq h3 { font-size: clamp(19px, 2vw, 22px); line-height: 1.25; color: var(--text-on-bone); margin-top: 30px; }
+.faq p { margin-top: 10px; font-size: 17px; line-height: 1.6; color: var(--text-on-bone-soft); }
+.faq .changelog { margin-top: 32px; font-family: var(--mono); font-size: 12px; color: var(--ash); }
 
 /* ---------- Feed: manual chapters ---------- */
 .chapters { list-style: none; margin: 0; padding: 0; }

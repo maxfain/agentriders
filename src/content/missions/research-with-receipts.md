@@ -1,12 +1,22 @@
 ---
 title: "Research with receipts"
-description: "Turn a plausible answer into a decision memo whose claims you can trace and whose unknowns stay visible."
+seoTitle: "AI research agent: verify claims and sources"
+description: "A 35–50 minute mission: give an AI agent a research contract, get a decision memo with a claim table, and inspect the evidence before acting on it."
+summary: "Verify an AI agent's research before acting on it: the research contract requires a source URL, section and checked date for every material claim, and you open the sources yourself; a valid URL on an unsupported sentence fails review. This 35–50 minute mission ends with a decision memo, a claim table and a list of unresolved requirements."
 published: 2026-09-29
-updated: 2026-09-29
+updated: 2026-10-16
+author: "Max Faingezicht"
 audience: "Founders"
 duration: "35–50 minutes"
 art: "yard"
 outcome: "A short decision memo, a verified claim table, and a list of unresolved requirements."
+faq:
+  - q: "How do I write a research contract for an AI agent?"
+    a: "Paste the brief and links, then the contract. It tells the agent to investigate only the stated requirements, read original official sources rather than search snippets, and return for each material claim the source URL, relevant section, checked date, supporting paraphrase and any limitation. It labels statements as documented fact, inference or unresolved, and caps research at 20 minutes."
+  - q: "How do I verify an AI research agent's claims against its sources?"
+    a: "Open every source used for a decision-changing claim. Find the stated section. Check whether it supports the complete claim, including qualifying words such as \"all\", \"private\", \"automatic\" or \"free\". A valid URL attached to an unsupported sentence still fails review. If a source cannot be opened, mark the claim unverified and narrow the memo."
+  - q: "What should a decision memo from an AI research agent include?"
+    a: "A short memo, 350 words maximum in this mission, plus a claim table. It must address every confirmed need, separate repository visibility from website access, name the missing plan and configuration facts, and propose a bounded next step. It must not claim a deployment was tested. Different recommendations can pass if the evidence supports them."
 ---
 
 ## The mission
@@ -17,7 +27,7 @@ This exercise uses a fictional brief and public documentation. It does not requi
 
 Start with [Your first flight](/training/your-first-flight/) if you have not written an outcome and stop condition before. Download the [mission brief and acceptance checks](/training/kit/) to keep beside your draft.
 
-## Use this founder brief
+## The founder brief: one narrow product decision for the AI agent
 
 ```text
 Fictional project: Lantern, an open-source scheduling library.
@@ -40,7 +50,7 @@ No setup work is authorized. Recommend the next question to answer.
 
 The distinction matters: public documentation today and restricted documentation later are different requirements. Do not let an agent combine them into one vague assurance that the platform “supports everything.”
 
-## Start from primary sources
+## Start from primary sources, not search snippets
 
 These official documents were checked for this exercise on September 29, 2026. Reopen them during your own run; product documentation can change.
 
@@ -52,7 +62,7 @@ These official documents were checked for this exercise on September 29, 2026. R
 
 The documentation describes static hosting, support for custom domains, and HTTPS for correctly configured sites. Those capabilities make this a reasonable candidate to investigate. They do not show that Lantern's account is eligible, its DNS is correct, or its future access requirements are satisfied. That distinction is the exercise.
 
-## Give the agent the research contract
+## Give the AI agent a research contract
 
 Paste the brief and links, followed by:
 
@@ -76,7 +86,7 @@ Time cap: 20 minutes of research, then return what is supported.
 
 A tool without browsing can organize supplied text, but it cannot claim to have checked live documentation. In that case, open the sources yourself, provide the relevant passages, and have it label the memo “based on supplied excerpts.” Record when you retrieved them.
 
-## Review the claim table
+## Review the claim table: a valid URL is not a verified claim
 
 Open every source used for a decision-changing claim. Find the stated section. Check whether it supports the complete claim, including qualifying words such as “all,” “private,” “automatic,” or “free.” A valid URL attached to an unsupported sentence still fails review.
 
@@ -84,7 +94,7 @@ Success means the memo addresses all three confirmed technical needs; distinguis
 
 Look for a recommendation like “candidate for a small public-docs trial after account and configuration review,” with its basis explained. Different recommendations can pass if the evidence supports them. A confident yes without the unresolved requirements cannot.
 
-## Handle the failure branches
+## What to do when sources conflict, fail to open, or the agent drifts
 
 If sources conflict, preserve both statements and inspect their scope, product edition, and date. Do not average them. If a source cannot be opened, mark that claim unverified and narrow the memo. If future restricted access becomes essential, stop the original decision and create a separate research question with that requirement explicit.
 

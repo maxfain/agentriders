@@ -5,6 +5,10 @@ import Base from '../layouts/Base.astro';
 import Signup from '../components/Signup.astro';
 import '../styles/riders.css';
 import { breadcrumbs } from '../lib/seo';
+import { fetchSiteState, loggedRiders } from '../lib/build-state';
+// Riders with a published flight, from the live site state at build time (a
+// publish rebuilds the site). The directory below keeps its own 20-flight gate.
+const logged = loggedRiders(await fetchSiteState());
 const ranks = [
   { id: 'fledgling', name: 'Fledgling', image: 'rider-fledgling', motto: 'The courage to begin.', requirement: 'Joined · 1 flight logged', tell: 'The map is held a little too tightly. The harness still feels borrowed. Every detail is a question waiting for a first flight.', gear: ['A borrowed flight jacket', 'A map without a route home yet', 'One simple rein'], alt: 'A young adult Fledgling with an uncertain, determined gaze, a plain leather harness and oversized canvas jacket, gripping a folded map beside a young bronze dragon.' },
   { id: 'rider', name: 'Rider', image: 'rider-veteran', motto: 'The judgment to return.', requirement: '20 flights · 2 Rider vouches', tell: 'A steady gaze. A heat-marked cuff, stitched back together. Nothing on the harness is there by accident.', gear: ['Flight goggles, scratched and trusted', 'Patinated armor and repaired seams', 'A compass and a battered field journal'], alt: 'An experienced Rider with a steady gaze, flight goggles, scuffed bronze shoulder armor, repaired leather gear, a compass and a well-used journal beside a copper dragon.' },
@@ -17,6 +21,17 @@ const ranks = [
     <div class="riders-hero__shade" aria-hidden="true"></div>
     <div class="container riders-hero__copy"><p class="micro riders-eyebrow"><span></span> THE RIDERS / EARNED IN THE FIELD</p><h1 id="riders-title">The people <br />holding <br /><em>the reins.</em></h1><p class="riders-hero__lead">The face. The gear. The judgment.<br />Experience leaves a mark.</p><a href="#rank-gallery" class="riders-hero__link">MEET THE RIDERS <span aria-hidden="true">↓</span></a></div>
     <div class="container riders-hero__baseline micro" aria-hidden="true"><span>THREE RANKS. COUNTLESS LESSONS.</span><span>THE AERIE / BEFORE FIRST LIGHT</span></div>
+  </section>
+  <section class="riders-logged section--ink" aria-labelledby="logged-title">
+    <div class="container">
+      <p class="micro">THE RECORD SO FAR</p>
+      <h2 id="logged-title">Riders who logged flights</h2>
+      {logged.length > 0 ? (
+        <ul class="riders-logged__list">{logged.map((p) => <li><a href={`/riders/${p.handle}/`}>@{p.handle}<span>{p.flights} {p.flights === 1 ? 'flight' : 'flights'}</span></a></li>)}</ul>
+      ) : (
+        <p class="riders-logged__empty">The first riders are logging their flights now — the directory opens at 20.</p>
+      )}
+    </div>
   </section>
   <section class="riders-collection" id="rank-gallery" data-scene aria-labelledby="collection-title">
     <div class="riders-collection__atmosphere" aria-hidden="true"></div>
@@ -34,6 +49,14 @@ const ranks = [
   <PageCoda />
 </Base>
 <style>
+  .riders-logged { padding-block: 34px 40px; border-top: 1px solid #3a2e22; border-bottom: 1px solid #3a2e22; }
+  .riders-logged .micro { color: #bfa17e; font-size: 8px; }
+  .riders-logged h2 { margin-top: 12px; font-size: clamp(24px, 2.6vw, 32px); font-weight: 500; line-height: 1.1; }
+  .riders-logged__list { list-style: none; display: flex; flex-wrap: wrap; gap: 10px; margin: 20px 0 0; padding: 0; }
+  .riders-logged__list a { display: inline-flex; align-items: baseline; gap: 10px; padding: 9px 14px; border: 1px solid #614b36; color: #f0dfc9; text-decoration: none; font-family: var(--mono); font-size: 13px; }
+  .riders-logged__list a:hover { border-color: #e0ad7b; color: var(--bone); }
+  .riders-logged__list span { font-size: 11px; color: #bcad99; }
+  .riders-logged__empty { margin-top: 16px; max-width: 58ch; color: #cfc0ac; font-size: 15px; }
   .riders-practice { display: flex; justify-content: space-between; align-items: center; gap: 28px; margin-top: 44px; padding: clamp(24px, 3.5vw, 44px); border: 1px solid #795a3a; background: linear-gradient(120deg, #36291d, #211b15); }
   .riders-practice .micro { color: #e4ad80; font-size: 9px; }
   .riders-practice h3 { margin-top: 12px; font-size: clamp(27px, 3vw, 38px); line-height: 1.1; font-weight: 500; }

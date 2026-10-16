@@ -156,7 +156,7 @@ Deferred entirely (not cut — gated on things that don't exist yet): mount hubs
 - Logs stay flat at `/logs/[slug]/`; a published slug never changes.
 - Facets keep `/logs/{task,outcome,burns,mount}/[value]/`; `noindex` below n=3; cards link to `/logs/`. No promotion to `/mounts/` this quarter.
 - `/flight-log` → `/newsletter/` (301); issues, when they exist, at `/newsletter/[issue]/`.
-- Three slug renames with 301s in `public/_redirects` — **decision for Max** (§8): `/training/when-your-dragon-breathes-fire/` → `/training/when-an-agent-fails/`; `/manual/the-bond/` → `/manual/agent-trust-and-autonomy/`; `/training/earn-the-longer-leash/` → `/training/earning-autonomy/`. H1s keep the brand phrase.
+- Three slug renames with 301s in `public/_redirects` — done in S1 (§8, decision 1): `/training/when-your-dragon-breathes-fire/` → `/training/when-an-agent-fails/`; `/manual/the-bond/` → `/manual/agent-trust-and-autonomy/`; `/training/earn-the-longer-leash/` → `/training/earning-autonomy/`. H1s keep the brand phrase.
 - Worksheets: `/training/kit/[worksheet]/` pages; raw files move to `/kit/*.md` with `X-Robots-Tag: noindex` and a `Link: rel="canonical"` header to the page.
 
 ### 4.2 Target information architecture (this quarter)
@@ -413,7 +413,7 @@ Each milestone is a branch, adversarially reviewed, PR'd into `main`, merged. Ex
 - Rewrites of all 16 pages per §5.2 (drafted in-repo, reviewed by Max).
 - `/about` author block + Person JSON-LD; profile titles, `noindex` at 0 flights, `rel=author` on log bylines; "Riders who logged flights" strip on `/riders/`.
 
-*Exit:* every chapter/lesson/mission's first paragraph is a literal answer and its `<title>` leads with an industry term; old slugs 301; `/about` names the founder.
+*Exit:* every chapter/lesson/mission's first paragraph is a literal answer (the `summary`, rendered directly under the H1 in the hero — not buried below the rail and deliverable, which defeats passage extraction) and its `<title>` leads with an industry term; old slugs 301; `/about` names the founder. Founder: `/about` and the founder's Person node list GitHub and the rider profile only; add X, LinkedIn or any other profile link there (and to `Organization.sameAs`) when wanted. The `/about` role line now says AgentRiders "is operated by Permanent Ventures Inc" (what the Terms state); say the word if you want it to read "founder of Permanent Ventures Inc" and it will be restored.
 
 ### S2 — The record (~1.5 weeks)
 
@@ -437,7 +437,7 @@ Aggregates with n-gates and billing-method labels; per-mount numbers; releases; 
 
 ### Decisions for Max
 
-1. **The three slug renames** (§4.1). Recommended: rename now, with 301s — there are ~zero inbound links to lose and no cheaper moment.
+1. **The three slug renames** (§4.1). Decided and done in S1: `/manual/the-bond/` → `/manual/agent-trust-and-autonomy/`, `/training/when-your-dragon-breathes-fire/` → `/training/when-an-agent-fails/`, `/training/earn-the-longer-leash/` → `/training/earning-autonomy/`, each 301'd from both the slashed and slash-less form in `public/_redirects`; H1s keep the brand phrase.
 2. **The directory gate.** The site promises "opens at 20 flights". Options: (a) keep the promise and ship the "Riders who logged flights" strip on `/riders/` (profiles discoverable from one flight; recommended as the minimum); (b) lower the gate to 5 and update the copy — a 5-profile directory is better than a counter. The Rider rank also cannot bootstrap (2 Rider vouches, no Riders): the first Riders are admin-granted, which the admin surface already supports.
 3. **Training crawlers**: allow for the founding season (§2.4), or block.
 4. **Who the 10–15 practitioners are**, and whether concierge-drafting their first flight from a session summary is acceptable to them.

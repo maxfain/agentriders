@@ -40,11 +40,15 @@ function parseProfiles(raw: unknown): SiteProfile[] {
   return out;
 }
 
-export async function fetchSiteState(): Promise<SiteState> {
+export async function fetchSiteState(timeoutMs = 8000): Promise<SiteState> {
   try {
     const target = new URL('/api/public/site-state.json', originFor()).href;
+    // A hung endpoint (reachable but never responding — a slow D1, a half-open
+    // socket) must not stall the build; abort and fall back to EMPTY. Matches
+    // the guard on the same endpoint in astro.config.mjs's profilePages().
     const res = await fetch(target, {
       headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(timeoutMs),
     });
     if (!res.ok) return EMPTY;
     const data = (await res.json()) as {
@@ -60,6 +64,15 @@ export async function fetchSiteState(): Promise<SiteState> {
   } catch {
     return EMPTY;
   }
+}
+
+/**
+ * Riders with a published flight, for the "Riders who logged flights" strip
+ * on /riders/: most recent activity first, capped so the strip stays a strip.
+ * Profiles are reachable from one flight; the directory keeps its own gate.
+ */
+export function loggedRiders(state: SiteState, limit = 20): SiteProfile[] {
+  return [...state.profiles].sort((a, b) => b.updated.localeCompare(a.updated)).slice(0, limit);
 }
 
 /**

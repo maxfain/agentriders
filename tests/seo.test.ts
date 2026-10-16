@@ -1,10 +1,10 @@
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  SITE, ORG_ID, WEBSITE_ID, DATASET_ID,
-  abs, canonicalUrl, clampTitle, clampDescription, jsonLdString, siteGraph,
+  SITE, ORG_ID, WEBSITE_ID, DATASET_ID, FOUNDER_ID,
+  abs, canonicalUrl, clampTitle, clampDescription, jsonLdString, siteGraph, smarten,
   orgGraph, website, breadcrumbs, techArticle, article, profilePage,
-  learningResource, isoDuration, dataset, softwareApplication,
+  learningResource, isoDuration, dataset, softwareApplication, founder, founderPage,
 } from '../src/lib/seo.ts';
 import { fetchSiteState } from '../src/lib/build-state.ts';
 
@@ -56,6 +56,19 @@ test('clampDescription: 155 by default, custom max honored', () => {
   assert.ok(clampDescription(words, 40).length <= 40);
 });
 
+test('smarten: educates quotes like the markdown body, idempotent on already-curly text', () => {
+  assert.equal(smarten("the agent's permissions"), 'the agent’s permissions');
+  assert.equal(smarten("'May I continue?'"), '‘May I continue?’');
+  assert.equal(smarten('"improve this entire codebase"'), '“improve this entire codebase”');
+  assert.equal(smarten('"all", "private", "automatic" or "free"'),
+    '“all”, “private”, “automatic” or “free”');
+  // A possessive after a word is an apostrophe, not an opening quote.
+  assert.equal(smarten("each other's unmerged work"), 'each other’s unmerged work');
+  // Already-curly text (some drafts arrive curled) is left byte-identical.
+  const curly = '“every company has an official source” and it’s fine';
+  assert.equal(smarten(curly), curly);
+});
+
 test('jsonLdString: "<" and the JS line terminators are escaped, value survives', () => {
   const evil = { name: '</script><script>alert(1)</script>', note: 'a\u2028b\u2029c' };
   const out = jsonLdString(evil);
@@ -86,6 +99,7 @@ test('orgGraph / website: stable ids, required fields, no SearchAction', () => {
   assert.ok(org.logo.startsWith(SITE));
   assert.equal(org.sameAs.length, 3);
   assert.equal(org.email, 'hello@agentriders.com');
+  assert.deepEqual(org.founder, { '@id': FOUNDER_ID }); // the Person lives on /about
 
   const site = website();
   assert.equal(site['@type'], 'WebSite');
@@ -93,6 +107,26 @@ test('orgGraph / website: stable ids, required fields, no SearchAction', () => {
   assert.deepEqual(site.publisher, { '@id': ORG_ID });
   assert.deepEqual(site.alternateName, ['Agent Riders', 'agentriders.com']);
   assert.ok(!('potentialAction' in site));
+});
+
+test('founder / founderPage: the Person behind the Organization\'s founder @id, on /about', () => {
+  const f = founder();
+  assert.equal(f['@type'], 'Person');
+  assert.equal(f['@id'], FOUNDER_ID);
+  assert.equal(f['@id'], orgGraph().founder['@id']);
+  assert.equal(f.name, 'Max Faingezicht');
+  assert.equal(f.url, `${SITE}/about/`);
+  assert.deepEqual(f.worksFor, { '@id': ORG_ID });
+  assert.ok(f.sameAs.includes('https://github.com/maxfain'));
+  assert.ok(f.sameAs.includes(`${SITE}/riders/maxcr/`));
+  assert.ok(!('email' in f) && !('address' in f)); // nothing personal on the Person
+
+  const page = founderPage('2026-10-16');
+  assert.equal(page['@type'], 'ProfilePage');
+  assert.equal(page['@id'], `${SITE}/about/#profile`);
+  assert.equal(page.dateModified, '2026-10-16');
+  assert.deepEqual(page.mainEntity, f);
+  assert.ok(!('dateModified' in founderPage()));
 });
 
 test('breadcrumbs: positioned ListItems with canonical item URLs', () => {
@@ -123,6 +157,11 @@ test('techArticle: dates keep their precision, the default author is the Organiz
   // A real byline (S1) is a Person.
   const byline = techArticle({ headline: 'h', description: 'd', path: '/manual/x/', authorName: 'Max', authorPath: '/about/' });
   assert.deepEqual(byline.author, { '@type': 'Person', name: 'Max', url: `${SITE}/about/` });
+  // The founder's byline carries the shared #founder @id, so it is the same
+  // entity as the Person on /about that Organization.founder points at.
+  const founderByline = techArticle({ headline: 'h', description: 'd', path: '/manual/x/', authorName: 'Max Faingezicht', authorPath: '/about/' });
+  assert.deepEqual(founderByline.author, { '@type': 'Person', '@id': FOUNDER_ID, name: 'Max Faingezicht', url: `${SITE}/about/` });
+  assert.equal((founderByline.author as Record<string, unknown>)['@id'], orgGraph().founder['@id']);
 });
 
 test('article: rider as Person with @handle and profile URL, part of the dataset', () => {
@@ -176,6 +215,16 @@ test('learningResource: LearningResource + Article inside the free Flight School
   });
   assert.ok(!('educationalLevel' in mission));
   assert.deepEqual(mission.audience, { '@type': 'Audience', audienceType: 'Founders' });
+
+  // The default author is the Organization; a named author (S1) is a Person.
+  assert.deepEqual(l.author, { '@id': ORG_ID });
+  assert.deepEqual(learningResource({ name: 'n', description: 'd', path: '/training/x/', authorName: 'AgentRiders' }).author, { '@id': ORG_ID });
+  const byline = learningResource({ name: 'n', description: 'd', path: '/training/x/', authorName: 'Max', authorPath: '/about/' });
+  assert.deepEqual(byline.author, { '@type': 'Person', name: 'Max', url: `${SITE}/about/` });
+  // The founder's byline is the shared #founder entity here too.
+  const founderByline = learningResource({ name: 'n', description: 'd', path: '/training/x/', authorName: 'Max Faingezicht', authorPath: '/about/' });
+  assert.deepEqual(founderByline.author, { '@type': 'Person', '@id': FOUNDER_ID, name: 'Max Faingezicht', url: `${SITE}/about/` });
+  assert.equal((founderByline.author as Record<string, unknown>)['@id'], orgGraph().founder['@id']);
 });
 
 test('isoDuration: minutes and hours, ranges keep the upper bound, decimals and compounds, never a partial value', () => {
