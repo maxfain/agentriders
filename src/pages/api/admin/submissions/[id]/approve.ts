@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { logFrontmatterSchema } from '../../../../../lib/log-schema.ts';
 import { serializeLog } from '../../../../../lib/frontmatter.ts';
 import { commitLogFile } from '../../../../../lib/github.ts';
+import { recomputeRank } from '../../../../../lib/ranks.ts';
 import type { SubmissionRow } from '../../../../../lib/submissions.ts';
 
 export const prerender = false;
@@ -72,6 +73,15 @@ export const POST: APIRoute = async ({ locals, params }) => {
       frontmatter.outcome, frontmatter.burns.length, row.id, now,
     ),
   ]);
+
+  // The optimistic mirror write just changed this rider's flight count, so
+  // recompute their rank now (first flight → Fledgling, without waiting for
+  // reconcile). Rank is non-critical; never fail the approve over it.
+  try {
+    await recomputeRank(env.DB, row.rider_id, 'system', 'published_flight');
+  } catch {
+    /* rank catches up on the next reconcile */
+  }
 
   return json(200, { ok: true, status: 'approved', commit_sha: commitSha, slug: row.slug });
 };

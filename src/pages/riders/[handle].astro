@@ -2,22 +2,31 @@
 export const prerender = false;
 import Base from '../../layouts/Base.astro';
 import PageHero from '../../components/PageHero.astro';
+import { rankEarnedAt } from '../../lib/ranks';
+import { canVouch, vouchesReceived, vouchesGiven, existingVouch } from '../../lib/vouches';
+import { isAdmin } from '../../lib/admin';
 import type { RiderRow } from '../../lib/session';
 
-// Public rider profile. Minimal in M2 — identity + their published flights —
-// so log-page rider links resolve. M3 layers on rank, vouches and verified
-// stats. Banned or unknown riders 404; the literal /riders/directory route
-// (M3) takes precedence over this param.
+// Public rider profile: identity, rank + when it was earned, the flight
+// record, and vouches (received and given, each with a name on it). A
+// signed-in Rider sees a vouch form. Verified-flight stats arrive in M4.
+// Banned or unknown riders 404; the literal /riders/directory route wins.
 const { env } = Astro.locals.runtime;
+const viewer = Astro.locals.rider;
 const handle = (Astro.params.handle ?? '').toLowerCase();
 
+const viewerIsAdmin = isAdmin(viewer);
+
 const rider = await env.DB.prepare(
-  "SELECT id, handle, display_name, bio, rank, is_admin, banned_at, created_at FROM riders WHERE handle = ? AND banned_at IS NULL AND handle NOT LIKE 'pending-%'",
+  "SELECT id, handle, display_name, bio, rank, is_admin, banned_at, created_at FROM riders WHERE handle = ? AND handle NOT LIKE 'pending-%'",
 )
   .bind(handle)
   .first<RiderRow>();
 
-if (!rider) return new Response('Not found', { status: 404 });
+// Banned riders 404 for everyone except admins (who can see them to unban).
+if (!rider || (rider.banned_at && !viewerIsAdmin)) {
+  return new Response('Not found', { status: 404 });
+}
 
 type Flight = { slug: string; title: string; date: string; task: string; outcome: string; burns_count: number };
 const flights = (
@@ -28,53 +37,233 @@ const flights = (
     .all<Flight>()
 ).results ?? [];
 
+const received = await vouchesReceived(env.DB, rider.id);
+const given = await vouchesGiven(env.DB, rider.id);
+const earnedAt = rider.rank ? await rankEarnedAt(env.DB, rider.id, rider.rank) : null;
+
+const isSelf = viewer?.id === rider.id;
+const viewerCanVouch = !!viewer && !isSelf && canVouch(viewer.rank);
+const alreadyVouched = viewerCanVouch
+  ? (await existingVouch(env.DB, viewer!.id, rider.id))?.status === 'active'
+  : false;
+
+const fmt = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 const joined = new Date(rider.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
 const rankLabel = rider.rank ? rider.rank.toUpperCase() : 'UNRANKED';
 const landed = flights.filter((f) => f.outcome === 'landed').length;
 ---
 
-<Base title={`@${rider.handle} — AgentRiders`} description={`${rider.display_name}'s flight record: ${flights.length} published ${flights.length === 1 ? 'flight' : 'flights'}.`}>
+<Base title={`@${rider.handle} — AgentRiders`} description={`${rider.display_name}'s flight record: ${flights.length} published ${flights.length === 1 ? 'flight' : 'flights'}, ${received.length} ${received.length === 1 ? 'vouch' : 'vouches'}.`}>
   <PageHero eyebrow={`@${rider.handle}`} title={rider.display_name} description={rider.bio ?? undefined} art="ranks" id="rider-title" compact></PageHero>
 
   <section class="section section--bone">
     <div class="container rider-profile">
+      {rider.banned_at && viewerIsAdmin && (
+        <p class="rider-banned" role="alert">This rider is banned (hidden from the public). Admin view only.</p>
+      )}
       <dl class="rider-stats">
-        <div><dt>Rank</dt><dd>{rankLabel}</dd></div>
+        <div><dt>Rank</dt><dd>{rankLabel}</dd>{earnedAt && <p class="rider-stats__fine">earned {fmt(earnedAt)}</p>}</div>
         <div><dt>Flights</dt><dd>{flights.length}</dd></div>
         <div><dt>Landed</dt><dd>{landed}</dd></div>
+        <div><dt>Vouches</dt><dd>{received.length}</dd></div>
         <div><dt>Joined</dt><dd>{joined}</dd></div>
       </dl>
 
-      <h2 class="rider-flights__title">Flights</h2>
-      {flights.length === 0 ? (
-        <p class="rider-empty">No published flights yet.</p>
-      ) : (
-        <ul class="rider-flights">
-          {flights.map((f) => (
-            <li>
-              <a href={`/logs/${f.slug}`}>
-                <span class="rider-flights__name">{f.title}</span>
-                <span class="rider-flights__meta">{f.date} · {f.task} · {f.outcome}{f.burns_count > 0 ? ` · ${f.burns_count} ${f.burns_count === 1 ? 'burn' : 'burns'}` : ''}</span>
-              </a>
-            </li>
-          ))}
-        </ul>
+      <div class="rider-cols">
+        <div class="rider-col">
+          <h2 class="rider-h2">Flights</h2>
+          {flights.length === 0 ? (
+            <p class="rider-empty">No published flights yet.</p>
+          ) : (
+            <ul class="rider-flights">
+              {flights.map((f) => (
+                <li>
+                  <a href={`/logs/${f.slug}`}>
+                    <span class="rider-flights__name">{f.title}</span>
+                    <span class="rider-flights__meta">{f.date} · {f.task} · {f.outcome}{f.burns_count > 0 ? ` · ${f.burns_count} ${f.burns_count === 1 ? 'burn' : 'burns'}` : ''}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div class="rider-col">
+          <h2 class="rider-h2">Vouches <span class="rider-h2__hint">— every one has a name on it</span></h2>
+
+          {viewer && !isSelf && !canVouch(viewer.rank) && (
+            <p class="rider-vouchnote">Vouching opens at Rider. Keep flying.</p>
+          )}
+          {viewerCanVouch && !alreadyVouched && (
+            <form class="vouch-form" id="vouch-form" data-handle={rider.handle}>
+              <label for="vouch-statement">Vouch for @{rider.handle}</label>
+              <textarea id="vouch-statement" maxlength="500" rows="3" required placeholder="What have you seen them do? This is public and signed with your name."></textarea>
+              <div class="vouch-form__row">
+                <button type="submit" class="btn btn--ember">Put your name on it</button>
+                <span class="vouch-form__status" id="vouch-status" role="status"></span>
+              </div>
+            </form>
+          )}
+          {viewerCanVouch && alreadyVouched && (
+            <p class="rider-vouchnote">You vouch for @{rider.handle}. ✦</p>
+          )}
+
+          {received.length === 0 ? (
+            <p class="rider-empty">No vouches yet.</p>
+          ) : (
+            <ul class="vouch-list">
+              {received.map((v) => (
+                <li class="vouch">
+                  <p class="vouch__statement">“{v.statement}”</p>
+                  <p class="vouch__by"><a href={`/riders/${v.handle}`}>@{v.handle}</a>{v.rank && <span class="vouch__rank">{v.rank}</span>} · {fmt(v.created_at)}{viewerIsAdmin && <button type="button" class="vouch-remove" data-id={v.id} aria-label="Remove this vouch (moderation)">remove</button>}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {given.length > 0 && (
+            <>
+              <h3 class="rider-h3">Vouches given</h3>
+              <ul class="vouch-list vouch-list--given">
+                {given.map((v) => (
+                  <li class="vouch">
+                    <p class="vouch__statement">“{v.statement}”</p>
+                    <p class="vouch__by">for <a href={`/riders/${v.handle}`}>@{v.handle}</a> · {fmt(v.created_at)}{isSelf && <button type="button" class="vouch-revoke" data-id={v.id} aria-label="Revoke this vouch">revoke</button>}</p>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      </div>
+
+      {viewerIsAdmin && !isSelf && (
+        <div class="rider-admin" data-handle={rider.handle}>
+          <p class="micro">ADMIN</p>
+          <div class="rider-admin__row">
+            <label for="admin-rank">Set rank</label>
+            <select id="admin-rank">
+              <option value="" selected={!rider.rank}>unranked</option>
+              <option value="fledgling" selected={rider.rank === 'fledgling'}>fledgling</option>
+              <option value="rider" selected={rider.rank === 'rider'}>rider</option>
+              <option value="wingleader" selected={rider.rank === 'wingleader'}>wingleader</option>
+            </select>
+            <button type="button" id="admin-grant" class="btn btn--ink">Grant</button>
+            {rider.banned_at ? (
+              <button type="button" id="admin-ban" data-banned="1" class="btn btn--ink">Unban</button>
+            ) : (
+              <button type="button" id="admin-ban" data-banned="0" class="btn btn--ink">Ban rider</button>
+            )}
+          </div>
+          <p class="rider-admin__status" id="admin-status" role="status"></p>
+        </div>
       )}
     </div>
   </section>
 </Base>
 
 <style>
-  .rider-profile { max-width: 760px; display: flex; flex-direction: column; gap: 30px; }
-  .rider-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 16px; margin: 0; }
-  .rider-stats div { border: 1px solid var(--bone-line); border-left: 3px solid var(--ember); background: var(--bone-raised); padding: 16px 18px; }
+  .rider-profile { max-width: 920px; display: flex; flex-direction: column; gap: 30px; }
+  .rider-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 16px; margin: 0; }
+  .rider-stats > div { border: 1px solid var(--bone-line); border-left: 3px solid var(--ember); background: var(--bone-raised); padding: 16px 18px; }
   .rider-stats dt { font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ash); }
   .rider-stats dd { margin: 6px 0 0; font-family: var(--display); font-size: 22px; font-weight: 600; }
-  .rider-flights__title { font-family: var(--display); font-size: 22px; margin-bottom: 6px; }
-  .rider-empty { color: var(--text-on-bone-soft); }
+  .rider-stats__fine { margin: 4px 0 0; font-size: 11px; color: var(--text-on-bone-soft); }
+  .rider-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; }
+  .rider-h2 { font-family: var(--display); font-size: 22px; margin-bottom: 14px; }
+  .rider-h2__hint { font-family: var(--body); font-size: 13px; font-weight: 400; color: var(--text-on-bone-soft); }
+  .rider-h3 { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ash); margin: 22px 0 12px; }
+  .rider-empty, .rider-vouchnote { color: var(--text-on-bone-soft); font-size: 14px; }
   .rider-flights { list-style: none; display: flex; flex-direction: column; gap: 10px; }
   .rider-flights a { display: flex; flex-direction: column; gap: 3px; padding: 15px 18px; border: 1px solid var(--bone-line); background: var(--bone-raised); text-decoration: none; color: var(--text-on-bone); }
   .rider-flights a:hover { border-color: var(--ink); }
   .rider-flights__name { font-family: var(--display); font-size: 18px; font-weight: 600; }
   .rider-flights__meta { font-size: 13px; color: var(--text-on-bone-soft); }
+  .vouch-form { display: flex; flex-direction: column; gap: 10px; padding: 18px; border: 1px solid var(--bone-line); border-left: 3px solid var(--ember); background: var(--bone-raised); margin-bottom: 20px; }
+  .vouch-form label { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ash); }
+  .vouch-form textarea { font-family: inherit; font-size: 15px; padding: 11px 13px; border: 1px solid var(--bone-line); background: var(--bone); color: var(--text-on-bone); border-radius: var(--radius); resize: vertical; }
+  .vouch-form__row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .vouch-form__status { font-size: 13px; color: var(--text-on-bone-soft); }
+  .vouch-list { list-style: none; display: flex; flex-direction: column; gap: 14px; }
+  .vouch { border-left: 2px solid var(--bone-line); padding-left: 14px; }
+  .vouch__statement { font-size: 16px; line-height: 1.5; }
+  .vouch__by { font-size: 13px; color: var(--text-on-bone-soft); margin-top: 4px; }
+  .vouch__by a { color: var(--ember-text); }
+  .vouch__rank { margin-left: 8px; font-family: var(--mono); font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; border: 1px solid var(--bone-line); padding: 1px 6px; border-radius: 3px; }
+  .vouch-revoke, .vouch-remove { margin-left: 10px; background: none; border: none; color: var(--ember-text); cursor: pointer; font-size: 12px; text-decoration: underline; padding: 0; }
+  .rider-banned { padding: 12px 16px; border-left: 3px solid var(--ember); background: var(--bone-raised); font-size: 14px; }
+  .rider-admin { border: 1px dashed var(--bone-line); padding: 16px 18px; border-radius: var(--radius); }
+  .rider-admin .micro { color: var(--ash); font-size: 9px; margin-bottom: 10px; }
+  .rider-admin__row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .rider-admin__row label { font-family: var(--mono); font-size: 11px; text-transform: uppercase; color: var(--ash); }
+  .rider-admin__row select { font-size: 14px; padding: 8px 10px; border: 1px solid var(--bone-line); background: var(--bone-raised); border-radius: var(--radius); }
+  .rider-admin__row .btn { min-height: 40px; font-size: 10px; }
+  .rider-admin__status { margin-top: 10px; font-size: 13px; color: var(--text-on-bone-soft); min-height: 1.3em; }
+  @media (max-width: 680px) { .rider-cols { grid-template-columns: 1fr; gap: 28px; } }
 </style>
+
+<script>
+  const form = document.getElementById('vouch-form') as HTMLFormElement | null;
+  if (form) {
+    const status = document.getElementById('vouch-status')!;
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const statement = (document.getElementById('vouch-statement') as HTMLTextAreaElement).value.trim();
+      if (!statement) { status.textContent = 'Say what you saw.'; return; }
+      status.textContent = 'Signing…';
+      try {
+        const res = await fetch('/api/vouches', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ vouchee_handle: form.dataset.handle, statement }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (res.ok) { location.reload(); } else { status.textContent = body.error || 'Something went wrong.'; }
+      } catch { status.textContent = 'Network error.'; }
+    });
+  }
+
+  for (const btn of document.querySelectorAll<HTMLButtonElement>('.vouch-revoke')) {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Revoke this vouch? Your name comes off it.')) return;
+      try {
+        const res = await fetch(`/api/vouches/${btn.dataset.id}`, { method: 'DELETE' });
+        if (res.ok) location.reload();
+      } catch { /* ignore */ }
+    });
+  }
+
+  // Admin moderation controls
+  const admin = document.querySelector('.rider-admin') as HTMLElement | null;
+  if (admin) {
+    const handle = admin.dataset.handle!;
+    const status = document.getElementById('admin-status')!;
+    const call = async (url: string, bodyObj: unknown, confirmMsg?: string) => {
+      if (confirmMsg && !confirm(confirmMsg)) return;
+      status.textContent = 'Working…';
+      try {
+        const res = await fetch(url, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bodyObj),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (res.ok) location.reload();
+        else status.textContent = body.error || 'Failed.';
+      } catch { status.textContent = 'Network error.'; }
+    };
+    document.getElementById('admin-grant')!.addEventListener('click', () => {
+      const rank = (document.getElementById('admin-rank') as HTMLSelectElement).value || null;
+      call(`/api/admin/riders/${handle}/rank`, { rank });
+    });
+    const banBtn = document.getElementById('admin-ban') as HTMLButtonElement;
+    banBtn.addEventListener('click', () => {
+      const banning = banBtn.dataset.banned !== '1';
+      call(`/api/admin/riders/${handle}/ban`, { banned: banning },
+        banning ? `Ban @${handle}? Kills their sessions and recomputes everyone they vouched.` : undefined);
+    });
+    for (const btn of document.querySelectorAll<HTMLButtonElement>('.vouch-remove')) {
+      btn.addEventListener('click', () =>
+        call(`/api/admin/vouches/${btn.dataset.id}`, {}, 'Remove this vouch (moderation)? May demote the rider.'));
+    }
+  }
+</script>

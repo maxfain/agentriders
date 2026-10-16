@@ -8,6 +8,8 @@
 // reconciliation must never break a page render, and the log is already
 // live in git regardless of the mirror's freshness.
 
+import { recomputeRank } from './ranks.ts';
+
 type Env = { DB: D1Database; RATE: KVNamespace };
 
 type LogsJsonEntry = {
@@ -77,6 +79,7 @@ export async function reconcile(
 
     const now = new Date().toISOString();
     const statements: D1PreparedStatement[] = [];
+    const ridersToRank = new Set<string>();
     let published = 0;
 
     for (const log of logs) {
@@ -125,11 +128,27 @@ export async function reconcile(
             "UPDATE submissions SET status = 'published', published_at = ?, updated_at = ? WHERE id = ? AND status = 'approved'",
           ).bind(now, now, submission.id),
         );
+        if (riderId) ridersToRank.add(riderId);
         published += 1;
+      } else if (riderId && !skipMirrorWrite) {
+        // Legacy/first-time mirror of an existing log — its author's count
+        // may have changed, so recompute them too.
+        ridersToRank.add(riderId);
       }
     }
 
     if (statements.length) await env.DB.batch(statements);
+
+    // Published flight counts just changed — recompute affected riders'
+    // ranks (first flight → Fledgling, 20th → Rider if vouched). Best-effort.
+    for (const riderId of ridersToRank) {
+      try {
+        await recomputeRank(env.DB, riderId, 'system', 'reconcile_published');
+      } catch {
+        /* a later reconcile retries */
+      }
+    }
+
     return { ran: true, published, mirrored: logs.length };
   } catch {
     return { ran: false, published: 0, mirrored: 0 };
