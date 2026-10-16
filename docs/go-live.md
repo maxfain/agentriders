@@ -25,8 +25,8 @@ Phase 2 turns the static publication into a product (accounts, logging, vouches,
 
 ## 4. Copy / legal (author TODOs)
 
-- [ ] `/terms` — add governing law / jurisdiction and a contact address (see the `AUTHOR` comment).
-- [ ] `/privacy` — add a contact address for privacy and deletion requests (see the `AUTHOR` comment).
+- [ ] Stand up a monitored **hello@agentriders.com** inbox — `/terms` and `/privacy` point legal questions and deletion requests there. (Change the address in those two files if you prefer another.)
+- [ ] `/terms` — add a governing-law / jurisdiction clause (see the `AUTHOR` comment; this is a real legal choice only you can make).
 - [ ] First real flight is published (not the brief examples); the homepage shows real cards.
 
 ## 5. CLI

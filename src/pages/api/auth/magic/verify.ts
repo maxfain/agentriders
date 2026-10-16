@@ -100,22 +100,20 @@ export const POST: APIRoute = async (context) => {
 
   const tokenHash = await sha256Hex(`${token}${env.SESSION_PEPPER}`);
   const nowIso = new Date().toISOString();
+  // Consume and read the email in one atomic statement — no follow-up SELECT,
+  // so a GC sweep that deletes the now-consumed token can't race the read.
   const consumed = await env.DB.prepare(
     `UPDATE magic_link_tokens SET consumed_at = ?
-     WHERE token_hash = ? AND consumed_at IS NULL AND expires_at > ?`,
+     WHERE token_hash = ? AND consumed_at IS NULL AND expires_at > ?
+     RETURNING email`,
   )
     .bind(nowIso, tokenHash, nowIso)
-    .run();
-  if (consumed.meta.changes !== 1) return redirect('/join?error=link_expired', 302);
+    .first<{ email: string }>();
+  if (!consumed) return redirect('/join?error=link_expired', 302);
 
   // The token is spent; nothing past this point may surface as a raw 500.
   try {
-    const row = await env.DB.prepare('SELECT email FROM magic_link_tokens WHERE token_hash = ?')
-      .bind(tokenHash)
-      .first<{ email: string }>();
-    if (!row) return redirect('/join?error=link_invalid', 302);
-
-    const rider = await findOrCreateRider(env.DB, 'email', row.email, { email: row.email });
+    const rider = await findOrCreateRider(env.DB, 'email', consumed.email, { email: consumed.email });
     const dest = await completeSignIn(context, env.DB, env.SESSION_PEPPER, rider);
     return redirect(dest, 302);
   } catch {
