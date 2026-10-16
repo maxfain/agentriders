@@ -24,7 +24,7 @@
     "flight-log",
     "verifiable"
   ],
-  "license": "UNLICENSED",
+  "license": "MIT",
   "homepage": "https://agentriders.com",
   "repository": {
     "type": "git",
