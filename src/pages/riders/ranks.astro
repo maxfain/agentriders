@@ -1,0 +1,37 @@
+---
+import { getEntry, render } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import PageHero from '../../components/PageHero.astro';
+import DocArticle from '../../components/DocArticle.astro';
+import { breadcrumbs, techArticle, smarten } from '../../lib/seo';
+
+// A reserved handle: this static route wins over the dynamic /riders/[handle]
+// (docs/seo-aeo-plan.md §4.2). Rank definitions, from the explainer collection.
+const entry = await getEntry('explainer', 'ranks');
+if (!entry) throw new Error('explainer/ranks.md not found');
+const { Content } = await render(entry);
+const d = entry.data;
+const path = '/riders/ranks/';
+const shortTitle = d.title.split(':')[0];
+const published = d.published.toISOString().slice(0, 10);
+const updated = d.updated.toISOString().slice(0, 10);
+const lastVerified = d.lastVerified ? d.lastVerified.toISOString().slice(0, 10) : undefined;
+const jsonLd = [
+  breadcrumbs([{ name: 'Home', path: '/' }, { name: 'Riders', path: '/riders/' }, { name: shortTitle, path }]),
+  techArticle({
+    headline: shortTitle, description: d.description, path,
+    datePublished: d.published, dateModified: d.updated,
+    authorName: d.author, authorPath: '/about/',
+  }),
+];
+---
+
+<Base title={`${d.seoTitle ?? shortTitle} — AgentRiders`} description={d.description} ogType="article" publishedTime={d.published} modifiedTime={d.updated} jsonLd={jsonLd}>
+  <PageHero eyebrow="Riders" title={shortTitle} art="ranks" compact>
+    <p class="summary">{smarten(d.summary)}</p>
+    <p class="page-hero__meta">By <a href="/about/#author" rel="author">{d.author}</a> · Published <time datetime={published}>{published}</time> · Updated <time datetime={updated}>{updated}</time></p>
+  </PageHero>
+  <DocArticle sources={d.sources} lastVerified={lastVerified}>
+    <Content />
+  </DocArticle>
+</Base>

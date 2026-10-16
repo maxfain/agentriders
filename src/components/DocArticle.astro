@@ -1,0 +1,31 @@
+---
+// Shared reading column for the standalone /data/ and /riders/ explainer
+// pages (docs/seo-aeo-plan.md §4.3): a "Last verified" line when the page
+// carries one, the rendered prose (passed in the default slot — its own
+// "Questions riders ask" section included), then a "Sources" list of the
+// cited references. The hero (summary + byline) and the JSON-LD live on the
+// page; this is only the body, single-column, with the same table and code
+// treatment as a Field Manual chapter.
+interface Props {
+  sources?: string[];
+  lastVerified?: string; // yyyy-mm-dd, already formatted
+}
+const { sources = [], lastVerified } = Astro.props;
+const label = (url: string) => url.replace(/^https?:\/\//, '');
+---
+<section class="section section--bone">
+  <div class="container">
+    <div class="doc-reading">
+      {lastVerified && (
+        <p class="doc-verified">Last verified <time datetime={lastVerified}>{lastVerified}</time></p>
+      )}
+      <article class="prose"><slot /></article>
+      {sources.length > 0 && (
+        <section class="doc-sources" aria-labelledby="sources-title">
+          <h2 id="sources-title">Sources</h2>
+          <ul>{sources.map((s) => <li><a href={s}>{label(s)}</a></li>)}</ul>
+        </section>
+      )}
+    </div>
+  </div>
+</section>

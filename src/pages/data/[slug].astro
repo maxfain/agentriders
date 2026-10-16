@@ -1,0 +1,71 @@
+---
+import { getCollection, render } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import PageHero from '../../components/PageHero.astro';
+import DocArticle from '../../components/DocArticle.astro';
+import { breadcrumbs, techArticle, article, authorNode, smarten, DATASET_ID } from '../../lib/seo';
+
+// The flight-data pages (docs/seo-aeo-plan.md §4.2). The case study is an
+// Article about the one logged flight, referencing the dataset; methodology
+// and schema are TechArticle reference docs. All three share the
+// summary-under-H1 + byline + FAQ + Sources shape (DocArticle).
+export async function getStaticPaths() {
+  const entries = await getCollection('data');
+  return entries.map((entry) => ({ params: { slug: entry.id }, props: { entry } }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+const d = entry.data;
+const path = `/data/${entry.id}/`;
+const shortTitle = d.title.split(':')[0];
+const published = d.published.toISOString().slice(0, 10);
+const updated = d.updated.toISOString().slice(0, 10);
+const lastVerified = d.lastVerified ? d.lastVerified.toISOString().slice(0, 10) : undefined;
+const isCaseStudy = entry.id === 'the-550-dollar-flight';
+
+const crumbs = breadcrumbs([
+  { name: 'Home', path: '/' },
+  { name: 'Flight data', path: '/data/' },
+  { name: shortTitle, path },
+]);
+
+let pageNode;
+if (isCaseStudy) {
+  const node = article({
+    headline: shortTitle,
+    description: d.description,
+    path,
+    datePublished: d.published,
+    dateModified: d.updated,
+    riderName: d.author,
+    riderPath: '/about/',
+    keywords: ['AI agent code review', 'adversarial review', 'stored XSS', 'IDOR', 'Claude Code', 'case study'],
+    datasetId: DATASET_ID,
+  });
+  // The byline is the founder (decision 7): carry the shared #founder @id,
+  // not a second anonymous Person for the same human (src/lib/seo.ts).
+  pageNode = { ...node, author: authorNode(d.author, '/about/') };
+} else {
+  pageNode = techArticle({
+    headline: shortTitle,
+    description: d.description,
+    path,
+    datePublished: d.published,
+    dateModified: d.updated,
+    authorName: d.author,
+    authorPath: '/about/',
+  });
+}
+const jsonLd = [crumbs, pageNode];
+---
+
+<Base title={`${d.seoTitle ?? shortTitle} — AgentRiders`} description={d.description} ogType="article" publishedTime={d.published} modifiedTime={d.updated} jsonLd={jsonLd}>
+  <PageHero eyebrow="Flight Data" title={shortTitle} art="ledger" compact>
+    <p class="summary">{smarten(d.summary)}</p>
+    <p class="page-hero__meta">By <a href="/about/#author" rel="author">{d.author}</a> · Published <time datetime={published}>{published}</time> · Updated <time datetime={updated}>{updated}</time></p>
+  </PageHero>
+  <DocArticle sources={d.sources} lastVerified={lastVerified}>
+    <Content />
+  </DocArticle>
+</Base>

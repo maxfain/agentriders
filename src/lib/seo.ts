@@ -129,7 +129,7 @@ function person(name: string, path?: string, handle?: string) {
  * stable #founder @id — the same entity Organization.founder points at, not an
  * anonymous second node for the same human (docs/seo-aeo-plan.md §4.5).
  */
-function authorNode(name: string | undefined, path: string | undefined) {
+export function authorNode(name: string | undefined, path: string | undefined) {
   if (!name || name === 'AgentRiders') return { '@id': ORG_ID };
   if (name === FOUNDER.name) {
     return { '@type': 'Person', '@id': FOUNDER_ID, name, url: canonicalUrl(path ?? FOUNDER.path) };

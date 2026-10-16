@@ -1,0 +1,81 @@
+---
+import Base from '../../layouts/Base.astro';
+import PageHero from '../../components/PageHero.astro';
+import PageCoda from '../../components/PageCoda.astro';
+import { breadcrumbs } from '../../lib/seo';
+
+// Minimal /data/ hub — the evidence layer (docs/seo-aeo-plan.md §3.3, §4.2).
+// Implementer 2 enriches this; for now it frames the pillar, links the three
+// pages and states the n-gate honestly (no aggregate exists at n=1). The
+// Dataset JSON-LD already lives on /logs/, so the hub carries only breadcrumbs.
+const pages = [
+  {
+    href: '/data/methodology/',
+    title: 'How the Guild counts',
+    blurb: 'What a flight, burn, cost and outcome mean, what a verified record proves, and the n-gates every number waits behind.',
+  },
+  {
+    href: '/data/schema/',
+    title: 'The flight log, field by field',
+    blurb: 'Every field of a run log — types, limits, enum values, the burns and reins sub-objects — and how to fetch and cite /logs.json.',
+  },
+  {
+    href: '/data/the-550-dollar-flight/',
+    title: 'The est. $550 flight',
+    blurb: 'One logged run: five hours, three burns, and the adversarial review that caught an IDOR and a stored XSS that 38 green tests missed.',
+  },
+];
+---
+
+<Base
+  title="Flight data: the evidence layer for agents — AgentRiders"
+  description="How AgentRiders counts AI agent runs, the flight-log schema field by field, and the one logged case study. Every number travels with n, a date range and a billing method."
+  jsonLd={breadcrumbs([{ name: 'Home', path: '/' }, { name: 'Flight data', path: '/data/' }])}
+>
+  <PageHero
+    eyebrow="The Record"
+    title="The evidence layer for agent operations."
+    description="Real runs, numbers left in, a name on every one. Here is how we count, the schema we count with, and the one flight logged so far."
+    art="ledger"
+    id="data-title"
+  ></PageHero>
+
+  <section class="section section--bone" aria-label="Flight data">
+    <div class="container">
+      <div class="doc-reading">
+        <p class="lead">No median, rate or per-mount figure appears below ten flights from three or more riders, and the corpus is one flight today. Until the gate opens, these pages define the terms and show the method — so a number means something the day it lands.</p>
+        <div class="prose data-index">
+          {pages.map((p) => (
+            <>
+              <h2><a href={p.href}>{p.title}</a></h2>
+              <p>{p.blurb}</p>
+            </>
+          ))}
+        </div>
+        <nav class="doc-related" aria-label="The live record">
+          <h2>The live record</h2>
+          <p>The pages above explain the evidence layer; the record itself is the Flight Logs and the schema that governs them.</p>
+          <div class="doc-related__links">
+            <a href="/logs/">Flight Logs</a>
+            <a href="/logs/template/">The flight-log template</a>
+            <a href="/manual/logging-a-flight/">Logging a flight</a>
+            <a href="/logs.json">/logs.json</a>
+          </div>
+        </nav>
+        <p class="data-cite"><strong>Cite this.</strong> Credit “AgentRiders Flight Logs, https://agentriders.com/logs.json” with each record’s rider handle, per the <a href="/terms/">Terms</a>. <a href="/data/schema/">The schema page</a> states the reuse terms in full and marks the one figure that is an estimate.</p>
+      </div>
+    </div>
+  </section>
+
+  <PageCoda
+    title="Read one real flight."
+    description="One rider, one repo, five hours, three burns. The numbers are left in."
+    href="/data/the-550-dollar-flight/"
+    label="Open the case study"
+  />
+</Base>
+<style>
+  .doc-related > p { margin-top: 12px; max-width: 65ch; font-size: 15px; line-height: 1.6; color: var(--text-on-bone-soft); }
+  .data-cite { max-width: 65ch; margin-top: 40px; font-size: 13px; line-height: 1.7; color: var(--text-on-bone-soft); overflow-wrap: anywhere; }
+  .data-cite strong { color: var(--text-on-bone); }
+</style>

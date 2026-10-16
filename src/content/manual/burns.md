@@ -78,3 +78,5 @@ Change the smallest relevant part of the workflow. Add a regression case that re
 Log direct charges, damaged or lost work, and recovery time separately. Use estimates only when labeled; leave unknown costs unresolved instead of calling them zero. Explain the control you changed and the evidence required to resume.
 
 A useful burn report helps the next rider recognize the condition earlier. Practice with a harmless failure in [When your dragon breathes fire](/training/when-an-agent-fails/), then keep the incident note from the [training kit](/training/kit/) close to your actual stop controls.
+
+**Related guides:** [Kill switch for an AI agent](/manual/kill-switch/) · [Cap what a flight can spend](/manual/spend-cap/).

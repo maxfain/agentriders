@@ -14,7 +14,10 @@ export async function getStaticPaths() {
 const { chapter } = Astro.props;
 const { Content, headings } = await render(chapter);
 const d = chapter.data;
-const chapters = (await getCollection('manual', ({ data }) => !data.draft)).sort((a, b) => a.data.chapter - b.data.chapter);
+const isGuide = d.kind === 'guide';
+// Chapters are the numbered sequence; guides are unnumbered siblings. The sort,
+// prev/next and rail only ever see chapters, so the numbered rail is unchanged.
+const chapters = (await getCollection('manual', ({ data }) => !data.draft && data.kind === 'chapter')).sort((a, b) => (a.data.chapter ?? 0) - (b.data.chapter ?? 0));
 const position = chapters.findIndex((item) => item.id === chapter.id);
 const previous = chapters[position - 1];
 const next = chapters[position + 1];
@@ -26,6 +29,10 @@ const shortTitle = d.title.split(':')[0];
 const published = d.published.toISOString().slice(0, 10);
 const updated = d.updated.toISOString().slice(0, 10);
 const path = `/manual/${chapter.id}/`;
+const lastVerified = d.lastVerified ? d.lastVerified.toISOString().slice(0, 10) : undefined;
+// A guide's "Related" list is the chapters its own body already links, in
+// chapter order — real relevance, not a curated guess (docs/seo-aeo-plan.md §4.3).
+const guideRelated = isGuide ? chapters.filter((ch) => (chapter.body ?? '').includes(`/manual/${ch.id}/`)) : [];
 // The questions section is an H2 of the page, so the rail lists it with the body's.
 const railHeadings = d.faq.length > 0 ? [...headings, { depth: 2, slug: 'faq-title', text: 'Questions riders ask' }] : headings;
 // One line, true for every chapter at once: the S1 rewrite (docs/seo-aeo-plan.md §5.2).
@@ -41,7 +48,7 @@ const jsonLd = [
 ---
 
 <Base title={`${d.seoTitle ?? shortTitle} — AgentRiders`} description={d.description} ogType="article" publishedTime={d.published} modifiedTime={d.updated} jsonLd={jsonLd}>
-  <PageHero eyebrow={`Chapter ${String(d.chapter).padStart(2, '0')} / The Field Manual`} title={shortTitle} art="book" compact>
+  <PageHero eyebrow={isGuide ? 'Field Manual / Guide' : `Chapter ${String(d.chapter).padStart(2, '0')} / The Field Manual`} title={shortTitle} art="book" compact>
     {hasBody ? (
       <>
         <p class="summary">{smarten(d.summary)}</p>
@@ -54,9 +61,9 @@ const jsonLd = [
 
   <section class="section section--bone">
     <div class="container chapter-reading">
-      <ChapterRail current={chapter.id} headings={railHeadings} />
+      <ChapterRail current={chapter.id} headings={railHeadings} onPageLabel={isGuide ? 'IN THIS GUIDE' : undefined} />
       <div class="chapter-reading__body">
-      <FieldDiagram chapter={d.chapter} />
+      {isGuide ? (lastVerified && <p class="doc-verified">Last verified <time datetime={lastVerified}>{lastVerified}</time></p>) : <FieldDiagram chapter={d.chapter} />}
       {hasBody ? (
         <div class="prose">
           <Content />
@@ -71,11 +78,29 @@ const jsonLd = [
           <p class="changelog">{changelog}</p>
         </section>
       )}
+      {isGuide ? (
+        <>
+          {d.sources.length > 0 && (
+            <section class="doc-sources" aria-labelledby="sources-title">
+              <h2 id="sources-title">Sources</h2>
+              <ul>{d.sources.map((s) => <li><a href={s}>{s.replace(/^https?:\/\//, '')}</a></li>)}</ul>
+            </section>
+          )}
+          <nav class="doc-related" aria-label="Related chapters">
+            <h2>Related</h2>
+            <div class="doc-related__links">
+              <a href="/manual/">The Field Manual</a>
+              {guideRelated.map((ch) => <a href={`/manual/${ch.id}/`}>{ch.data.title.split(':')[0]}</a>)}
+            </div>
+          </nav>
+        </>
+      ) : (
       <nav class="chapter-navigation" aria-label="Chapters">
         <a href="/manual/">← All chapters</a>
         {previous && <a href={`/manual/${previous.id}/`}>Previous chapter</a>}
         {next && <a href={`/manual/${next.id}/`}>Next: {next.data.title.split(':')[0]} →</a>}
       </nav>
+      )}
       </div>
     </div>
   </section>

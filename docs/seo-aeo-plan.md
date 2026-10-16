@@ -423,6 +423,8 @@ Each milestone is a branch, adversarially reviewed, PR'd into `main`, merged. Ex
 
 *Exit:* the case study is live with a named author and a cite-this line; the comparison page has a last-verified date; `/training/kit/[worksheet]/` ×6 live; the Show HN is posted by Max.
 
+*Status (2026-10-16, `phase3/s2-the-record`, unmerged):* shipped the `/data/` hub, `/data/methodology/`, `/data/schema/` and the `/data/the-550-dollar-flight/` case study; the three Field Manual guides (`/manual/kill-switch/`, `/manual/spend-cap/`, `/manual/scope-cap-kill-compared/`) with last-verified dates; the six worksheet landing pages at `/training/kit/[worksheet]/`; and the `/riders/ranks/` + `/riders/verified-flight/` explainers. The worksheet raw files stayed at `/training/*.md` with a `noindex` + `rel=canonical` header to each landing page, rather than moving to `/kit/` — the existing `download:` links and kit previews keep that path. `/data/` is wired into the footer and `llms.txt`, and the Burns, reins and before-the-first-flight chapters now carry a "Related guides" line. Code side still open: the Dataset `license` names the Terms (seo.ts) while `/data/schema/` prose describes CC BY 4.0 — reconcile per decision 5 before any public reuse grant. Founder side still open: the Show HN.
+
 ### S3 — Burns and vocabulary (~1.5 weeks)
 
 - `pattern` on `burnSchema` + curated registry + composer dropdown + backfill of the real log's three burns; `src/content/burn-patterns/`; `/burns/` + 8 pattern pages with the illustrative/logged label and auto "logged examples".
