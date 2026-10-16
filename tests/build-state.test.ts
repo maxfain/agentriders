@@ -1,6 +1,6 @@
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { fetchSiteState, riderLink, isVerified } from '../src/lib/build-state.ts';
+import { fetchSiteState, riderLink, isVerified, loggedRiders } from '../src/lib/build-state.ts';
 
 const realFetch = globalThis.fetch;
 afterEach(() => {
@@ -13,6 +13,18 @@ test('riderLink: links only real claimed handles, with the trailing slash', () =
   assert.equal(riderLink('maxfain', state), '/riders/maxfain/');
   assert.equal(riderLink('handle', state), null); // legacy placeholder
   assert.equal(riderLink('example', state), null);
+});
+
+test('loggedRiders: newest activity first, capped, never mutates the state', () => {
+  const profile = (handle: string, day: number) => ({ handle, flights: 1, updated: `2026-10-${String(day).padStart(2, '0')}T00:00:00.000Z` });
+  const profiles = [profile('old', 1), profile('new', 16), profile('mid', 9)];
+  const state = { handles: new Set<string>(), verified: {}, profiles };
+  assert.deepEqual(loggedRiders(state).map((p) => p.handle), ['new', 'mid', 'old']);
+  assert.deepEqual(loggedRiders(state, 2).map((p) => p.handle), ['new', 'mid']);
+  assert.deepEqual(profiles.map((p) => p.handle), ['old', 'new', 'mid']); // input order untouched
+  assert.deepEqual(loggedRiders({ handles: new Set<string>(), verified: {}, profiles: [] }), []);
+  const many = Array.from({ length: 25 }, (_, i) => profile(`r${i}`, (i % 28) + 1));
+  assert.equal(loggedRiders({ handles: new Set<string>(), verified: {}, profiles: many }).length, 20);
 });
 
 test('isVerified: true only for slugs in the verified map', () => {

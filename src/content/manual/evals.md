@@ -5,7 +5,7 @@ chapter: 7
 description: "How to evaluate an AI agent's work with repeatable checks: golden sets, rule-based assertions, LLM-as-judge, human spot-checks, and a tracked pass rate."
 summary: "An eval is a repeatable check that an AI agent produced the right output: an input, an expected outcome written before the run, a scorer, and a recorded pass or fail. Four kinds cover almost everything: golden-set regression, rule-based assertions, LLM-as-judge and human spot-checks. Start with 3–5 real inputs and track the pass rate after every change."
 published: 2026-09-27
-updated: 2026-09-27
+updated: 2026-10-16
 author: "Max Faingezicht"
 draft: false
 faq:

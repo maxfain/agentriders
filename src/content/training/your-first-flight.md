@@ -5,7 +5,7 @@ order: 1
 description: "Start using an AI agent on real work: pick a task you can judge, write a six-field mission brief, run once, inspect the output, log it. 25-minute exercise."
 summary: "The first task you give an AI agent should be small enough to review in minutes and familiar enough that you can catch a plausible mistake. Pick that task, write a six-field mission brief, run once, and inspect the output yourself. The agent's completion message is a report; your check is the evidence. The exercise takes 25 minutes."
 published: 2026-09-29
-updated: 2026-09-29
+updated: 2026-10-16
 author: "Max Faingezicht"
 duration: "25-minute exercise"
 level: "Fledgling"

@@ -6,7 +6,7 @@ description: "What to set before an AI agent does real work: a deliverable you c
 summary: "Before an AI agent touches real work, set a deliverable another person can check, permissions that match the written scope, a timebox and spending limit, and a known way to cancel the run. Enforce limits through runtime or provider controls where you can; otherwise stay present. A prompt-level limit is an instruction. Keep a recovery path and name a reviewer."
 startHere: true
 published: 2026-09-26
-updated: 2026-09-29
+updated: 2026-10-16
 author: "Max Faingezicht"
 draft: false
 faq:

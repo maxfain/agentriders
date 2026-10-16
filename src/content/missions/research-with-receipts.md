@@ -4,7 +4,7 @@ seoTitle: "AI research agent: verify claims and sources"
 description: "A 35–50 minute mission: give an AI agent a research contract, get a decision memo with a claim table, and inspect the evidence before acting on it."
 summary: "Verify an AI agent's research before acting on it: the research contract requires a source URL, section and checked date for every material claim, and you open the sources yourself; a valid URL on an unsupported sentence fails review. This 35–50 minute mission ends with a decision memo, a claim table and a list of unresolved requirements."
 published: 2026-09-29
-updated: 2026-09-29
+updated: 2026-10-16
 author: "Max Faingezicht"
 audience: "Founders"
 duration: "35–50 minutes"

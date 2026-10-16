@@ -19,10 +19,16 @@ const position = chapters.findIndex((item) => item.id === chapter.id);
 const previous = chapters[position - 1];
 const next = chapters[position + 1];
 const hasBody = chapter.body ? chapter.body.replace(/<!--[\s\S]*?-->/g, '').trim().length > 0 : false;
-// The H1 is the short title (before the colon); the <title> and JSON-LD mirror it.
+// The H1 is the short title (before the colon) and the JSON-LD headline
+// mirrors it; the <title> leads with the industry term when the chapter has
+// one (seoTitle), with only " — AgentRiders" after it so the clamp never cuts.
 const shortTitle = d.title.split(':')[0];
 const updated = d.updated.toISOString().slice(0, 10);
 const path = `/manual/${chapter.id}/`;
+// The questions section is an H2 of the page, so the rail lists it with the body's.
+const railHeadings = d.faq.length > 0 ? [...headings, { depth: 2, slug: 'faq-title', text: 'Questions riders ask' }] : headings;
+// One line, true for every chapter at once: the S1 rewrite (docs/seo-aeo-plan.md §5.2).
+const changelog = 'Updated 2026-10-16: literal titles, summary and questions added.';
 const jsonLd = [
   breadcrumbs([{ name: 'Home', path: '/' }, { name: 'The Field Manual', path: '/manual/' }, { name: shortTitle, path }]),
   techArticle({
@@ -33,20 +39,28 @@ const jsonLd = [
 ];
 ---
 
-<Base title={`${shortTitle} — Field Manual — AgentRiders`} description={d.description} ogType="article" publishedTime={d.published} modifiedTime={d.updated} jsonLd={jsonLd}>
-  <PageHero eyebrow={`Chapter ${String(d.chapter).padStart(2, '0')} / The Field Manual`} title={shortTitle} description={d.description} art="book" compact><p class="page-hero__meta">{hasBody ? <>Updated <time datetime={updated}>{updated}</time></> : "CHAPTER IN PROGRESS"}</p></PageHero>
+<Base title={`${d.seoTitle ?? shortTitle} — AgentRiders`} description={d.description} ogType="article" publishedTime={d.published} modifiedTime={d.updated} jsonLd={jsonLd}>
+  <PageHero eyebrow={`Chapter ${String(d.chapter).padStart(2, '0')} / The Field Manual`} title={shortTitle} description={d.description} art="book" compact><p class="page-hero__meta">{hasBody ? <>By {d.author} · Updated <time datetime={updated}>{updated}</time></> : "CHAPTER IN PROGRESS"}</p></PageHero>
 
   <section class="section section--bone">
     <div class="container chapter-reading">
-      <ChapterRail current={chapter.id} headings={headings} />
+      <ChapterRail current={chapter.id} headings={railHeadings} />
       <div class="chapter-reading__body">
       <FieldDiagram chapter={d.chapter} />
       {hasBody ? (
         <div class="prose">
+          <p class="summary">{d.summary}</p>
           <Content />
         </div>
       ) : (
         <div class="chapter-in-progress"><p class="micro">CHAPTER IN PROGRESS</p><h2>Still in the field.</h2><p>This chapter is being written from real flights. Read the <a href="/manual/evals/">Evals chapter</a> while this one takes shape, or visit the <a href="/flight-log/">Flight Log</a> for newsletter availability.</p></div>
+      )}
+      {d.faq.length > 0 && (
+        <section class="faq" aria-labelledby="faq-title">
+          <h2 id="faq-title">Questions riders ask</h2>
+          {d.faq.map((item) => <><h3>{item.q}</h3><p>{item.a}</p></>)}
+          <p class="changelog">{changelog}</p>
+        </section>
       )}
       <nav class="chapter-navigation" aria-label="Chapters">
         <a href="/manual/">← All chapters</a>

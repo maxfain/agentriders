@@ -5,7 +5,7 @@ order: 6
 description: "Multi-agent work: add a second agent only where the task has a useful boundary. Assign artifacts, make handoffs inspectable, keep one owner accountable."
 summary: "Split work between AI agents only when the task has a useful boundary: independent inputs or clear ownership. Give each worker a contract with task, sources, output, acceptance checks, budget and stop conditions. Require handoffs that carry evidence; the lead verifies the combined result and one accountable owner accepts it. The 45-minute exercise produces a two-worker mission with inspectable handoffs."
 published: 2026-09-29
-updated: 2026-09-29
+updated: 2026-10-16
 author: "Max Faingezicht"
 duration: "45-minute exercise"
 level: "Wingleader"

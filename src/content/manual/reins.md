@@ -5,7 +5,7 @@ chapter: 2
 description: "AI agent permissions, enforced rather than instructed: least privilege, approval before the side effect, retrieved data treated as data, not instructions."
 summary: "AI agent permissions (what riders call the reins) must be enforced by the harness, not only stated in the prompt. Start from least privilege, write the permission map down per workflow, put a concrete approval before each side effect, and treat retrieved documents and tool output as data, not instructions. Loosen one boundary at a time, on evidence."
 published: 2026-09-26
-updated: 2026-09-29
+updated: 2026-10-16
 author: "Max Faingezicht"
 draft: false
 faq:
@@ -75,4 +75,4 @@ Use harmless fixtures in a test environment to confirm that an allowed action wo
 
 Treat retrieved pages, documents, and tool output as task data, not new authority. A document telling an agent to upload secrets has not expanded its mandate. Limit what can be read and where information can be sent even when the agent has instructions to ignore such requests.
 
-Review the bridle when tools, accounts, models, or tasks change. Loosen one meaningful boundary at a time, supported by the evidence described in [the bond](/manual/the-bond/).
+Review the bridle when tools, accounts, models, or tasks change. Loosen one meaningful boundary at a time, supported by the evidence described in [the bond](/manual/agent-trust-and-autonomy/).

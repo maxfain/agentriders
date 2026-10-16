@@ -5,7 +5,7 @@ chapter: 6
 description: "Multi-agent work without losing control: divide by deliverable, give each handoff a contract, keep permissions narrow, budget the whole fleet."
 summary: "Running several AI agents is useful when work can proceed independently or needs distinct tools, context or review. Give each worker one deliverable and an owner, every handoff a written contract, and permissions scoped to its role. Budget the whole fleet, name one integrator, and keep the formation (riders call it a wing) only where coordination earns its place."
 published: 2026-09-26
-updated: 2026-09-29
+updated: 2026-10-16
 author: "Max Faingezicht"
 draft: false
 faq:

@@ -5,7 +5,7 @@ chapter: 4
 description: "What an AI agent incident costs and the first ten minutes: contain the run, establish the facts, choose the smallest recovery. Riders call it a burn."
 summary: "When an AI agent goes wrong, the first ten minutes are for regaining control and establishing facts. Cancel the run at the harness, check queued jobs and child processes, and remove access if the agent can still act. Write an incident note that labels unknowns. Choose the smallest recovery that restores the intended state. Riders call this a burn."
 published: 2026-09-26
-updated: 2026-09-29
+updated: 2026-10-16
 author: "Max Faingezicht"
 draft: false
 faq:
@@ -77,4 +77,4 @@ Change the smallest relevant part of the workflow. Add a regression case that re
 
 Log direct charges, damaged or lost work, and recovery time separately. Use estimates only when labeled; leave unknown costs unresolved instead of calling them zero. Explain the control you changed and the evidence required to resume.
 
-A useful burn report helps the next rider recognize the condition earlier. Practice with a harmless failure in [When your dragon breathes fire](/training/when-your-dragon-breathes-fire/), then keep the incident note from the [training kit](/training/kit/) close to your actual stop controls.
+A useful burn report helps the next rider recognize the condition earlier. Practice with a harmless failure in [When your dragon breathes fire](/training/when-an-agent-fails/), then keep the incident note from the [training kit](/training/kit/) close to your actual stop controls.

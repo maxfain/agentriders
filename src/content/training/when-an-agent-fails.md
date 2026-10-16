@@ -5,7 +5,7 @@ order: 4
 description: "Practice AI agent failure recovery: stop the run, keep the log, sort confirmed changes from guesses, write an incident report and a regression check."
 summary: "When an AI agent run goes wrong, stop it before diagnosing; a frozen interface is not confirmation. Keep the action log. Sort changes into confirmed, attempted and untouched: a timeout does not prove nothing changed. This 35-minute exercise ends with an incident report (the burn report), one bounded repair, and a regression check that catches the original mistake."
 published: 2026-09-29
-updated: 2026-09-29
+updated: 2026-10-16
 author: "Max Faingezicht"
 duration: "35-minute exercise"
 level: "Rider"
@@ -88,6 +88,6 @@ You can account for the affected artifacts, distinguish confirmed impact from po
 
 **Common pitfalls:** letting the agent improvise cleanup; repeating an uncertain write; deleting evidence during recovery; declaring a root cause without support; recording only the cost of the repair while omitting review time.
 
-Continue with [Earn the longer leash](/training/earn-the-longer-leash/). Keep the [Burns chapter](/manual/burns/) and [Evals chapter](/manual/evals/) linked from your report.
+Continue with [Earn the longer leash](/training/earning-autonomy/). Keep the [Burns chapter](/manual/burns/) and [Evals chapter](/manual/evals/) linked from your report.
 
 **Further reading:** Anthropic’s [evaluation guide](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents) discusses inspecting actual outcomes and turning observed failures into evaluation cases. The sample import incident above is invented for this exercise.

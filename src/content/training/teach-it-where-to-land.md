@@ -5,7 +5,7 @@ order: 2
 description: "Acceptance checks for an AI agent task: define success before the run, split hard failures from quality, and catch polished work that is still wrong."
 summary: "Acceptance checks verify an AI agent finished the task: conditions a reviewer can see, written before the run so a fluent answer cannot lower your standard. Sort them: must be true, must not happen, should be good. A critical boundary violation fails even when the prose is excellent. That is how checks catch convincing work that is still wrong."
 published: 2026-09-29
-updated: 2026-09-29
+updated: 2026-10-16
 author: "Max Faingezicht"
 duration: "35-minute exercise"
 level: "Fledgling"

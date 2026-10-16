@@ -5,7 +5,7 @@ chapter: 5
 description: "What to record for each AI agent run: model, permissions, elapsed and human time kept separate, a supported cost, the outcome, one change for next time."
 summary: "An AI agent run log records the task, setup, result and cost so another rider can understand the run. Keep elapsed time and human review time separate. Record the model, the enforced permissions, and a supported direct cost. Mark the outcome landed, partial or aborted. List each incident and its recovery. End with one change for next time."
 published: 2026-09-26
-updated: 2026-09-29
+updated: 2026-10-16
 author: "Max Faingezicht"
 draft: false
 faq:

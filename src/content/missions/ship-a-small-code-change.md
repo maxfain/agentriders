@@ -4,7 +4,7 @@ seoTitle: "AI agent exercise: ship a small code change"
 description: "A 30–45 minute exercise: give a coding agent one broken function, six acceptance checks and a one-file edit boundary, then inspect before accepting."
 summary: "This 30–45 minute exercise gives a coding agent one broken function, six acceptance checks written before it starts, and permission to edit a single file. You run the checks yourself before and after, read the whole patch, add one case of your own, and log the prompt, output, time and cost. Six passing checks are evidence, not proof."
 published: 2026-09-29
-updated: 2026-09-29
+updated: 2026-10-16
 author: "Max Faingezicht"
 audience: "Engineers"
 duration: "30–45 minutes"

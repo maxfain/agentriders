@@ -1,7 +1,16 @@
 # Cloudflare Pages redirects: one rule per line, `<from>  <to>  <status>`.
 # Only ever point at a route that exists — a redirect into a 404 is worse
-# than none. The three slug renames land here in S1 once they are decided
-# (docs/seo-aeo-plan.md §4.1, §8).
+# than none.
+#
+# The three S1 slug renames (docs/seo-aeo-plan.md §4.1, §8). Both source
+# forms are listed: the slash-less one would otherwise 308 to the slashed
+# form first and cost a second hop. H1s keep the brand phrase.
+/manual/the-bond  /manual/agent-trust-and-autonomy/  301
+/manual/the-bond/  /manual/agent-trust-and-autonomy/  301
+/training/when-your-dragon-breathes-fire  /training/when-an-agent-fails/  301
+/training/when-your-dragon-breathes-fire/  /training/when-an-agent-fails/  301
+/training/earn-the-longer-leash  /training/earning-autonomy/  301
+/training/earn-the-longer-leash/  /training/earning-autonomy/  301
 #
 # The newsletter stays at /flight-log until /newsletter/ ships (S3); then:
 # /flight-log  /newsletter/  301

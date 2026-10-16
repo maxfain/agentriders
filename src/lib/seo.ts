@@ -9,8 +9,18 @@ export const SITE = 'https://agentriders.com';
 export const ORG_ID = `${SITE}/#org`;
 export const WEBSITE_ID = `${SITE}/#website`;
 export const DATASET_ID = `${SITE}/logs/#dataset`;
+export const FOUNDER_ID = `${SITE}/#founder`;
 
 const ORG_DESCRIPTION = 'The guild for people who run AI agents on real work.';
+
+// The founder, as /about names him. Off-site profiles beyond GitHub and the
+// rider profile are added here when he lists them (docs/seo-aeo-plan.md §8).
+const FOUNDER = {
+  name: 'Max Faingezicht',
+  path: '/about/',
+  handle: 'maxcr',
+  sameAs: ['https://github.com/maxfain', `${SITE}/riders/maxcr/`],
+};
 
 /** Absolute URL for a site path; an absolute URL passes through untouched. */
 export function abs(path: string): string {
@@ -95,7 +105,7 @@ function person(name: string, path?: string, handle?: string) {
   });
 }
 
-/** Organization node, on every page. */
+/** Organization node, on every page. The founder is a reference; /about holds the Person. */
 export function orgGraph() {
   return {
     '@type': 'Organization',
@@ -106,6 +116,7 @@ export function orgGraph() {
     // ships; a raster logo at ≥112px can replace it later.
     logo: `${SITE}/favicon.svg`,
     description: ORG_DESCRIPTION,
+    founder: { '@id': FOUNDER_ID },
     sameAs: [
       'https://github.com/maxfain/agentriders',
       'https://www.npmjs.com/package/agentriders',
@@ -113,6 +124,36 @@ export function orgGraph() {
     ],
     email: 'hello@agentriders.com',
   };
+}
+
+/**
+ * The founder as a Person, with the stable @id the Organization's `founder`
+ * points at. Only what /about shows: name, role, the rider handle, GitHub
+ * and the rider profile — no personal email or address.
+ */
+export function founder() {
+  return {
+    '@type': 'Person',
+    '@id': FOUNDER_ID,
+    name: FOUNDER.name,
+    alternateName: `@${FOUNDER.handle}`,
+    url: canonicalUrl(FOUNDER.path),
+    jobTitle: 'Founder',
+    worksFor: { '@id': ORG_ID },
+    sameAs: FOUNDER.sameAs,
+  };
+}
+
+/** ProfilePage for /about: the founder is its main entity. */
+export function founderPage(dateModified?: Dateish) {
+  const url = canonicalUrl(FOUNDER.path);
+  return compact({
+    '@type': 'ProfilePage',
+    '@id': `${url}#profile`,
+    url,
+    dateModified: isoDate(dateModified),
+    mainEntity: founder(),
+  });
 }
 
 /** WebSite node, homepage only. No SearchAction: the site has no search. */
@@ -285,6 +326,8 @@ export function learningResource(l: {
   teaches?: string;
   datePublished?: Dateish;
   dateModified?: Dateish;
+  authorName?: string;
+  authorPath?: string;
   courseName?: string;
   coursePath?: string;
 }) {
@@ -313,7 +356,8 @@ export function learningResource(l: {
       provider: { '@id': ORG_ID },
       isAccessibleForFree: true,
     },
-    author: { '@id': ORG_ID },
+    // Same rule as techArticle: a named author is a Person, the guild is the Organization.
+    author: l.authorName && l.authorName !== 'AgentRiders' ? person(l.authorName, l.authorPath) : { '@id': ORG_ID },
     publisher: { '@id': ORG_ID },
     inLanguage: 'en',
   });

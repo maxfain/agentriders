@@ -5,7 +5,7 @@ chapter: 3
 description: "Four stages of AI agent autonomy and how to earn each: trust the setup, not a personality, change one boundary at a time, and keep a promotion record."
 summary: "An AI agent should have only the autonomy its workflow has earned; trust belongs to the task, inputs, instructions, model, tools and review process, not a personality. Expand one boundary at a time across four stages: observe, prepare, execute and repeat within bounds. Measure failures first, keep a promotion record, and restore the earlier limit when acceptance rates fall."
 published: 2026-09-26
-updated: 2026-09-29
+updated: 2026-10-16
 author: "Max Faingezicht"
 draft: false
 faq:
@@ -84,4 +84,4 @@ Do not solve a failed permission boundary by adding another emphatic sentence to
 
 “Grounded” means the affected workflow pauses while you repair it. It need not mean abandoning every useful task the agent performs.
 
-Take the [longer-leash lesson](/training/earn-the-longer-leash/) when you have a workflow worth expanding. Keep the promotion record in your [training kit](/training/kit/), alongside the flight logs that justify it.
+Take the [longer-leash lesson](/training/earning-autonomy/) when you have a workflow worth expanding. Keep the promotion record in your [training kit](/training/kit/), alongside the flight logs that justify it.

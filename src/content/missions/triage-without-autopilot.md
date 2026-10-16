@@ -4,7 +4,7 @@ seoTitle: "AI agent support triage exercise: nothing sent"
 description: "AI agent triage exercise: five fictional support tickets, one human review queue. The agent proposes a route, a person owns the action, nothing is sent."
 summary: "Triage is a useful first AI agent workflow: you inspect the output before anything happens to a customer. The agent proposes a route; a person owns the action. Paste a fictional support policy and five records into a plain chat with no email, CRM or billing tools connected. The output is a five-row human review queue; nothing is sent."
 published: 2026-09-29
-updated: 2026-09-29
+updated: 2026-10-16
 author: "Max Faingezicht"
 audience: "Operators"
 duration: "25–40 minutes"

@@ -5,7 +5,7 @@ order: 3
 description: "Enforce boundaries for an AI agent: map the task to the access it needs, name what enforces each rule, and test one denied action. A 40-minute exercise."
 summary: "Give an AI agent only the access the task needs. Enforce the limit outside the model. Instructions in a prompt are not controls. For each boundary, name what prevents the action: a read-only account, a tool exposing only permitted operations, a separate workspace, or a required approval. The 40-minute exercise ends with one denied-action test and a practiced stop."
 published: 2026-09-29
-updated: 2026-09-29
+updated: 2026-10-16
 author: "Max Faingezicht"
 duration: "40-minute exercise"
 level: "Rider"
@@ -90,6 +90,6 @@ The required work remains possible, the selected forbidden action is blocked in 
 
 **Common pitfalls:** using a personal administrator account; assuming a branch isolates credentials; treating source text as instructions; confusing a budget alert with a cap; giving draft workflows publication access.
 
-Next, [When your dragon breathes fire](/training/when-your-dragon-breathes-fire/). Refer to [Reins](/manual/reins/) when you revise the reusable bridle.
+Next, [When your dragon breathes fire](/training/when-an-agent-fails/). Refer to [Reins](/manual/reins/) when you revise the reusable bridle.
 
 **Further reading:** OWASP’s [Excessive Agency guidance](https://genai.owasp.org/llmrisk/llm062025-excessive-agency/) addresses excessive functionality, permissions, and autonomy. These exercises apply that distinction to a small practice workflow; they are not a security certification.

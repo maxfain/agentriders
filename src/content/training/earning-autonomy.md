@@ -5,7 +5,7 @@ order: 5
 description: "Expand an AI agent's permissions one at a time, on evidence from that workflow, with limits, monitoring and a rollback trigger. A 40-minute exercise."
 summary: "An AI agent earns more autonomy one permission at a time, on evidence from that exact workflow and setup. This 40-minute lesson defines four stages for one operation, from suggest to execute within limits; the exercise proposes exactly one added permission and ends with a written autonomy decision: hold, limited trial, or reduce access, with monitoring and a rollback trigger."
 published: 2026-09-29
-updated: 2026-09-29
+updated: 2026-10-16
 author: "Max Faingezicht"
 duration: "40-minute exercise"
 level: "Rider"
@@ -90,6 +90,6 @@ The proposed permission is narrow, the evidence concerns the same task and setup
 
 **Common pitfalls:** treating a successful demo as a track record; transferring trust between unrelated tasks; measuring only average quality; expanding several permissions together; keeping autonomy after the setup changes without review.
 
-Next, [Command a wing](/training/command-a-wing/). See [The bond](/manual/the-bond/) and [Logging a flight](/manual/logging-a-flight/) for the continuing record.
+Next, [Command a wing](/training/command-a-wing/). See [The bond](/manual/agent-trust-and-autonomy/) and [Logging a flight](/manual/logging-a-flight/) for the continuing record.
 
 **Further reading:** Anthropic’s [evaluation guide](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents) explains repeated trials and the distinction between capability checks and regression checks. This lesson’s autonomy stages are an AgentRiders planning framework, not a certification.

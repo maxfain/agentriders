@@ -63,6 +63,15 @@ export async function fetchSiteState(): Promise<SiteState> {
 }
 
 /**
+ * Riders with a published flight, for the "Riders who logged flights" strip
+ * on /riders/: most recent activity first, capped so the strip stays a strip.
+ * Profiles are reachable from one flight; the directory keeps its own gate.
+ */
+export function loggedRiders(state: SiteState, limit = 20): SiteProfile[] {
+  return [...state.profiles].sort((a, b) => b.updated.localeCompare(a.updated)).slice(0, limit);
+}
+
+/**
  * Decide how to render a log's `rider`. Returns a profile href only when the
  * rider string is a real claimed handle; otherwise the name renders as plain
  * text (legacy logs with "handle"/"example" never link). The href carries
