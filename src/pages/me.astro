@@ -13,8 +13,9 @@ if (isPendingHandle(rider.handle)) return Astro.redirect('/join/');
 const { env } = Astro.locals.runtime;
 // Onboarding progress, read straight from D1 on every load — the same five
 // counts /start reads, so the ledger surfaces the agent-setup state without
-// drift. `step` collapses them to the single spine state; the top banner shows
-// only while onboarding is incomplete (step !== 'published').
+// drift. `step` collapses them to the single spine state; the top banner
+// always gives a next step — enable/pair/file while onboarding, then the climb
+// to the next rank once a rider is published.
 const counts = await onboardingCounts(env.DB, rider.id);
 const step = onboardingStep(counts);
 const { flights, verified, vouches, devices, pending } = counts;
@@ -36,6 +37,12 @@ const joined = new Date(rider.created_at).toLocaleDateString('en-US', {
 });
 const joinedDay = new Date(rider.created_at).toISOString().slice(0, 10);
 const rankLabel = rider.rank ? rider.rank[0].toUpperCase() + rider.rank.slice(1) : 'Unranked';
+// A published rider is still climbing: Fledgling → Rider at 20 flights + 2
+// Rider vouches. Show the next rung so the ledger lands on a next step, not a
+// dead end. (We have the flight count exactly; the "2 vouches from Riders"
+// requirement we state but don't tally, since `vouches` here is all vouches.)
+const isFledgling = !rider.rank || rider.rank === 'fledgling';
+const flightsToGo = Math.max(0, 20 - flights);
 ---
 
 <Base
@@ -64,35 +71,52 @@ const rankLabel = rider.rank ? rider.rank[0].toUpperCase() + rider.rank.slice(1)
         <p class="me-filed" role="status">Filed — your flight is in the review queue. Nothing publishes until a reviewer approves it.</p>
       )}
 
-      {step !== 'published' && (
-        <div class="me-next" role="region" aria-labelledby="me-next-title">
-          <p class="micro">NEXT STEP</p>
-          {step === 'not-paired' ? (
-            <>
-              <h2 id="me-next-title" class="me-next__title">One step to a real track record: enable your agent.</h2>
-              <p class="me-next__lead">Install the MCP, pair this machine, and your agent files its own flights.</p>
-              <div class="me-next__actions">
-                <a class="btn btn--ember" href="/start/">Enable your agent <Arrow /></a>
-              </div>
-              <p class="me-next__fine">No agent set up yet? <a class="text-link" href="/logs/new/">Compose one by hand →</a></p>
-            </>
-          ) : step === 'paired-no-flight' ? (
-            <>
-              <h2 id="me-next-title" class="me-next__title">Agent paired. Now ask it to file your first flight.</h2>
-              <div class="me-next__actions">
-                <a class="btn btn--ember" href="/start/">Finish setup <Arrow /></a>
-              </div>
-              <p class="me-next__fine">Or <a class="text-link" href="/logs/new/">compose one by hand →</a></p>
-            </>
-          ) : (
-            <>
-              <h2 id="me-next-title" class="me-next__title">First flight in review.</h2>
-              <p class="me-next__lead">{byAgent ? 'Your agent filed it.' : "It's filed."} A reviewer approves before it's public — you'll become a Fledgling when it publishes.</p>
-              <p class="me-next__fine"><a class="text-link" href={profileHref}>Track it on your profile →</a></p>
-            </>
-          )}
-        </div>
-      )}
+      <div class="me-next" role="region" aria-labelledby="me-next-title">
+        <p class="micro">NEXT STEP</p>
+        {step === 'not-paired' ? (
+          <>
+            <h2 id="me-next-title" class="me-next__title">One step to a real track record: enable your agent.</h2>
+            <p class="me-next__lead">Install the MCP, pair this machine, and your agent files its own flights.</p>
+            <div class="me-next__actions">
+              <a class="btn btn--ember" href="/start/">Enable your agent <Arrow /></a>
+            </div>
+            <p class="me-next__fine">No agent set up yet? <a class="text-link" href="/logs/new/">Compose one by hand →</a></p>
+          </>
+        ) : step === 'paired-no-flight' ? (
+          <>
+            <h2 id="me-next-title" class="me-next__title">Agent paired. Now ask it to file your first flight.</h2>
+            <div class="me-next__actions">
+              <a class="btn btn--ember" href="/start/">Finish setup <Arrow /></a>
+            </div>
+            <p class="me-next__fine">Or <a class="text-link" href="/logs/new/">compose one by hand →</a></p>
+          </>
+        ) : step === 'flight-in-review' ? (
+          <>
+            <h2 id="me-next-title" class="me-next__title">First flight in review.</h2>
+            <p class="me-next__lead">{byAgent ? 'Your agent filed it.' : "It's filed."} A reviewer approves before it's public — you'll become a Fledgling when it publishes.</p>
+            <p class="me-next__fine"><a class="text-link" href={profileHref}>Track it on your profile →</a></p>
+          </>
+        ) : isFledgling ? (
+          <>
+            <h2 id="me-next-title" class="me-next__title">{flightsToGo > 0 ? `${flights} ${flights === 1 ? 'flight' : 'flights'} logged — ${flightsToGo} to Rider.` : "You're at the Rider flight gate — two Rider vouches to go."}</h2>
+            <p class="me-next__lead">Rider unlocks at 20 published flights and 2 vouches from riders who already hold Rider. Ask your agent to file your next flight, or log one by hand.</p>
+            <div class="me-next__actions">
+              <a class="btn btn--ember" href="/logs/new/">Log another flight <Arrow /></a>
+              <a class="btn btn--ink" href={profileHref}>Your profile</a>
+            </div>
+            <p class="me-next__fine">See <a class="text-link" href="/riders/ranks/">how ranks are earned</a>.</p>
+          </>
+        ) : (
+          <>
+            <h2 id="me-next-title" class="me-next__title">You hold the reins, {rankLabel}.</h2>
+            <p class="me-next__lead">Keep the record honest: file your flights, and vouch for riders you have flown beside.</p>
+            <div class="me-next__actions">
+              <a class="btn btn--ember" href="/logs/new/">Log another flight <Arrow /></a>
+              <a class="btn btn--ink" href="/riders/directory/">The directory</a>
+            </div>
+          </>
+        )}
+      </div>
 
       <div class="me-grid">
         <div class="me-card">
