@@ -4,25 +4,25 @@ import Base from '../layouts/Base.astro';
 import PageHero from '../components/PageHero.astro';
 import Arrow from '../components/Arrow.astro';
 import { isPendingHandle } from '../lib/handles';
+import { onboardingCounts, onboardingStep } from '../lib/onboarding';
 
 const rider = Astro.locals.rider;
 if (!rider) return Astro.redirect('/join/');
 if (isPendingHandle(rider.handle)) return Astro.redirect('/join/');
 
 const { env } = Astro.locals.runtime;
-const counts = await env.DB.prepare(
-  `SELECT
-     (SELECT COUNT(*) FROM published_logs WHERE rider_id = ?1) AS flights,
-     (SELECT COUNT(*) FROM flight_records fr WHERE fr.rider_id = ?1 AND fr.matched_log_slug IS NOT NULL) AS verified,
-     (SELECT COUNT(*) FROM vouches WHERE vouchee_id = ?1 AND status = 'active') AS vouches,
-     (SELECT COUNT(*) FROM devices WHERE rider_id = ?1 AND revoked_at IS NULL) AS devices`,
-)
-  .bind(rider.id)
-  .first<{ flights: number; verified: number; vouches: number; devices: number }>();
-const flights = counts?.flights ?? 0;
-const verified = counts?.verified ?? 0;
-const vouches = counts?.vouches ?? 0;
-const deviceCount = counts?.devices ?? 0;
+// Onboarding progress, read straight from D1 on every load — the same five
+// counts /start reads, so the ledger surfaces the agent-setup state without
+// drift. `step` collapses them to the single spine state; the top banner shows
+// only while onboarding is incomplete (step !== 'published').
+const counts = await onboardingCounts(env.DB, rider.id);
+const step = onboardingStep(counts);
+const { flights, verified, vouches, devices, pending } = counts;
+const deviceWord = devices === 1 ? 'device' : 'devices';
+const profileHref = `/riders/${rider.handle}/`;
+
+// /logs/new redirects here with ?submitted=1 after a by-hand filing — confirm it.
+const justFiled = Astro.url.searchParams.get('submitted') === '1';
 
 const joined = new Date(rider.created_at).toLocaleDateString('en-US', {
   year: 'numeric',
@@ -31,11 +31,6 @@ const joined = new Date(rider.created_at).toLocaleDateString('en-US', {
 });
 const joinedDay = new Date(rider.created_at).toISOString().slice(0, 10);
 const rankLabel = rider.rank ? rider.rank[0].toUpperCase() + rider.rank.slice(1) : 'Unranked';
-// The ledger starts empty, so /me opens with a next step, not a wall of
-// zeroes: a new rider is sent to their first flight; a Fledgling who has
-// flown is pointed at the next one and the ladder to Rider.
-const isNew = flights === 0;
-const notYetRider = rider.rank !== 'rider' && rider.rank !== 'wingleader';
 ---
 
 <Base
@@ -52,41 +47,47 @@ const notYetRider = rider.rank !== 'rider' && rider.rank !== 'wingleader';
     compact
   ></PageHero>
 
-  <section class="section section--bone">
+  <section
+    class="section section--bone"
+    id="me-root"
+    data-ob-step={step}
+    data-ob-devices={devices}
+    data-ob-pending={pending}
+  >
     <div class="container me-layout">
-      <div class="me-next" role="region" aria-labelledby="me-next-title">
-        <p class="micro">NEXT STEP</p>
-        {isNew ? (
-          <>
-            <h2 id="me-next-title" class="me-next__title">You're in, @{rider.handle}. Now fly your first flight.</h2>
-            <p class="me-next__lead">Your ledger is empty until you fly. A first flight takes about 25 minutes: give one real task to an AI agent, judge the landing, and log what happened. That is what earns Fledgling.</p>
-            <div class="me-next__actions">
-              <a class="btn btn--ember" href="/training/your-first-flight/">Start your first flight <Arrow /></a>
-              <a class="btn btn--ink" href="/logs/new/">Already flew? Log it</a>
-            </div>
-            <p class="me-next__fine">Run agents in Claude Code or Cursor? <a class="text-link" href="/me/devices/">Pair the <code>agentriders</code> CLI</a> to file verified flights straight from a session.</p>
-          </>
-        ) : notYetRider ? (
-          <>
-            <h2 id="me-next-title" class="me-next__title">{flights} {flights === 1 ? 'flight' : 'flights'} logged. Keep flying.</h2>
-            <p class="me-next__lead">Rider unlocks at 20 published flights and 2 vouches from riders who already hold Rider. Every flight you log and every honest vouch moves you up the ladder.</p>
-            <div class="me-next__actions">
-              <a class="btn btn--ember" href="/logs/new/">Log another flight <Arrow /></a>
-              <a class="btn btn--ink" href={`/riders/${rider.handle}/`}>View your profile</a>
-            </div>
-            <p class="me-next__fine">New to the ladder? See <a class="text-link" href="/riders/ranks/">how ranks are earned</a>.</p>
-          </>
-        ) : (
-          <>
-            <h2 id="me-next-title" class="me-next__title">You hold the reins, {rankLabel}.</h2>
-            <p class="me-next__lead">Log your flights, vouch for riders you have flown beside, and keep the record honest. The directory is built from ledgers like yours.</p>
-            <div class="me-next__actions">
-              <a class="btn btn--ember" href="/logs/new/">Log a flight <Arrow /></a>
-              <a class="btn btn--ink" href={`/riders/${rider.handle}/`}>View your profile</a>
-            </div>
-          </>
-        )}
-      </div>
+      {justFiled && (
+        <p class="me-filed" role="status">Filed — your flight is in the review queue. Nothing publishes until a reviewer approves it.</p>
+      )}
+
+      {step !== 'published' && (
+        <div class="me-next" role="region" aria-labelledby="me-next-title">
+          <p class="micro">NEXT STEP</p>
+          {step === 'not-paired' ? (
+            <>
+              <h2 id="me-next-title" class="me-next__title">One step to a real track record: enable your agent.</h2>
+              <p class="me-next__lead">Install the MCP, pair this machine, and your agent files its own flights.</p>
+              <div class="me-next__actions">
+                <a class="btn btn--ember" href="/start/">Enable your agent <Arrow /></a>
+              </div>
+              <p class="me-next__fine">No agent set up yet? <a class="text-link" href="/logs/new/">Compose one by hand →</a></p>
+            </>
+          ) : step === 'paired-no-flight' ? (
+            <>
+              <h2 id="me-next-title" class="me-next__title">Agent paired. Now ask it to file your first flight.</h2>
+              <div class="me-next__actions">
+                <a class="btn btn--ember" href="/start/">Finish setup <Arrow /></a>
+              </div>
+              <p class="me-next__fine">Or <a class="text-link" href="/logs/new/">compose one by hand →</a></p>
+            </>
+          ) : (
+            <>
+              <h2 id="me-next-title" class="me-next__title">First flight in review.</h2>
+              <p class="me-next__lead">Your agent filed it. A reviewer approves before it's public — you'll become a Fledgling when it publishes.</p>
+              <p class="me-next__fine"><a class="text-link" href={profileHref}>Track it on your profile →</a></p>
+            </>
+          )}
+        </div>
+      )}
 
       <div class="me-grid">
         <div class="me-card">
@@ -109,17 +110,27 @@ const notYetRider = rider.rank !== 'rider' && rider.rank !== 'wingleader';
         <div class="me-card">
           <p class="micro">FLIGHTS</p>
           <p class="me-card__value">{flights}{verified > 0 && <span class="me-card__sub"> · {verified} verified ✦</span>}</p>
-          <p class="me-card__fine"><a class="text-link" href="/logs/new/">Log a flight</a> or view <a class="text-link" href={`/riders/${rider.handle}/`}>your profile</a>.</p>
+          {flights >= 1 ? (
+            <p class="me-card__fine">Ask your agent to file another, or <a class="text-link" href="/logs/new/">compose by hand</a>. View <a class="text-link" href={profileHref}>your profile</a>.</p>
+          ) : pending >= 1 ? (
+            <p class="me-card__fine">{pending} in review ▸ · or <a class="text-link" href="/logs/new/">compose by hand</a>.</p>
+          ) : (
+            <p class="me-card__fine">Your agent files these — or <a class="text-link" href="/logs/new/">compose by hand</a>.</p>
+          )}
         </div>
         <div class="me-card">
           <p class="micro">VOUCHES</p>
           <p class="me-card__value">{vouches}</p>
-          <p class="me-card__fine">Received, each with a name on it. See them on <a class="text-link" href={`/riders/${rider.handle}/`}>your profile</a>.</p>
+          <p class="me-card__fine">Received, each with a name on it. See them on <a class="text-link" href={profileHref}>your profile</a>.</p>
         </div>
         <div class="me-card">
-          <p class="micro">DEVICES</p>
-          <p class="me-card__value">{deviceCount}</p>
-          <p class="me-card__fine">Pair the <code>agentriders</code> CLI for verified flights. <a class="text-link" href="/me/devices/">Devices &amp; records →</a></p>
+          <p class="micro">YOUR AGENT</p>
+          <p class="me-card__value">{devices >= 1 ? devices : 'Not set up'}</p>
+          {devices >= 1 ? (
+            <p class="me-card__fine">{devices} {deviceWord} linked. <a class="text-link" href="/me/devices/">Devices &amp; records →</a></p>
+          ) : (
+            <p class="me-card__fine">Enable your agent to file its own flights. <a class="text-link" href="/start/">Set it up →</a></p>
+          )}
         </div>
       </div>
 
@@ -132,6 +143,7 @@ const notYetRider = rider.rank !== 'rider' && rider.rank !== 'wingleader';
 
 <style>
   .me-layout { max-width: 720px; display: flex; flex-direction: column; gap: 28px; }
+  .me-filed { padding: 12px 18px; border: 1px solid var(--bone-line); border-left: 3px solid var(--ember); background: var(--bone-raised); font-size: 14px; line-height: 1.5; color: var(--text-on-bone); margin: 0; }
   .me-next { padding: 28px; border: 1px solid var(--bone-line); border-left: 3px solid var(--ember); background: var(--bone-raised); }
   .me-next .micro { color: var(--ember-text); font-size: 9px; }
   .me-next__title { font-family: var(--display); font-size: 25px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.15; margin: 10px 0 0; }
@@ -147,3 +159,32 @@ const notYetRider = rider.rank !== 'rider' && rider.rank !== 'wingleader';
   .me-card__fine { font-size: 13px; line-height: 1.55; color: var(--text-on-bone-soft); }
   .me-signout { padding-top: 4px; }
 </style>
+
+<script>
+  import { track, beacon } from '../scripts/track';
+
+  // agent_paired / first_submission_filed are off-web milestones — pairing
+  // happens in the agent's harness and the MCP files server-side, so the
+  // browser never sees those calls. We detect them from the D1 counts the
+  // server rendered into data-* here and fire each once. The localStorage
+  // guard keys are shared with /start, so a milestone never double-fires
+  // across the two pages. Every storage access is wrapped (private windows).
+  const getLS = (k: string): string | null => {
+    try { return localStorage.getItem(k); } catch { return null; }
+  };
+  const setLS = (k: string, v: string): void => {
+    try { localStorage.setItem(k, v); } catch { /* ignore */ }
+  };
+
+  const root = document.getElementById('me-root');
+  const devices = Number(root?.dataset.obDevices ?? '0');
+  const pending = Number(root?.dataset.obPending ?? '0');
+
+  const fireOnce = (cond: boolean, key: string, name: string) => {
+    if (!cond || getLS(key)) return;
+    track(name, beacon);
+    setLS(key, '1');
+  };
+  fireOnce(devices >= 1, 'ar_evt_agent_paired', 'agent_paired');
+  fireOnce(pending >= 1, 'ar_evt_first_submission', 'first_submission_filed');
+</script>

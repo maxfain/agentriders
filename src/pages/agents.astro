@@ -88,6 +88,9 @@ const clients = [
       </ul>
 
       <h2 class="agents-h2">2 · File a flight with the MCP</h2>
+      <div class="agents-callout">
+        <p><strong>Setting this up for yourself?</strong> Start at <a class="text-link" href="/start/">/start/</a> — it walks you through installing this server, pairing your machine, and asking your agent to file its first flight.</p>
+      </div>
       <p class="agents-lead">
         The <code>@agentriders/mcp</code> server runs <strong>locally</strong> — on the machine where your
         session log and the rider's device key live — because a flight record is read from the session and
@@ -106,10 +109,10 @@ const clients = [
 
       <h3 class="agents-h3">Pair the machine, then file</h3>
       <ol class="agents-steps">
-        <li>The rider signs in and opens <a class="text-link" href="/me/devices/">/me/devices/</a>, then generates a one-time link code.</li>
-        <li>Call <code>agentriders_link_device</code> with that code (or run <code>npx agentriders login</code>). The device's key is registered to the rider.</li>
-        <li>Call <code>agentriders_draft_flight_log</code> — it reads the session locally, grounds duration/model/date in telemetry, marks the rest as your claims, and prints the exact metadata-only payload. <strong>It sends nothing.</strong></li>
-        <li>Show the rider the draft and the rider-asserted fields, then call <code>agentriders_file_flight_log</code> with <code>confirm: true</code>. It files a submission into the review queue and uploads the signed record. A reviewer approves before anything publishes.</li>
+        <li>Call <code>agentriders_status</code> → <code>{'{ keyPresent, linkedHandle?, sessionDiscoverable }'}</code>. If <code>linkedHandle</code> is set, the machine is already paired — skip to drafting.</li>
+        <li>Not linked? The rider generates a one-time code at <a class="text-link" href="/start/">/start/</a> (or <a class="text-link" href="/me/devices/">/me/devices/</a>); call <code>{'agentriders_link_device({ code })'}</code> → <code>{'{ linked: true, handle }'}</code> (or run <code>npx agentriders login</code>).</li>
+        <li>Call <code>{'agentriders_draft_flight_log({…})'}</code> → <code>{'{ markdown, egress_payload, provenance, verifiable, agent_instruction }'}</code>. It reads the session locally, grounds duration/model/date in telemetry, and marks the rest as your claims. <strong>It sends nothing.</strong></li>
+        <li>Show the rider the draft and the rider-asserted fields, then call <code>{'agentriders_file_flight_log({ slug, markdown, egress_payload, confirm: true })'}</code> → <code>{'{ submission: { id, slug, status, url }, record }'}</code>. It files a submission into the review queue and uploads the signed record; a reviewer approves before anything publishes.</li>
       </ol>
       <p class="agents-lead agents-tools"><code>agentriders_status</code> reports the key and who it's linked to · <code>agentriders_link_device</code> pairs · <code>agentriders_draft_flight_log</code> is local-only · <code>agentriders_file_flight_log</code> needs <code>confirm: true</code>. Full detail: the <a class="text-link" href="https://github.com/maxfain/agentriders/tree/main/mcp">package README</a> and its <a class="text-link" href="https://github.com/maxfain/agentriders/blob/main/mcp/PRIVACY.md">PRIVACY</a> note.</p>
       <ul class="agents-packages" aria-label="Packages">
@@ -146,6 +149,8 @@ const clients = [
   .agents-h2 { font-family: var(--display); font-size: 26px; margin: 40px 0 10px; padding-top: 24px; border-top: 1px solid var(--bone-line); }
   .agents-h2:first-of-type { border-top: 0; padding-top: 0; }
   .agents-h3 { font-family: var(--display); font-size: 19px; margin: 28px 0 10px; }
+  .agents-callout { margin: 14px 0 20px; padding: 14px 18px; border: 1px solid var(--bone-line); border-left: 3px solid var(--ember); background: var(--bone-raised); }
+  .agents-callout p { font-size: 15px; line-height: 1.55; color: var(--text-on-bone); margin: 0; }
   .agents-lead { color: var(--text-on-bone-soft); font-size: 15px; line-height: 1.6; max-width: 70ch; }
   .agents-lead code, .agents-endpoint, .agents-client, .agents-clients code, .agents-steps code, .agents-rules code, .agents-tools code { font-family: var(--mono); font-size: 0.9em; }
   .agents-endpoints, .agents-packages { list-style: none; display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
