@@ -9,7 +9,7 @@ afterEach(() => {
 });
 
 test('riderLink: links only real claimed handles, with the trailing slash', () => {
-  const state = { handles: new Set(['maxfain', 'rhea']), verified: {} };
+  const state = { handles: new Set(['maxfain', 'rhea']), verified: {}, profiles: [] };
   assert.equal(riderLink('maxfain', state), '/riders/maxfain/');
   assert.equal(riderLink('handle', state), null); // legacy placeholder
   assert.equal(riderLink('example', state), null);
@@ -28,7 +28,7 @@ test('loggedRiders: newest activity first, capped, never mutates the state', () 
 });
 
 test('isVerified: true only for slugs in the verified map', () => {
-  const state = { handles: new Set<string>(), verified: { 'some-log': true } as Record<string, true> };
+  const state = { handles: new Set<string>(), verified: { 'some-log': true } as Record<string, true>, profiles: [] };
   assert.equal(isVerified('some-log', state), true);
   assert.equal(isVerified('other-log', state), false);
 });
@@ -60,4 +60,25 @@ test('fetchSiteState: falls back to empty on a non-200', async () => {
   globalThis.fetch = (async () => new Response('nope', { status: 503 })) as typeof fetch;
   const state = await fetchSiteState();
   assert.equal(state.handles.size, 0);
+});
+
+test('fetchSiteState: a hung endpoint aborts on the timeout and falls back to empty', async () => {
+  process.env.SITE_STATE_ORIGIN = 'http://fixture.local';
+  // A reachable endpoint that never responds: the returned promise settles
+  // only when the request's own AbortSignal fires. Without the timeout the
+  // build would hang here; with it, the signal aborts and we fall back. The
+  // keep-alive timer stands in for the live socket that keeps the event loop
+  // running in a real build (AbortSignal.timeout's own timer is unref'd).
+  globalThis.fetch = ((_url: string, opts: { signal: AbortSignal }) =>
+    new Promise((_resolve, reject) => {
+      const keepAlive = setTimeout(() => reject(new Error('mock never responded')), 10_000);
+      opts.signal.addEventListener('abort', () => {
+        clearTimeout(keepAlive);
+        reject(opts.signal.reason ?? new Error('aborted'));
+      });
+    })) as typeof fetch;
+  const state = await fetchSiteState(15);
+  assert.equal(state.handles.size, 0);
+  assert.deepEqual(state.verified, {});
+  assert.deepEqual(state.profiles, []);
 });

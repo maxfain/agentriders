@@ -2,7 +2,7 @@ import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   SITE, ORG_ID, WEBSITE_ID, DATASET_ID, FOUNDER_ID,
-  abs, canonicalUrl, clampTitle, clampDescription, jsonLdString, siteGraph,
+  abs, canonicalUrl, clampTitle, clampDescription, jsonLdString, siteGraph, smarten,
   orgGraph, website, breadcrumbs, techArticle, article, profilePage,
   learningResource, isoDuration, dataset, softwareApplication, founder, founderPage,
 } from '../src/lib/seo.ts';
@@ -54,6 +54,19 @@ test('clampDescription: 155 by default, custom max honored', () => {
   assert.ok(out.endsWith('…'));
   assert.equal(clampDescription('short enough'), 'short enough');
   assert.ok(clampDescription(words, 40).length <= 40);
+});
+
+test('smarten: educates quotes like the markdown body, idempotent on already-curly text', () => {
+  assert.equal(smarten("the agent's permissions"), 'the agent’s permissions');
+  assert.equal(smarten("'May I continue?'"), '‘May I continue?’');
+  assert.equal(smarten('"improve this entire codebase"'), '“improve this entire codebase”');
+  assert.equal(smarten('"all", "private", "automatic" or "free"'),
+    '“all”, “private”, “automatic” or “free”');
+  // A possessive after a word is an apostrophe, not an opening quote.
+  assert.equal(smarten("each other's unmerged work"), 'each other’s unmerged work');
+  // Already-curly text (some drafts arrive curled) is left byte-identical.
+  const curly = '“every company has an official source” and it’s fine';
+  assert.equal(smarten(curly), curly);
 });
 
 test('jsonLdString: "<" and the JS line terminators are escaped, value survives', () => {
@@ -144,6 +157,11 @@ test('techArticle: dates keep their precision, the default author is the Organiz
   // A real byline (S1) is a Person.
   const byline = techArticle({ headline: 'h', description: 'd', path: '/manual/x/', authorName: 'Max', authorPath: '/about/' });
   assert.deepEqual(byline.author, { '@type': 'Person', name: 'Max', url: `${SITE}/about/` });
+  // The founder's byline carries the shared #founder @id, so it is the same
+  // entity as the Person on /about that Organization.founder points at.
+  const founderByline = techArticle({ headline: 'h', description: 'd', path: '/manual/x/', authorName: 'Max Faingezicht', authorPath: '/about/' });
+  assert.deepEqual(founderByline.author, { '@type': 'Person', '@id': FOUNDER_ID, name: 'Max Faingezicht', url: `${SITE}/about/` });
+  assert.equal((founderByline.author as Record<string, unknown>)['@id'], orgGraph().founder['@id']);
 });
 
 test('article: rider as Person with @handle and profile URL, part of the dataset', () => {
@@ -203,6 +221,10 @@ test('learningResource: LearningResource + Article inside the free Flight School
   assert.deepEqual(learningResource({ name: 'n', description: 'd', path: '/training/x/', authorName: 'AgentRiders' }).author, { '@id': ORG_ID });
   const byline = learningResource({ name: 'n', description: 'd', path: '/training/x/', authorName: 'Max', authorPath: '/about/' });
   assert.deepEqual(byline.author, { '@type': 'Person', name: 'Max', url: `${SITE}/about/` });
+  // The founder's byline is the shared #founder entity here too.
+  const founderByline = learningResource({ name: 'n', description: 'd', path: '/training/x/', authorName: 'Max Faingezicht', authorPath: '/about/' });
+  assert.deepEqual(founderByline.author, { '@type': 'Person', '@id': FOUNDER_ID, name: 'Max Faingezicht', url: `${SITE}/about/` });
+  assert.equal((founderByline.author as Record<string, unknown>)['@id'], orgGraph().founder['@id']);
 });
 
 test('isoDuration: minutes and hours, ranges keep the upper bound, decimals and compounds, never a partial value', () => {

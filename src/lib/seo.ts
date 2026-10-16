@@ -62,6 +62,23 @@ export const clampTitle = (s: string, max = 60): string => clamp(s, max);
 /** Meta description, ≤155 characters. */
 export const clampDescription = (s: string, max = 155): string => clamp(s, max);
 
+/**
+ * Educate straight quotes and apostrophes the way Astro's markdown pipeline
+ * (smartypants) does, so `summary` and `faq` text — emitted verbatim from
+ * frontmatter — reads with the same typography as the markdown body on the
+ * same page (docs/seo-aeo-plan.md §5.2 review). The frontmatter strings stay
+ * byte-identical; this runs only at render. Quote direction follows the
+ * preceding character, the standard heuristic, and already-curly text is left
+ * untouched, so it is safe to apply unconditionally.
+ */
+export function smarten(s: string): string {
+  return s
+    .replace(/(^|[\s([{–—‘])"/g, '$1“') // opening double quote
+    .replace(/"/g, '”') // any remaining double quote closes
+    .replace(/(^|[\s([{–—“])'/g, '$1‘') // opening single quote
+    .replace(/'/g, '’'); // any remaining single quote is an apostrophe / closes
+}
+
 // U+2028 / U+2029, built from code points so no source escape is involved.
 const LINE_TERMINATORS = new RegExp(`[${String.fromCharCode(0x2028, 0x2029)}]`, 'g');
 
@@ -103,6 +120,21 @@ function person(name: string, path?: string, handle?: string) {
     alternateName: handle ? `@${handle}` : undefined,
     url: path ? canonicalUrl(path) : undefined,
   });
+}
+
+/**
+ * A content-page byline author. The default (or an explicit "AgentRiders") is
+ * the Organization node, never a Person of the same name. A named rider is a
+ * plain Person. The founder is the Person on /about, so his byline carries the
+ * stable #founder @id — the same entity Organization.founder points at, not an
+ * anonymous second node for the same human (docs/seo-aeo-plan.md §4.5).
+ */
+function authorNode(name: string | undefined, path: string | undefined) {
+  if (!name || name === 'AgentRiders') return { '@id': ORG_ID };
+  if (name === FOUNDER.name) {
+    return { '@type': 'Person', '@id': FOUNDER_ID, name, url: canonicalUrl(path ?? FOUNDER.path) };
+  }
+  return person(name, path);
 }
 
 /** Organization node, on every page. The founder is a reference; /about holds the Person. */
@@ -205,9 +237,7 @@ export function techArticle(a: {
     mainEntityOfPage: url,
     datePublished: isoDate(a.datePublished),
     dateModified: isoDate(a.dateModified),
-    // The default byline is the guild itself: that is the Organization node,
-    // never a Person of the same name. A named author (S1) becomes a Person.
-    author: a.authorName && a.authorName !== 'AgentRiders' ? person(a.authorName, a.authorPath) : { '@id': ORG_ID },
+    author: authorNode(a.authorName, a.authorPath),
     publisher: { '@id': ORG_ID },
     isPartOf: a.seriesName ? { '@type': 'CreativeWorkSeries', name: a.seriesName } : undefined,
     position: a.position,
@@ -356,8 +386,7 @@ export function learningResource(l: {
       provider: { '@id': ORG_ID },
       isAccessibleForFree: true,
     },
-    // Same rule as techArticle: a named author is a Person, the guild is the Organization.
-    author: l.authorName && l.authorName !== 'AgentRiders' ? person(l.authorName, l.authorPath) : { '@id': ORG_ID },
+    author: authorNode(l.authorName, l.authorPath),
     publisher: { '@id': ORG_ID },
     inLanguage: 'en',
   });

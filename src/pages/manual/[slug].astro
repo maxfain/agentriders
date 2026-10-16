@@ -4,7 +4,7 @@ import PageHero from '../../components/PageHero.astro';
 import Base from '../../layouts/Base.astro';
 import ChapterRail from '../../components/ChapterRail.astro';
 import FieldDiagram from '../../components/FieldDiagram.astro';
-import { breadcrumbs, techArticle } from '../../lib/seo';
+import { breadcrumbs, techArticle, smarten } from '../../lib/seo';
 
 export async function getStaticPaths() {
   const chapters = await getCollection('manual', ({ data }) => !data.draft);
@@ -23,6 +23,7 @@ const hasBody = chapter.body ? chapter.body.replace(/<!--[\s\S]*?-->/g, '').trim
 // mirrors it; the <title> leads with the industry term when the chapter has
 // one (seoTitle), with only " — AgentRiders" after it so the clamp never cuts.
 const shortTitle = d.title.split(':')[0];
+const published = d.published.toISOString().slice(0, 10);
 const updated = d.updated.toISOString().slice(0, 10);
 const path = `/manual/${chapter.id}/`;
 // The questions section is an H2 of the page, so the rail lists it with the body's.
@@ -40,7 +41,16 @@ const jsonLd = [
 ---
 
 <Base title={`${d.seoTitle ?? shortTitle} — AgentRiders`} description={d.description} ogType="article" publishedTime={d.published} modifiedTime={d.updated} jsonLd={jsonLd}>
-  <PageHero eyebrow={`Chapter ${String(d.chapter).padStart(2, '0')} / The Field Manual`} title={shortTitle} description={d.description} art="book" compact><p class="page-hero__meta">{hasBody ? <>By {d.author} · Updated <time datetime={updated}>{updated}</time></> : "CHAPTER IN PROGRESS"}</p></PageHero>
+  <PageHero eyebrow={`Chapter ${String(d.chapter).padStart(2, '0')} / The Field Manual`} title={shortTitle} art="book" compact>
+    {hasBody ? (
+      <>
+        <p class="summary">{smarten(d.summary)}</p>
+        <p class="page-hero__meta">By <a href="/about/#author" rel="author">{d.author}</a> · Published <time datetime={published}>{published}</time> · Updated <time datetime={updated}>{updated}</time></p>
+      </>
+    ) : (
+      <p class="page-hero__meta">CHAPTER IN PROGRESS</p>
+    )}
+  </PageHero>
 
   <section class="section section--bone">
     <div class="container chapter-reading">
@@ -49,7 +59,6 @@ const jsonLd = [
       <FieldDiagram chapter={d.chapter} />
       {hasBody ? (
         <div class="prose">
-          <p class="summary">{d.summary}</p>
           <Content />
         </div>
       ) : (
@@ -58,7 +67,7 @@ const jsonLd = [
       {d.faq.length > 0 && (
         <section class="faq" aria-labelledby="faq-title">
           <h2 id="faq-title">Questions riders ask</h2>
-          {d.faq.map((item) => <><h3>{item.q}</h3><p>{item.a}</p></>)}
+          {d.faq.map((item) => <><h3>{smarten(item.q)}</h3><p>{smarten(item.a)}</p></>)}
           <p class="changelog">{changelog}</p>
         </section>
       )}

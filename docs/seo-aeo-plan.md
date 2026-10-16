@@ -413,7 +413,7 @@ Each milestone is a branch, adversarially reviewed, PR'd into `main`, merged. Ex
 - Rewrites of all 16 pages per §5.2 (drafted in-repo, reviewed by Max).
 - `/about` author block + Person JSON-LD; profile titles, `noindex` at 0 flights, `rel=author` on log bylines; "Riders who logged flights" strip on `/riders/`.
 
-*Exit:* every chapter/lesson/mission's first paragraph is a literal answer and its `<title>` leads with an industry term; old slugs 301; `/about` names the founder. Founder: `/about` and the founder's Person node list GitHub and the rider profile only; add X, LinkedIn or any other profile link there (and to `Organization.sameAs`) when wanted.
+*Exit:* every chapter/lesson/mission's first paragraph is a literal answer (the `summary`, rendered directly under the H1 in the hero — not buried below the rail and deliverable, which defeats passage extraction) and its `<title>` leads with an industry term; old slugs 301; `/about` names the founder. Founder: `/about` and the founder's Person node list GitHub and the rider profile only; add X, LinkedIn or any other profile link there (and to `Organization.sameAs`) when wanted. The `/about` role line now says AgentRiders "is operated by Permanent Ventures Inc" (what the Terms state); say the word if you want it to read "founder of Permanent Ventures Inc" and it will be restored.
 
 ### S2 — The record (~1.5 weeks)
 
