@@ -1,0 +1,243 @@
+---
+export const prerender = false;
+import Base from '../../layouts/Base.astro';
+import PageHero from '../../components/PageHero.astro';
+import { isPendingHandle } from '../../lib/handles';
+import { listDevices } from '../../lib/devices';
+import { listRecords } from '../../lib/flight-records';
+
+// The CLI/verification hub: pair a machine, see your device keys, and manage
+// the signed flight records they produce (link to a published flight, unlink,
+// delete). Session-gated.
+const rider = Astro.locals.rider;
+if (!rider) return Astro.redirect('/join');
+if (isPendingHandle(rider.handle)) return Astro.redirect('/join');
+
+const { env } = Astro.locals.runtime;
+const devices = await listDevices(env.DB, rider.id);
+const rawRecords = await listRecords(env.DB, rider.id);
+
+type LogRow = { slug: string; title: string };
+const logs =
+  (
+    await env.DB.prepare('SELECT slug, title FROM published_logs WHERE rider_id = ? ORDER BY date DESC')
+      .bind(rider.id)
+      .all<LogRow>()
+  ).results ?? [];
+const logTitle = new Map(logs.map((l) => [l.slug, l.title]));
+const matchedSlugs = new Set(rawRecords.map((r) => r.matched_log_slug).filter(Boolean) as string[]);
+// Flights with no verified record yet — the candidates for linking.
+const openLogs = logs.filter((l) => !matchedSlugs.has(l.slug));
+
+const records = rawRecords.map((r) => {
+  let p: {
+    started_at?: string;
+    duration_seconds?: number;
+    models?: string[];
+    evals?: { eval_frameworks_detected?: string[]; eval_run_count?: number };
+  } = {};
+  try {
+    p = JSON.parse(r.payload_json);
+  } catch {
+    /* ignore */
+  }
+  return {
+    id: r.id,
+    created_at: r.created_at,
+    score: r.evals_score,
+    matched: r.matched_log_slug,
+    started_at: p.started_at ?? null,
+    duration_seconds: p.duration_seconds ?? null,
+    models: p.models ?? [],
+    frameworks: p.evals?.eval_frameworks_detected ?? [],
+    runs: p.evals?.eval_run_count ?? 0,
+  };
+});
+
+const fmt = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+const dur = (s: number | null) => (s == null ? '—' : s >= 3600 ? `${(s / 3600).toFixed(1)}h` : `${Math.round(s / 60)}m`);
+const verifiedCount = records.filter((r) => r.matched).length;
+---
+
+<Base title="Devices & verified flights — AgentRiders" description="Pair the agentriders CLI and manage your signed flight records.">
+  <PageHero
+    eyebrow={`@${rider.handle}`}
+    title="Devices & verified flights"
+    description="Pair a machine with the agentriders CLI, then link the records it signs to your published flights."
+    art="ledger"
+    id="dev-title"
+    compact
+  ></PageHero>
+
+  <section class="section section--bone">
+    <div class="container dev-layout">
+      <div class="dev-card">
+        <h2 class="dev-h2">Pair a machine</h2>
+        <p class="dev-fine">
+          Install the CLI and generate a one-time code. It expires in 10 minutes and can be used once.
+        </p>
+        <pre class="dev-code-block"><code>npm i -g agentriders   <span class="dim"># or: npx agentriders</span>
+agentriders login</code></pre>
+        <div class="dev-code-row">
+          <button class="btn btn--ember" id="gen-code">Generate link code</button>
+          <code class="dev-code" id="code-out" aria-live="polite"></code>
+        </div>
+        <p class="dev-fine" id="code-note"></p>
+      </div>
+
+      <div class="dev-card">
+        <h2 class="dev-h2">Your devices <span class="dev-count">{devices.filter((d) => !d.revoked_at).length} active</span></h2>
+        {devices.length === 0 ? (
+          <p class="dev-empty">No devices yet. Pair one above.</p>
+        ) : (
+          <ul class="dev-list">
+            {devices.map((d) => (
+              <li class={`dev-row${d.revoked_at ? ' dev-row--off' : ''}`}>
+                <div>
+                  <span class="dev-row__name">{d.name ?? 'Unnamed device'}</span>
+                  <span class="dev-row__meta">{d.id.slice(0, 12)}… · added {fmt(d.created_at)}{d.revoked_at ? ' · revoked' : ''}</span>
+                </div>
+                {!d.revoked_at && (
+                  <button type="button" class="dev-action" data-revoke={d.id}>Revoke</button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div class="dev-card">
+        <h2 class="dev-h2">Flight records <span class="dev-count">{verifiedCount} verified · {records.length} total</span></h2>
+        {records.length === 0 ? (
+          <p class="dev-empty">
+            No records yet. Run <code>agentriders log &lt;session.jsonl&gt;</code> after a flight.
+          </p>
+        ) : (
+          <ul class="dev-records">
+            {records.map((r) => (
+              <li class="rec-row" data-rec={r.id}>
+                <div class="rec-main">
+                  <span class="rec-when">{r.started_at ? fmt(r.started_at) : fmt(r.created_at)} · {dur(r.duration_seconds)}</span>
+                  <span class="rec-meta">
+                    {r.models.join(', ') || 'model n/a'}
+                    {typeof r.score === 'number' && r.score > 0 ? ` · eval ${r.score}` : ''}
+                    {r.frameworks.length ? ` · ${r.frameworks.join(', ')}` : ''}
+                  </span>
+                </div>
+                <div class="rec-link">
+                  {r.matched ? (
+                    <>
+                      <span class="rec-badge">✦ /logs/{r.matched}</span>
+                      <button type="button" class="dev-action" data-unlink={r.id}>Unlink</button>
+                    </>
+                  ) : openLogs.length ? (
+                    <>
+                      <select class="rec-select" aria-label="Link to a flight">
+                        <option value="">Link to a flight…</option>
+                        {openLogs.map((l) => (
+                          <option value={l.slug}>{l.title}</option>
+                        ))}
+                      </select>
+                      <button type="button" class="dev-action" data-link={r.id}>Link</button>
+                    </>
+                  ) : (
+                    <span class="rec-meta">No unverified flights to link.</span>
+                  )}
+                  <button type="button" class="dev-action dev-action--danger" data-delete={r.id}>Delete</button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p class="dev-fine">A record links to a flight you’ve published. The badge appears on the flight page after the next site rebuild.</p>
+      </div>
+
+      <p class="dev-back"><a class="text-link" href="/me">← Back to your ledger</a></p>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .dev-layout { max-width: 760px; display: flex; flex-direction: column; gap: 22px; }
+  .dev-card { padding: 24px; border: 1px solid var(--bone-line); border-left: 3px solid var(--ember); background: var(--bone-raised); }
+  .dev-h2 { font-family: var(--display); font-size: 20px; margin-bottom: 10px; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .dev-count { font-family: var(--mono); font-size: 11px; color: var(--text-on-bone-soft); font-weight: 400; }
+  .dev-fine { font-size: 13px; line-height: 1.55; color: var(--text-on-bone-soft); margin-top: 8px; }
+  .dev-empty { font-size: 14px; color: var(--text-on-bone-soft); }
+  .dev-code-block { margin: 14px 0; padding: 14px 16px; background: var(--ink); color: var(--bone); border-radius: var(--radius); overflow-x: auto; font-family: var(--mono); font-size: 13px; line-height: 1.6; }
+  .dev-code-block .dim { color: #ffffff80; }
+  .dev-code-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 6px; }
+  .dev-code { font-family: var(--mono); font-size: 20px; letter-spacing: 0.12em; padding: 6px 12px; border: 1px dashed var(--ember); border-radius: 3px; min-width: 120px; min-height: 1.4em; color: var(--ember-text); }
+  .dev-list, .dev-records { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+  .dev-row, .rec-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 14px; border: 1px solid var(--bone-line); background: var(--bone); flex-wrap: wrap; }
+  .dev-row--off { opacity: 0.55; }
+  .dev-row__name, .rec-when { font-family: var(--display); font-weight: 600; font-size: 15px; display: block; }
+  .dev-row__meta, .rec-meta { font-family: var(--mono); font-size: 11px; color: var(--text-on-bone-soft); display: block; margin-top: 2px; }
+  .rec-main { min-width: 0; }
+  .rec-link { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .rec-select { font-size: 13px; padding: 6px 8px; border: 1px solid var(--bone-line); background: var(--bone-raised); border-radius: var(--radius); max-width: 200px; }
+  .rec-badge { font-family: var(--mono); font-size: 11px; color: var(--ember-text); border: 1px solid #e4572e66; padding: 2px 8px; border-radius: 3px; }
+  .dev-action { background: none; border: none; color: var(--ember-text); cursor: pointer; font-size: 12px; text-decoration: underline; padding: 2px 4px; }
+  .dev-action--danger { color: var(--ash); }
+  .dev-back { margin-top: 4px; }
+  @media (max-width: 560px) { .rec-row, .dev-row { flex-direction: column; align-items: flex-start; } }
+</style>
+
+<script>
+  const note = document.getElementById('code-note')!;
+  const codeOut = document.getElementById('code-out')!;
+
+  document.getElementById('gen-code')?.addEventListener('click', async () => {
+    note.textContent = 'Generating…';
+    codeOut.textContent = '';
+    try {
+      const res = await fetch('/api/devices/code', { method: 'POST' });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok) {
+        codeOut.textContent = body.code;
+        const mins = Math.round((body.expires_in ?? 600) / 60);
+        note.textContent = `Run “agentriders login” and paste this code. It expires in ${mins} minutes and works once.`;
+      } else {
+        note.textContent = body.error || 'Could not generate a code.';
+      }
+    } catch {
+      note.textContent = 'Network error.';
+    }
+  });
+
+  const act = async (url: string, opts: RequestInit, confirmMsg?: string) => {
+    if (confirmMsg && !confirm(confirmMsg)) return;
+    try {
+      const res = await fetch(url, opts);
+      if (res.ok) { location.reload(); return; }
+      const body = await res.json().catch(() => ({}));
+      alert(body.error || 'Something went wrong.');
+    } catch { alert('Network error.'); }
+  };
+
+  const json = (body: unknown): RequestInit => ({
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+
+  for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-revoke]')) {
+    btn.addEventListener('click', () =>
+      act(`/api/devices/${btn.dataset.revoke}`, { method: 'DELETE' }, 'Revoke this device? It can no longer sign new records.'));
+  }
+  for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-link]')) {
+    btn.addEventListener('click', () => {
+      const row = btn.closest('.rec-row') as HTMLElement;
+      const slug = (row.querySelector('.rec-select') as HTMLSelectElement).value;
+      if (!slug) return;
+      act(`/api/flight-records/${btn.dataset.link}`, json({ log: slug }));
+    });
+  }
+  for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-unlink]')) {
+    btn.addEventListener('click', () =>
+      act(`/api/flight-records/${btn.dataset.unlink}`, json({ log: null }), 'Unlink this record from its flight?'));
+  }
+  for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-delete]')) {
+    btn.addEventListener('click', () =>
+      act(`/api/flight-records/${btn.dataset.delete}`, { method: 'DELETE' }, 'Delete this flight record for good?'));
+  }
+</script>

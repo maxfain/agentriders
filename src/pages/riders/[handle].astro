@@ -4,6 +4,7 @@ import Base from '../../layouts/Base.astro';
 import PageHero from '../../components/PageHero.astro';
 import { rankEarnedAt } from '../../lib/ranks';
 import { canVouch, vouchesReceived, vouchesGiven, existingVouch } from '../../lib/vouches';
+import { riderEvalStats } from '../../lib/flight-records';
 import { isAdmin } from '../../lib/admin';
 import type { RiderRow } from '../../lib/session';
 
@@ -40,6 +41,7 @@ const flights = (
 const received = await vouchesReceived(env.DB, rider.id);
 const given = await vouchesGiven(env.DB, rider.id);
 const earnedAt = rider.rank ? await rankEarnedAt(env.DB, rider.id, rider.rank) : null;
+const evalStats = await riderEvalStats(env.DB, rider.id);
 
 const isSelf = viewer?.id === rider.id;
 const viewerCanVouch = !!viewer && !isSelf && canVouch(viewer.rank);
@@ -64,11 +66,23 @@ const landed = flights.filter((f) => f.outcome === 'landed').length;
       )}
       <dl class="rider-stats">
         <div><dt>Rank</dt><dd>{rankLabel}</dd>{earnedAt && <p class="rider-stats__fine">earned {fmt(earnedAt)}</p>}</div>
-        <div><dt>Flights</dt><dd>{flights.length}</dd></div>
+        <div><dt>Flights</dt><dd>{flights.length}</dd>{evalStats.verified > 0 && <p class="rider-stats__fine">{evalStats.verified} verified ✦</p>}</div>
         <div><dt>Landed</dt><dd>{landed}</dd></div>
         <div><dt>Vouches</dt><dd>{received.length}</dd></div>
         <div><dt>Joined</dt><dd>{joined}</dd></div>
       </dl>
+
+      {(evalStats.verified > 0 || evalStats.evalRuns > 0) && (
+        <div class="rider-evals">
+          <p class="micro">EVAL DISCIPLINE <span class="rider-evals__hint">— signed by the CLI · standing, never a rank shortcut</span></p>
+          <div class="rider-evals__row">
+            <span><strong>{evalStats.verified}</strong> verified {evalStats.verified === 1 ? 'flight' : 'flights'}</span>
+            {evalStats.evalRuns > 0 && <span><strong>{evalStats.evalRuns}</strong> eval {evalStats.evalRuns === 1 ? 'run' : 'runs'}</span>}
+            {evalStats.bestScore > 0 && <span>best score <strong>{evalStats.bestScore}</strong></span>}
+            {evalStats.frameworks.length > 0 && <span class="rider-evals__fw">{evalStats.frameworks.join(' · ')}</span>}
+          </div>
+        </div>
+      )}
 
       <div class="rider-cols">
         <div class="rider-col">
@@ -173,6 +187,12 @@ const landed = flights.filter((f) => f.outcome === 'landed').length;
   .rider-stats dt { font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ash); }
   .rider-stats dd { margin: 6px 0 0; font-family: var(--display); font-size: 22px; font-weight: 600; }
   .rider-stats__fine { margin: 4px 0 0; font-size: 11px; color: var(--text-on-bone-soft); }
+  .rider-evals { border: 1px solid var(--bone-line); border-left: 3px solid var(--ember); background: var(--bone-raised); padding: 16px 18px; }
+  .rider-evals .micro { color: var(--ash); font-size: 9px; }
+  .rider-evals__hint { font-family: var(--body); font-size: 11px; text-transform: none; letter-spacing: 0; color: var(--text-on-bone-soft); }
+  .rider-evals__row { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 10px; font-size: 14px; color: var(--text-on-bone-soft); }
+  .rider-evals__row strong { font-family: var(--display); font-size: 18px; color: var(--text-on-bone); }
+  .rider-evals__fw { font-family: var(--mono); font-size: 12px; }
   .rider-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; }
   .rider-h2 { font-family: var(--display); font-size: 22px; margin-bottom: 14px; }
   .rider-h2__hint { font-family: var(--body); font-size: 13px; font-weight: 400; color: var(--text-on-bone-soft); }
