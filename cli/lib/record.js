@@ -10,6 +10,35 @@ import { detectEvals } from '../eval-detector.js';
 
 const sha256Hex = (s) => crypto.createHash('sha256').update(s, 'utf8').digest('hex');
 
+// Bucket a tool name to what the server accepts AND to keep identity off the
+// wire. Any MCP tool (`mcp__<server>__<tool>`) collapses to "mcp" — the server
+// segment is frequently project/company identity, which must never leave the
+// machine. Everything else is reduced to the server's safe charset and length
+// (TOOL_NAME_RE / 60 chars), so the CLI never signs a payload the server would
+// then reject.
+function normalizeToolName(name) {
+  if (name.startsWith('mcp__')) return 'mcp';
+  const clean = name.replace(/[^A-Za-z0-9_.:-]/g, '').slice(0, 60);
+  return clean || 'tool';
+}
+
+// Keep at most `max` distinct tool buckets (the server caps at 60); the
+// least-used overflow folds into "other". In practice MCP bucketing already
+// keeps this well under the cap.
+function capToolCounts(counts, max = 60) {
+  const keys = Object.keys(counts);
+  if (keys.length <= max) return counts;
+  keys.sort((a, b) => counts[b] - counts[a]);
+  const kept = {};
+  let other = 0;
+  keys.forEach((k, i) => {
+    if (i < max - 1) kept[k] = counts[k];
+    else other += counts[k];
+  });
+  kept.other = (kept.other ?? 0) + other;
+  return kept;
+}
+
 /**
  * Parse the raw session JSONL into the facts we publish. Returns:
  *   { sessionId, times:[iso...], models:Set, toolCounts:{name:n} }
@@ -38,7 +67,8 @@ function scanSession(jsonl) {
       const blocks = Array.isArray(msg.content) ? msg.content : [];
       for (const block of blocks) {
         if (block && block.type === 'tool_use' && typeof block.name === 'string') {
-          toolCounts[block.name] = (toolCounts[block.name] ?? 0) + 1;
+          const key = normalizeToolName(block.name);
+          toolCounts[key] = (toolCounts[key] ?? 0) + 1;
         }
       }
     }
@@ -54,6 +84,9 @@ export function buildRecord(jsonl, { cliVersion, now = new Date() } = {}) {
   const { sessionId, times, models, toolCounts } = scanSession(jsonl);
   if (times.length === 0) {
     throw new Error('No readable timestamps in this session log — is it a Claude Code .jsonl?');
+  }
+  if (models.size === 0) {
+    throw new Error('No model recorded in this session — not a completed Claude Code flight?');
   }
   const sorted = times.map((t) => Date.parse(t)).sort((a, b) => a - b);
   const started = new Date(sorted[0]);
@@ -74,7 +107,7 @@ export function buildRecord(jsonl, { cliVersion, now = new Date() } = {}) {
     ended_at: ended.toISOString(),
     duration_seconds: durationSeconds,
     models: [...models].sort(),
-    tool_call_counts: toolCounts,
+    tool_call_counts: capToolCounts(toolCounts),
     evals,
     generated_at: now.toISOString(),
     cli_version: cliVersion,

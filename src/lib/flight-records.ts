@@ -91,6 +91,22 @@ export async function listRecords(db: D1Database, riderId: string): Promise<Flig
   );
 }
 
+// Only these framework names are ever shown — the fixed vocabulary the CLI's
+// eval-detector can emit. A doctored client can sign arbitrary strings into
+// its own payload, so the display filters to the known set rather than echo
+// attacker-chosen text as a "detected framework".
+const KNOWN_EVAL_FRAMEWORKS = new Set([
+  'promptfoo',
+  'deepeval',
+  'braintrust',
+  'langsmith',
+  'pytest',
+  'custom',
+]);
+// Per-record ceiling on the run count that feeds the display total, so a
+// doctored client can't claim 100k runs in one session to inflate the figure.
+const DISPLAY_RUN_CAP_PER_RECORD = 1000;
+
 export type RiderEvalStats = {
   verified: number;
   bestScore: number;
@@ -122,8 +138,9 @@ export async function riderEvalStats(db: D1Database, riderId: string): Promise<R
       const p = JSON.parse(r.payload_json) as {
         evals?: { eval_frameworks_detected?: string[]; eval_run_count?: number };
       };
-      for (const f of p.evals?.eval_frameworks_detected ?? []) frameworks.add(f);
-      if (typeof p.evals?.eval_run_count === 'number') evalRuns += p.evals.eval_run_count;
+      for (const f of p.evals?.eval_frameworks_detected ?? []) if (KNOWN_EVAL_FRAMEWORKS.has(f)) frameworks.add(f);
+      if (typeof p.evals?.eval_run_count === 'number')
+        evalRuns += Math.min(Math.max(0, p.evals.eval_run_count), DISPLAY_RUN_CAP_PER_RECORD);
     } catch {
       /* a malformed stored payload never breaks a profile render */
     }

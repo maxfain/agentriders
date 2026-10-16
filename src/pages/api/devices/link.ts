@@ -15,6 +15,9 @@ export const POST: APIRoute = async ({ locals, request }) => {
   const { env } = locals.runtime;
   if (!env.SESSION_PEPPER) return json(503, { error: 'Device pairing is not configured.' });
 
+  // CF-Connecting-IP is set by Cloudflare; Pages Functions are not reachable
+  // off-CF. The code's own single-use + 10-min expiry + ~40-bit entropy are
+  // the real brute-force control, with this per-IP cap as a floodwall.
   const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
   if (!(await rateLimit(env.RATE, `devlink:${ip}`, 30, 3600))) {
     return json(429, { error: 'Too many attempts. Try again later.' });

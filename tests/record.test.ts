@@ -69,3 +69,38 @@ test('cc_session_hash is stable per session id, independent of generated_at', ()
 test('buildRecord throws on a log with no timestamps', () => {
   assert.throws(() => buildRecord('{"message":{"role":"user","content":[]}}', { cliVersion: '0.1.0' }));
 });
+
+test('buildRecord throws when no model was recorded', () => {
+  const noModel = [
+    JSON.stringify({ sessionId: 's', timestamp: '2026-10-16T10:00:00.000Z', message: { role: 'user', content: [] } }),
+    JSON.stringify({ sessionId: 's', timestamp: '2026-10-16T10:01:00.000Z', message: { role: 'user', content: [] } }),
+  ].join('\n');
+  assert.throws(() => buildRecord(noModel, { cliVersion: '0.1.0' }), /No model recorded/);
+});
+
+test('MCP tool names bucket to "mcp" — server/tool identity never leaves, and the payload is server-valid', () => {
+  const mcpSession = [
+    JSON.stringify({ sessionId: 's2', timestamp: '2026-10-16T10:00:00.000Z', message: { role: 'user', content: [] } }),
+    JSON.stringify({
+      sessionId: 's2',
+      timestamp: '2026-10-16T10:05:00.000Z',
+      message: {
+        role: 'assistant',
+        model: 'claude-opus-4-8',
+        content: [
+          { type: 'tool_use', id: 'a', name: 'mcp__Acme_Internal_Billing__charge', input: {} },
+          { type: 'tool_use', id: 'b', name: 'mcp__clientname_crm__export_contacts', input: {} },
+          { type: 'tool_use', id: 'c', name: 'Bash', input: { command: 'ls' } },
+        ],
+      },
+    }),
+  ].join('\n');
+  const rec = buildRecord(mcpSession, { cliVersion: '0.1.0' });
+  assert.deepEqual(rec.tool_call_counts, { mcp: 2, Bash: 1 });
+  const blob = JSON.stringify(rec);
+  for (const identity of ['Acme', 'Internal_Billing', 'clientname', 'crm', 'charge', 'export_contacts']) {
+    assert.equal(blob.includes(identity), false, `leaked MCP identity: ${identity}`);
+  }
+  // And the bucketed names pass the server's tool-name rules.
+  assert.equal(validatePayload(rec).ok, true);
+});

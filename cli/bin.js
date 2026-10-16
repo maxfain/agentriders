@@ -193,8 +193,11 @@ function cmdWhoami() {
 }
 
 async function main() {
-  const [, , command, ...rest] = process.argv;
-  const args = parseArgs(rest);
+  // Parse the WHOLE arg list, then take the command from the first positional
+  // — so a leading flag (`--version`, `--help`, `-v`, `-h`, `--api …`) is
+  // recognized instead of being mistaken for a command.
+  const args = parseArgs(process.argv.slice(2));
+  const command = args.positional.shift();
 
   if (args.flags.api) process.env.AGENTRIDERS_API = args.flags.api;
 

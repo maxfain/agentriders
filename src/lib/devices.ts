@@ -114,7 +114,11 @@ export async function registerDevice(
   } catch {
     return { ok: false, status: 400, reason: 'Invalid public key.' };
   }
-  const cleanName = name ? name.trim().slice(0, MAX_DEVICE_NAME) || null : null;
+  // Strip control chars and angle brackets so the name is a safe plain label
+  // wherever it renders (defense-in-depth beyond Astro's auto-escaping).
+  const cleanName = name
+    ? name.replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, MAX_DEVICE_NAME) || null
+    : null;
 
   const existing = await db
     .prepare('SELECT id, rider_id FROM devices WHERE id = ?')
@@ -137,12 +141,18 @@ export async function registerDevice(
   if ((count?.n ?? 0) >= MAX_DEVICES_PER_RIDER)
     return { ok: false, status: 429, reason: 'Device limit reached. Revoke an old one first.' };
 
-  await db
-    .prepare(
-      'INSERT INTO devices (id, rider_id, public_key, name, created_at) VALUES (?, ?, ?, ?, ?)',
-    )
-    .bind(deviceId, riderId, publicKeyB64, cleanName, new Date().toISOString())
-    .run();
+  try {
+    await db
+      .prepare('INSERT INTO devices (id, rider_id, public_key, name, created_at) VALUES (?, ?, ?, ?, ?)')
+      .bind(deviceId, riderId, publicKeyB64, cleanName, new Date().toISOString())
+      .run();
+  } catch (error) {
+    // Lost a race (the same key being registered concurrently) — the PRIMARY
+    // KEY makes one-key-one-device hold; report it cleanly instead of a 500.
+    if (`${(error as Error).message}`.includes('UNIQUE'))
+      return { ok: false, status: 409, reason: 'This device key is already registered.' };
+    throw error;
+  }
   return { ok: true, deviceId, reused: false };
 }
 

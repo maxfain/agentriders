@@ -133,6 +133,7 @@ test('validatePayload rejects malformed records', () => {
     ['timestamp', (p) => (p.started_at = 'not-a-date')],
     ['ended before started', (p) => (p.ended_at = '2026-10-16T09:00:00.000Z')],
     ['negative duration', (p) => (p.duration_seconds = -1)],
+    ['duration disagrees with timestamps', (p) => (p.duration_seconds = 10)],
     ['empty models', (p) => (p.models = [])],
     ['tool name', (p) => (p.tool_call_counts = { 'bad name!': 1 })],
     ['tool count', (p) => (p.tool_call_counts = { Bash: -3 })],
@@ -172,11 +173,20 @@ test('a maximal in-bounds payload stays under the size cap', () => {
   if (r.ok) assert.ok(new TextEncoder().encode(r.canonical).length < PAYLOAD_MAX_BYTES);
 });
 
-test('recordHash is a stable sha256 of the canonical bytes', async () => {
+test('recordHash is stable per rider and differs across riders', async () => {
   const canon = canonicalize(goodPayload());
-  const h = await recordHash(canon);
+  const h = await recordHash('rider-1', canon);
   assert.match(h, /^[0-9a-f]{64}$/);
-  assert.equal(h, await recordHash(canon));
+  assert.equal(h, await recordHash('rider-1', canon));
+  // Salting with the rider means two riders never collide on the same session.
+  assert.notEqual(h, await recordHash('rider-2', canon));
+});
+
+test('low-order / identity Ed25519 public keys are rejected', async () => {
+  const zero = Buffer.alloc(32).toString('base64');
+  await assert.rejects(() => deviceFingerprint(zero));
+  // Even a "valid-looking" all-zero signature must not verify under the key.
+  assert.equal(await verifySignature(zero, Buffer.alloc(64).toString('base64'), '{"v":1,"x":"y"}'), false);
 });
 
 // --- eval scoring (server-authoritative) -----------------------------------

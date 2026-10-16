@@ -16,8 +16,10 @@ leaves your machine"* before it uploads. It contains:
 - `started_at`, `ended_at`, `duration_seconds` — when the session ran and for
   how long.
 - `models` — the model names used (e.g. `claude-opus-4-8`).
-- `tool_call_counts` — how many times each tool ran, by tool **name** only
-  (e.g. `{ "Bash": 12, "Edit": 5 }`). Never the arguments.
+- `tool_call_counts` — how many times each tool ran, by built-in tool **name**
+  only (e.g. `{ "Bash": 12, "Edit": 5 }`). Never the arguments. Every MCP tool
+  is bucketed to a single `"mcp"` count, so MCP **server and tool names** —
+  which can carry project or company identity — never leave the machine.
 - `evals` — eval-practice signals: how many test/eval files were created, which
   frameworks were detected, how many eval runs and fix-and-rerun cycles, and the
   change in pass rate. Counts and framework names only.

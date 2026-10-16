@@ -74,7 +74,7 @@ const landed = flights.filter((f) => f.outcome === 'landed').length;
 
       {(evalStats.verified > 0 || evalStats.evalRuns > 0) && (
         <div class="rider-evals">
-          <p class="micro">EVAL DISCIPLINE <span class="rider-evals__hint">— signed by the CLI · standing, never a rank shortcut</span></p>
+          <p class="micro">EVAL DISCIPLINE <span class="rider-evals__hint">— self-reported, signed by the rider’s device · display only, never a rank shortcut</span></p>
           <div class="rider-evals__row">
             <span><strong>{evalStats.verified}</strong> verified {evalStats.verified === 1 ? 'flight' : 'flights'}</span>
             {evalStats.evalRuns > 0 && <span><strong>{evalStats.evalRuns}</strong> eval {evalStats.evalRuns === 1 ? 'run' : 'runs'}</span>}

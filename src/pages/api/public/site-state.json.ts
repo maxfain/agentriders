@@ -15,7 +15,9 @@ export const GET: APIRoute = async ({ locals }) => {
   ).all<{ handle: string }>();
 
   const verifiedRows = await env.DB.prepare(
-    'SELECT DISTINCT matched_log_slug FROM flight_records WHERE matched_log_slug IS NOT NULL',
+    `SELECT DISTINCT fr.matched_log_slug AS matched_log_slug
+     FROM flight_records fr JOIN riders r ON r.id = fr.rider_id
+     WHERE fr.matched_log_slug IS NOT NULL AND r.banned_at IS NULL`,
   ).all<{ matched_log_slug: string }>();
 
   const verified: Record<string, true> = {};

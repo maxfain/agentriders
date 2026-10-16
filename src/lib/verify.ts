@@ -3,11 +3,17 @@
 // A record is signed on the rider's machine with a device's Ed25519 key
 // over the *canonical* JSON of a metadata-only payload. The server never
 // sees the session's prompts, code, or file paths — only counts, model
-// names, timestamps, and eval signals. Trust flows from the signature:
-// the device is registered to a rider, so a valid signature proves the
-// rider's own device produced this record. The eval *score* is always
-// recomputed here from the signed signals (clamped), so a doctored client
-// cannot inflate it.
+// names, timestamps, and eval signals.
+//
+// What the signature proves — and what it does NOT. A valid signature proves
+// that a device registered to a rider produced this record. It does NOT prove
+// the metadata is true: every count, timestamp, and eval signal is produced on
+// the rider's machine and is self-attested. The badge therefore means "a
+// registered device signed this session metadata," nothing more. The eval
+// *score* is recomputed here from the signed signals (clamped to the shared
+// caps) so the client cannot claim an arbitrary NUMBER — but the underlying
+// signals are still self-reported, so eval stats are display-only and MUST
+// NOT feed rank.
 //
 // Erasable TypeScript: this file is imported directly by `node --test`, so
 // it uses only Web-standard crypto (available in both Workers and Node 20+)
@@ -80,9 +86,31 @@ function b64ToBytes(b64: string): Uint8Array {
 
 const utf8 = (s: string) => new TextEncoder().encode(s);
 
+const bytesToHex = (bytes: Uint8Array) =>
+  [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+
+// Small-order / identity Ed25519 public keys (libsodium's blocklist plus the
+// non-canonical high-bit encodings of the order-1/2/4 points). A device
+// registered with one of these could "verify" forged signatures without a
+// private key, so we refuse them at registration and at verify. An honestly
+// generated key is a full-order point and never collides with this set.
+const LOW_ORDER_ED25519 = new Set([
+  '0000000000000000000000000000000000000000000000000000000000000000',
+  '0100000000000000000000000000000000000000000000000000000000000000',
+  '26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc05',
+  'c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac037a',
+  'ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f',
+  'edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f',
+  'eeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f',
+  '0000000000000000000000000000000000000000000000000000000000000080',
+  'ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
+  'edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
+  'eeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
+]);
+
 async function sha256HexBytes(bytes: Uint8Array): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', bytes);
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return bytesToHex(new Uint8Array(digest));
 }
 
 export async function sha256Hex(input: string): Promise<string> {
@@ -93,12 +121,19 @@ export async function sha256Hex(input: string): Promise<string> {
 export async function deviceFingerprint(publicKeyB64: string): Promise<string> {
   const bytes = b64ToBytes(publicKeyB64);
   if (bytes.length !== 32) throw new Error('Ed25519 public key must be 32 bytes.');
+  if (LOW_ORDER_ED25519.has(bytesToHex(bytes))) throw new Error('Low-order public key rejected.');
   return sha256HexBytes(bytes);
 }
 
-/** SHA-256 of the canonical payload — the dedupe key for a record. */
-export async function recordHash(canonical: string): Promise<string> {
-  return sha256Hex(canonical);
+/**
+ * Dedupe key for a record: SHA-256 of the rider id joined to the canonical
+ * payload. Salting with the rider makes the hash per-rider even though the
+ * column's UNIQUE index is global — so two riders who signed the same session
+ * facts never collide (no cross-rider pre-emption), and the only 409 a rider
+ * can provoke is against their OWN earlier upload of the exact same record.
+ */
+export async function recordHash(riderId: string, canonical: string): Promise<string> {
+  return sha256Hex(`${riderId}:${canonical}`);
 }
 
 // --- Signature verification ------------------------------------------------
@@ -120,6 +155,7 @@ export async function verifySignature(
     return false;
   }
   if (pub.length !== 32 || sig.length !== 64) return false;
+  if (LOW_ORDER_ED25519.has(bytesToHex(pub))) return false;
   try {
     const key = await crypto.subtle.importKey('raw', pub, { name: 'Ed25519' }, false, ['verify']);
     return await crypto.subtle.verify({ name: 'Ed25519' }, key, sig, utf8(message));
@@ -142,7 +178,10 @@ const isFiniteNum = (v: unknown): v is number => typeof v === 'number' && Number
 const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 const SESSION_HASH_RE = /^[0-9a-f]{64}$/;
 const TOOL_NAME_RE = /^[A-Za-z0-9_.:-]{1,60}$/;
+const MODEL_RE = /^[A-Za-z0-9._:+/ -]{1,120}$/;
 const VERSION_RE = /^\d{1,4}\.\d{1,4}\.\d{1,5}(?:-[0-9A-Za-z.-]{1,20})?$/;
+// Allowed slack between the claimed duration and ended−started (rounding).
+const DURATION_TOLERANCE_SECONDS = 2;
 
 const MAX_MODELS = 20;
 const MAX_TOOLS = 60;
@@ -191,16 +230,19 @@ export function validatePayload(raw: unknown): ValidationResult {
     if (typeof raw[k] !== 'string' || !ISO_RE.test(raw[k] as string) || Number.isNaN(Date.parse(raw[k] as string)))
       return { ok: false, reason: `${k} must be an ISO-8601 timestamp.` };
   }
-  if (Date.parse(raw.ended_at as string) < Date.parse(raw.started_at as string))
-    return { ok: false, reason: 'ended_at precedes started_at.' };
+  const span = (Date.parse(raw.ended_at as string) - Date.parse(raw.started_at as string)) / 1000;
+  if (span < 0) return { ok: false, reason: 'ended_at precedes started_at.' };
 
   if (!isFiniteNum(raw.duration_seconds) || raw.duration_seconds < 0 || raw.duration_seconds > MAX_DURATION_SECONDS)
     return { ok: false, reason: 'duration_seconds out of range.' };
+  // Duration must agree with the timestamps — no padding a "flight time".
+  if (Math.abs(raw.duration_seconds - span) > DURATION_TOLERANCE_SECONDS)
+    return { ok: false, reason: 'duration_seconds disagrees with the timestamps.' };
 
   if (!Array.isArray(raw.models) || raw.models.length < 1 || raw.models.length > MAX_MODELS)
     return { ok: false, reason: 'models must be a non-empty array (≤20).' };
-  if (!raw.models.every((m) => typeof m === 'string' && m.length > 0 && m.length <= 120))
-    return { ok: false, reason: 'each model must be a short string.' };
+  if (!raw.models.every((m) => typeof m === 'string' && MODEL_RE.test(m)))
+    return { ok: false, reason: 'each model must be a short plain string.' };
 
   if (!isObj(raw.tool_call_counts)) return { ok: false, reason: 'tool_call_counts must be an object.' };
   const toolKeys = Object.keys(raw.tool_call_counts);

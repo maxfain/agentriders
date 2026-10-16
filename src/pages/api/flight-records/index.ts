@@ -16,6 +16,9 @@ const json = (status: number, body: unknown) =>
 export const POST: APIRoute = async ({ locals, request }) => {
   const { env } = locals.runtime;
 
+  // On Cloudflare Pages all ingress traverses CF, which sets CF-Connecting-IP
+  // (a client-supplied value would only matter if the Worker were reachable
+  // off-CF, which Pages Functions are not).
   const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
   if (!(await rateLimit(env.RATE, `records:${ip}`, 60, 3600))) {
     return json(429, { error: 'Too many uploads. Try again later.' });
@@ -50,7 +53,7 @@ export const POST: APIRoute = async ({ locals, request }) => {
   if (!verified) return json(401, { error: 'Signature does not verify.' });
 
   const riderId = device.rider_id;
-  const hash = await recordHash(canonical);
+  const hash = await recordHash(riderId, canonical);
 
   // Clean dedupe messages (the UNIQUE indexes are the race backstop below).
   const dupHash = await env.DB.prepare('SELECT id FROM flight_records WHERE record_hash = ?')
