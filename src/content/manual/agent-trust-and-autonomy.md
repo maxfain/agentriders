@@ -1,9 +1,20 @@
 ---
 title: "The bond: how to give an agent more room, one flight at a time"
+seoTitle: "AI agent autonomy levels and how to earn them"
 chapter: 3
-description: "Earning trust between a rider and a mount, and when the reins can loosen."
-updated: 2026-09-29
+description: "Four stages of AI agent autonomy and how to earn each: trust the setup, not a personality, change one boundary at a time, and keep a promotion record."
+summary: "An AI agent should have only the autonomy its workflow has earned; trust belongs to the task, inputs, instructions, model, tools and review process, not a personality. Expand one boundary at a time across four stages: observe, prepare, execute and repeat within bounds. Measure failures first, keep a promotion record, and restore the earlier limit when acceptance rates fall."
+published: 2026-09-26
+updated: 2026-10-16
+author: "Max Faingezicht"
 draft: false
+faq:
+  - q: "How much autonomy should an AI agent have?"
+    a: "Only as much as a specific workflow has shown it can handle without your intervention, with a way for you to notice when it cannot. Trust belongs to the task, inputs, instructions, model, tools and review process together. An agent that reliably summarizes sanitized support tickets has not earned permission to issue refunds."
+  - q: "What are the levels of autonomy for an AI agent?"
+    a: "Four stages: observe (analyze approved inputs, propose a plan), prepare (produce a draft or patch in a review space), execute within bounds (a limited, authorized operation), and repeat within bounds (run the proven workflow on eligible inputs). It is a planning ladder, not a rank system; some actions should keep human approval even when preparation is reliable."
+  - q: "How does an AI agent earn more autonomy?"
+    a: "One boundary at a time. Track acceptance checks passed, unsupported claims, out-of-scope actions, correction time, cost per accepted result and correct escalations. Write a promotion record: the change, new failure exposure, review owner, conditions that restore the earlier limit. Do not make ten successful flights a universal rule. Ten identical easy cases say little about a rare, costly failure."
 ---
 
 ## Trust a workflow, not a personality
@@ -14,7 +25,7 @@ An agent that reliably summarizes sanitized support tickets has not thereby earn
 
 The useful question is precise: **what can this setup do without my intervention, and how will I notice when it cannot?**
 
-## Separate the kinds of freedom
+## Four stages of AI agent autonomy, one change at a time
 
 Autonomy has several dimensions. The agent might work for longer, read more material, edit more files, or act without a final review. Each change affects a different failure surface.
 
@@ -29,7 +40,7 @@ Keep those choices separate. Removing a review gate while increasing the dataset
 
 This is a planning ladder, not a rank system or a guarantee. Some actions should keep human approval even when the preparation becomes highly reliable.
 
-## Measure what you would otherwise miss
+## What to measure before giving an AI agent more autonomy
 
 Before expanding access, define the failures that matter. An output can be polished and still cite the wrong source, silently omit records, or change something outside scope.
 
@@ -46,7 +57,7 @@ A well-timed escalation is useful behavior. Do not reward an agent for always re
 
 Use representative inputs, awkward cases, and examples that previously failed. Keep some evaluation cases separate from those used to revise the instructions. The [evals chapter](/manual/evals/) explains repeatable checks; the log records what those checks actually found.
 
-## Use a promotion record
+## Write a promotion record before expanding permissions
 
 Write a short decision before granting more room:
 
@@ -65,7 +76,7 @@ Do not make “ten successful flights” a universal rule. Ten nearly identical 
 
 Illustrative example: an operator has an agent prepare inventory corrections for review. The next step could be permitting updates to a small set of test records, with before-and-after values captured. It need not be permission to edit the entire live inventory. The proposed step should answer one question the earlier flights could not.
 
-## Tighten the reins without drama
+## When to reduce an AI agent's autonomy (tighten the reins)
 
 Return to the earlier limit when acceptance rates fall, review time rises, the input changes, or an important control fails. Preserve the evidence and identify what changed. Update the brief, tool configuration, or checks, then rerun the relevant cases.
 
@@ -73,4 +84,4 @@ Do not solve a failed permission boundary by adding another emphatic sentence to
 
 “Grounded” means the affected workflow pauses while you repair it. It need not mean abandoning every useful task the agent performs.
 
-Take the [longer-leash lesson](/training/earn-the-longer-leash/) when you have a workflow worth expanding. Keep the promotion record in your [training kit](/training/kit/), alongside the flight logs that justify it.
+Take the [longer-leash lesson](/training/earning-autonomy/) when you have a workflow worth expanding. Keep the promotion record in your [training kit](/training/kit/), alongside the flight logs that justify it.

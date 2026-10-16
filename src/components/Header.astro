@@ -1,7 +1,9 @@
 ---
 import Mark from './Mark.astro';
 import Arrow from './Arrow.astro';
-const links = [['/training/', 'Train'], ['/manual', 'Manual'], ['/logs', 'Logs'], ['/riders', 'Riders'], ['/guild', 'Guild'], ['/about', 'About']];
+const links = [['/training/', 'Train'], ['/manual/', 'Manual'], ['/logs/', 'Logs'], ['/riders/', 'Riders'], ['/guild/', 'Guild'], ['/about/', 'About']];
+// Compares slash-less so a hub reads as current whether the request path
+// carries the trailing slash (the canonical form) or not.
 const active = (href: string) => {
   const path = href.replace(/\/$/, '');
   return (path === '/training' && Astro.url.pathname.startsWith('/missions')) || Astro.url.pathname === path || Astro.url.pathname.startsWith(path + '/');
@@ -13,12 +15,12 @@ const active = (href: string) => {
     <nav class="nav" aria-label="Primary">
       {links.map(([href, label]) => <a href={href} aria-current={active(href) ? 'page' : undefined}>{label}</a>)}
     </nav>
-    <a class="btn btn--ember header-join" href="/guild" data-auth-link><span data-auth-label>Join the Guild</span> <Arrow /></a>
+    <a class="btn btn--ember header-join" href="/guild/" data-auth-link><span data-auth-label>Join the Guild</span> <Arrow /></a>
     <details class="mobile-menu">
       <summary aria-label="Navigation menu"><span></span><span></span></summary>
       <nav aria-label="Mobile navigation">
         {links.map(([href, label], i) => <a href={href} aria-current={active(href) ? 'page' : undefined}><span class="micro">0{i + 1}</span>{label}<Arrow /></a>)}
-        <a href="/guild" class="mobile-menu__join" data-auth-link><span data-auth-label>Join the Guild</span> <Arrow /></a>
+        <a href="/guild/" class="mobile-menu__join" data-auth-link><span data-auth-label>Join the Guild</span> <Arrow /></a>
       </nav>
     </details>
   </div>
@@ -46,7 +48,7 @@ const active = (href: string) => {
           return;
         }
         for (const link of document.querySelectorAll<HTMLAnchorElement>('[data-auth-link]')) {
-          link.href = me.pending ? '/join' : '/me';
+          link.href = me.pending ? '/join/' : '/me/';
           const label = link.querySelector('[data-auth-label]');
           if (label) label.textContent = me.pending ? 'Finish joining' : `@${me.handle}`;
         }

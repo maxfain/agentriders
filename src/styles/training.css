@@ -92,7 +92,8 @@
 .prompt-compare__head > p:last-child { font-size:14px; color:#655b50; }
 .prompt-compare__grid { display:grid; grid-template-columns:1fr 1.4fr; }
 .prompt-version { background:#e4d8c6; padding:24px; }
-.prompt-version > .micro { font-size:8px; color:#695742; }
+.prompt-version > .micro { display:block; font-size:8px; color:#695742; }
+.prompt-version h3 { font-size:22px; line-height:1.2; margin-top:8px; }
 .prompt-version pre { white-space:pre-wrap; overflow-wrap:anywhere; font:12px/1.85 var(--mono); margin:18px 0 0; }
 .prompt-version--strong { background:var(--ink); color:var(--bone); }
 .prompt-version--strong > .micro { color:#e9aa80; }

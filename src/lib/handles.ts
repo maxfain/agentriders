@@ -12,6 +12,9 @@ export const RESERVED_HANDLES = new Set([
   'training', 'wings', 'roost', 'logout', 'login', 'signup', 'signin',
   'auth', 'oauth', 'settings', 'account', 'accounts', 'new', 'edit',
   'search', 'assets', 'static', 'public', 'cdn', 'img', 'images',
+  // docs/seo-aeo-plan.md §4.2: hubs and feeds this quarter adds
+  'ranks', 'verified-flight', 'glossary', 'burns', 'data', 'kit', 'mounts',
+  'sitemap', 'rss',
   // infra / impersonation
   'agentriders', 'agentrider', 'guildmaster', 'wingleader', 'rider',
   'fledgling', 'moderator', 'mod', 'staff', 'support', 'help', 'info',

@@ -49,3 +49,17 @@ Phase 2 turns the static publication into a product (accounts, logging, vouches,
 - [ ] Rate limits respond (repeat a magic-link request past the limit → generic 200, no email; repeat vouches past 5/day → 429).
 - [ ] Admin "Sweep expired" runs; `/api/admin/*` 404s for non-admins.
 - [ ] A D1 export has been taken at least once (see `docs/runbook.md`).
+
+## 8. Search visibility
+
+The technical baseline (robots, sitemap, RSS, JSON-LD, canonicals) ships with the code; this is the founder-side half (docs/seo-aeo-plan.md §4.6, §7).
+
+- [ ] **Google Search Console** verified for `agentriders.com` via a DNS TXT record (domain property, not URL prefix).
+- [ ] **Bing Webmaster Tools** verified via DNS TXT (ChatGPT/Copilot citations need Bing's index).
+- [ ] `https://agentriders.com/sitemap-index.xml` submitted in both; `curl -sI https://agentriders.com/robots.txt` and `/sitemap-index.xml` both 200.
+- [ ] `curl -sI https://agentriders.com/manual` → one 308 to `/manual/`; `curl -sI https://agentriders.com/riders/directory` → one 301 to `/riders/directory/`.
+- [ ] Cloudflare → Security → Bots: **AI bot policy** Search = Allow, Agent = Allow, Training = Allow (founding-season decision, §2.4); legacy **"Block AI bots" off**; **Bot Fight Mode off** (Grok fetches with browser-like user agents).
+- [ ] Cloudflare → Caching → Configuration: **Crawler Hints (IndexNow) on**. AI Crawl Control on; check monthly for 403s on `/logs.json`, `/logs/*`, `/manual/*`.
+- [ ] GA4: channel group **"AI assistants"** with referrers `chatgpt.com`, `chat.openai.com`, `perplexity.ai`, `copilot.microsoft.com`, `claude.ai`, `gemini.google.com`, `grok.com`, `x.ai`.
+- [ ] **Rich Results Test** passes (no errors) on one chapter (`/manual/reins/`), one log (`/logs/shipped-agentriders-phase-2/`) and one profile (`/riders/maxcr/`).
+- [ ] 30 days after verification: record the GSC baseline before setting any target (§7).

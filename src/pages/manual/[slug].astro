@@ -4,6 +4,7 @@ import PageHero from '../../components/PageHero.astro';
 import Base from '../../layouts/Base.astro';
 import ChapterRail from '../../components/ChapterRail.astro';
 import FieldDiagram from '../../components/FieldDiagram.astro';
+import { breadcrumbs, techArticle, smarten } from '../../lib/seo';
 
 export async function getStaticPaths() {
   const chapters = await getCollection('manual', ({ data }) => !data.draft);
@@ -18,14 +19,42 @@ const position = chapters.findIndex((item) => item.id === chapter.id);
 const previous = chapters[position - 1];
 const next = chapters[position + 1];
 const hasBody = chapter.body ? chapter.body.replace(/<!--[\s\S]*?-->/g, '').trim().length > 0 : false;
+// The H1 is the short title (before the colon) and the JSON-LD headline
+// mirrors it; the <title> leads with the industry term when the chapter has
+// one (seoTitle), with only " — AgentRiders" after it so the clamp never cuts.
+const shortTitle = d.title.split(':')[0];
+const published = d.published.toISOString().slice(0, 10);
+const updated = d.updated.toISOString().slice(0, 10);
+const path = `/manual/${chapter.id}/`;
+// The questions section is an H2 of the page, so the rail lists it with the body's.
+const railHeadings = d.faq.length > 0 ? [...headings, { depth: 2, slug: 'faq-title', text: 'Questions riders ask' }] : headings;
+// One line, true for every chapter at once: the S1 rewrite (docs/seo-aeo-plan.md §5.2).
+const changelog = 'Updated 2026-10-16: literal titles, summary and questions added.';
+const jsonLd = [
+  breadcrumbs([{ name: 'Home', path: '/' }, { name: 'The Field Manual', path: '/manual/' }, { name: shortTitle, path }]),
+  techArticle({
+    headline: shortTitle, description: d.description, path,
+    datePublished: d.published, dateModified: d.updated,
+    authorName: d.author, authorPath: '/about/', seriesName: 'The Field Manual', position: d.chapter,
+  }),
+];
 ---
 
-<Base title={`${d.title} — Field Manual — AgentRiders`} description={d.description}>
-  <PageHero eyebrow={`Chapter ${String(d.chapter).padStart(2, '0')} / The Field Manual`} title={d.title.split(':')[0]} description={d.description} art="book" compact><p class="page-hero__meta">{hasBody ? `Updated ${d.updated.toISOString().slice(0,10)}` : "CHAPTER IN PROGRESS"}</p></PageHero>
+<Base title={`${d.seoTitle ?? shortTitle} — AgentRiders`} description={d.description} ogType="article" publishedTime={d.published} modifiedTime={d.updated} jsonLd={jsonLd}>
+  <PageHero eyebrow={`Chapter ${String(d.chapter).padStart(2, '0')} / The Field Manual`} title={shortTitle} art="book" compact>
+    {hasBody ? (
+      <>
+        <p class="summary">{smarten(d.summary)}</p>
+        <p class="page-hero__meta">By <a href="/about/#author" rel="author">{d.author}</a> · Published <time datetime={published}>{published}</time> · Updated <time datetime={updated}>{updated}</time></p>
+      </>
+    ) : (
+      <p class="page-hero__meta">CHAPTER IN PROGRESS</p>
+    )}
+  </PageHero>
 
   <section class="section section--bone">
     <div class="container chapter-reading">
-      <ChapterRail current={chapter.id} headings={headings} />
+      <ChapterRail current={chapter.id} headings={railHeadings} />
       <div class="chapter-reading__body">
       <FieldDiagram chapter={d.chapter} />
       {hasBody ? (
@@ -33,12 +62,19 @@ const hasBody = chapter.body ? chapter.body.replace(/<!--[\s\S]*?-->/g, '').trim
           <Content />
         </div>
       ) : (
-        <div class="chapter-in-progress"><p class="micro">CHAPTER IN PROGRESS</p><h2>Still in the field.</h2><p>This chapter is being written from real flights. Read the <a href="/manual/evals">Evals chapter</a> while this one takes shape, or visit the <a href="/flight-log">Flight Log</a> for newsletter availability.</p></div>
+        <div class="chapter-in-progress"><p class="micro">CHAPTER IN PROGRESS</p><h2>Still in the field.</h2><p>This chapter is being written from real flights. Read the <a href="/manual/evals/">Evals chapter</a> while this one takes shape, or visit the <a href="/flight-log/">Flight Log</a> for newsletter availability.</p></div>
+      )}
+      {d.faq.length > 0 && (
+        <section class="faq" aria-labelledby="faq-title">
+          <h2 id="faq-title">Questions riders ask</h2>
+          {d.faq.map((item) => <><h3>{smarten(item.q)}</h3><p>{smarten(item.a)}</p></>)}
+          <p class="changelog">{changelog}</p>
+        </section>
       )}
       <nav class="chapter-navigation" aria-label="Chapters">
-        <a href="/manual">← All chapters</a>
-        {previous && <a href={`/manual/${previous.id}`}>Previous chapter</a>}
-        {next && <a href={`/manual/${next.id}`}>Next: {next.data.title.split(':')[0]} →</a>}
+        <a href="/manual/">← All chapters</a>
+        {previous && <a href={`/manual/${previous.id}/`}>Previous chapter</a>}
+        {next && <a href={`/manual/${next.id}/`}>Next: {next.data.title.split(':')[0]} →</a>}
       </nav>
       </div>
     </div>

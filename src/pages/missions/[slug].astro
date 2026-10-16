@@ -4,13 +4,24 @@ import Base from '../../layouts/Base.astro';
 import TrainingHero from '../../components/TrainingHero.astro';
 import TrainingNav from '../../components/TrainingNav.astro';
 import '../../styles/training.css';
+import { breadcrumbs, learningResource, isoDuration, smarten } from '../../lib/seo';
 export async function getStaticPaths(){return (await getCollection('missions')).map(mission=>({params:{slug:mission.id},props:{mission}}));}
 const {mission}=Astro.props;
 const {Content,headings}=await render(mission);
 const d=mission.data;
+const published=d.published.toISOString().slice(0,10);
+const updated=d.updated.toISOString().slice(0,10);
+const path=`/missions/${mission.id}/`;
+// <title>: the industry-term seoTitle when the mission has one, then only " — AgentRiders" so the clamp never cuts it.
+// The rail lists the body's H2s plus the questions section, which is one too.
+const railHeadings=d.faq.length>0?[...headings,{depth:2,slug:'faq-title',text:'Questions riders ask'}]:headings;
+const jsonLd=[
+  breadcrumbs([{name:'Home',path:'/'},{name:'Practice missions',path:'/missions/'},{name:d.title,path}]),
+  learningResource({name:d.title,description:d.description,path,audience:d.audience,timeRequired:isoDuration(d.duration),teaches:d.outcome,datePublished:d.published,dateModified:d.updated,authorName:d.author,authorPath:'/about/'}),
+];
 ---
-<Base title={`${d.title} — Practice missions — AgentRiders`} description={d.description}>
-  <TrainingHero eyebrow={`Practice mission / ${d.audience}`} title={d.title} description={d.description} art={d.art} compact><p class="school-hero__note micro">{d.duration} · GUIDED EXERCISE</p></TrainingHero>
+<Base title={`${d.seoTitle??d.title} — AgentRiders`} description={d.description} ogType="article" publishedTime={d.published} modifiedTime={d.updated} jsonLd={jsonLd}>
+  <TrainingHero eyebrow={`Practice mission / ${d.audience}`} title={d.title} art={d.art} compact><p class="summary">{smarten(d.summary)}</p><p class="school-hero__note micro">{d.duration} · GUIDED EXERCISE · By <a href="/about/#author" rel="author">{d.author}</a> · Published <time datetime={published}>{published}</time> · Updated <time datetime={updated}>{updated}</time></p></TrainingHero>
   <TrainingNav/>
-  <section class="section section--bone school-reading"><div class="container school-reading__layout"><aside class="school-rail"><a class="school-back micro" href="/missions/">← ALL MISSIONS</a><nav aria-label="In this mission"><p class="micro">MISSION CHECKPOINTS</p>{headings.filter(h=>h.depth===2).map(h=><a href={`#${h.slug}`}>{h.text}</a>)}</nav><a class="text-link" href="/training/kit/">Get the field kit ↓</a></aside><div class="school-reading__body"><div class="lesson-deliverable"><p class="micro">THE DELIVERABLE</p><p>{d.outcome}</p><span class="school-note">Practice material. Replace fictional inputs only when you have the right access and review process.</span></div><article class="prose school-prose"><Content/></article><div class="school-completion"><p class="micro">ONE MISSION. ONE HONEST RECORD.</p><h2>Log what actually happened.</h2><p>Include review time, failed checks, and what you changed. Do not fill gaps with estimates presented as measurements.</p><a class="text-link" href="/logs/template/">Open the flight log template ↗</a></div></div></div></section>
+  <section class="section section--bone school-reading"><div class="container school-reading__layout"><aside class="school-rail"><a class="school-back micro" href="/missions/">← ALL MISSIONS</a><nav aria-label="In this mission"><p class="micro">MISSION CHECKPOINTS</p>{railHeadings.filter(h=>h.depth===2).map(h=><a href={`#${h.slug}`}>{h.text}</a>)}</nav><a class="text-link" href="/training/kit/">Get the field kit ↓</a></aside><div class="school-reading__body"><div class="lesson-deliverable"><h2 class="micro">The deliverable</h2><p>{d.outcome}</p><span class="school-note">Practice material. Replace fictional inputs only when you have the right access and review process.</span></div><article class="prose school-prose"><Content/></article>{d.faq.length>0&&<section class="faq" aria-labelledby="faq-title"><h2 id="faq-title">Questions riders ask</h2>{d.faq.map(item=><><h3>{smarten(item.q)}</h3><p>{smarten(item.a)}</p></>)}</section>}<div class="school-completion"><p class="micro">ONE MISSION. ONE HONEST RECORD.</p><h2>Log what actually happened.</h2><p>Include review time, failed checks, and what you changed. Do not fill gaps with estimates presented as measurements.</p><a class="text-link" href="/logs/template/">Open the flight log template ↗</a></div></div></div></section>
 </Base>

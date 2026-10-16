@@ -67,4 +67,4 @@ Do not erase the failed artifact once a corrected one exists. Keep both, with ti
 
 A successful retry shows that the revised run worked. It does not establish that the contributing failure is impossible. Add the failure to the next review set.
 
-Next: https://agentriders.com/training/when-your-dragon-breathes-fire/
+Next: https://agentriders.com/training/when-an-agent-fails/

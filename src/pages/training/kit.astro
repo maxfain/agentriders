@@ -3,17 +3,18 @@ import Base from '../../layouts/Base.astro';
 import TrainingHero from '../../components/TrainingHero.astro';
 import TrainingNav from '../../components/TrainingNav.astro';
 import '../../styles/training.css';
+import { breadcrumbs } from '../../lib/seo';
 const sourceFiles=import.meta.glob('/public/training/*.md',{query:'?raw',import:'default',eager:true});
 const kit=[
  {id:'mission-brief',title:'The mission brief',verb:'Give the work a destination.',description:'Define the outcome, inputs, boundaries, checks, and reviewer before the first run.',lesson:'your-first-flight'},
  {id:'acceptance-checks',title:'Acceptance checks',verb:'Make “done” observable.',description:'Separate must-pass conditions from quality judgments. Keep a baseline and catch regressions.',lesson:'teach-it-where-to-land'},
  {id:'bridle',title:'The bridle',verb:'Write down the reins.',description:'Map permissions, approval gates, budgets, stop controls, and the places they are actually enforced.',lesson:'build-the-harness'},
- {id:'burn-report',title:'The burn report',verb:'Turn the failure into a check.',description:'Record the impact, contain the problem, preserve the evidence, and verify a repair before restarting.',lesson:'when-your-dragon-breathes-fire'},
- {id:'autonomy-review',title:'The autonomy review',verb:'Give trust a paper trail.',description:'Review a specific workflow, its test cases, oversight costs, and the one boundary you propose changing.',lesson:'earn-the-longer-leash'},
+ {id:'burn-report',title:'The burn report',verb:'Turn the failure into a check.',description:'Record the impact, contain the problem, preserve the evidence, and verify a repair before restarting.',lesson:'when-an-agent-fails'},
+ {id:'autonomy-review',title:'The autonomy review',verb:'Give trust a paper trail.',description:'Review a specific workflow, its test cases, oversight costs, and the one boundary you propose changing.',lesson:'earning-autonomy'},
  {id:'wing-handoff',title:'The wing handoff',verb:'Make every handoff explicit.',description:'Assign an owner, a narrow input and output contract, a shared budget, and a single integration decision.',lesson:'command-a-wing'},
 ];
 ---
-<Base title="The rider’s field kit — Free agent workflow templates — AgentRiders" description="Download six editable Markdown templates for AI agent work: mission brief, acceptance checks, permissions, failure recovery, autonomy reviews, and multi-agent handoffs.">
+<Base title="Field kit: six free agent workflow templates — AgentRiders" description="Six editable Markdown templates for AI agent work: mission brief, acceptance checks, bridle, burn report, autonomy review and wing handoff. No email gate." jsonLd={breadcrumbs([{name:'Home',path:'/'},{name:'Flight School',path:'/training/'},{name:'The field kit',path:'/training/kit/'}])}>
   <TrainingHero eyebrow="The field kit / Six tools for better flights" title="Pack the tools." emphasis="Keep the judgment." description="Reusable templates for the work around the prompt. Open them, adapt them, and keep the evidence with the run." art="workbench"/>
   <TrainingNav/>
   <section class="section section--bone"><div class="container">
