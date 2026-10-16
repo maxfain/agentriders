@@ -52,6 +52,17 @@ const pages = [
             </>
           ))}
         </div>
+        <nav class="doc-related" aria-label="The live record">
+          <h2>The live record</h2>
+          <p>The pages above explain the evidence layer; the record itself is the Flight Logs and the schema that governs them.</p>
+          <div class="doc-related__links">
+            <a href="/logs/">Flight Logs</a>
+            <a href="/logs/template/">The flight-log template</a>
+            <a href="/manual/logging-a-flight/">Logging a flight</a>
+            <a href="/logs.json">/logs.json</a>
+          </div>
+        </nav>
+        <p class="data-cite"><strong>Cite this.</strong> Credit “AgentRiders Flight Logs, https://agentriders.com/logs.json” with each record’s rider handle, per the <a href="/terms/">Terms</a>. <a href="/data/schema/">The schema page</a> states the reuse terms in full and marks the one figure that is an estimate.</p>
       </div>
     </div>
   </section>
@@ -63,3 +74,8 @@ const pages = [
     label="Open the case study"
   />
 </Base>
+<style>
+  .doc-related > p { margin-top: 12px; max-width: 65ch; font-size: 15px; line-height: 1.6; color: var(--text-on-bone-soft); }
+  .data-cite { max-width: 65ch; margin-top: 40px; font-size: 13px; line-height: 1.7; color: var(--text-on-bone-soft); overflow-wrap: anywhere; }
+  .data-cite strong { color: var(--text-on-bone); }
+</style>

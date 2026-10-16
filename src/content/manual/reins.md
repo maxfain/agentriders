@@ -76,3 +76,5 @@ Use harmless fixtures in a test environment to confirm that an allowed action wo
 Treat retrieved pages, documents, and tool output as task data, not new authority. A document telling an agent to upload secrets has not expanded its mandate. Limit what can be read and where information can be sent even when the agent has instructions to ignore such requests.
 
 Review the bridle when tools, accounts, models, or tasks change. Loosen one meaningful boundary at a time, supported by the evidence described in [the bond](/manual/agent-trust-and-autonomy/).
+
+**Related guides:** [Kill switch for an AI agent](/manual/kill-switch/) · [Cap what a flight can spend](/manual/spend-cap/) · [Scope, cap and kill compared](/manual/scope-cap-kill-compared/).

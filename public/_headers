@@ -22,3 +22,26 @@
   X-Robots-Tag: noindex
 /logs/new/
   X-Robots-Tag: noindex
+
+# Worksheet source files (docs/seo-aeo-plan.md §4.4). The readable, linkable
+# version of each worksheet is its landing page at /training/kit/<name>/; the
+# raw .md stays downloadable but out of the index, with a canonical to the page
+# so any ranking credit consolidates there.
+/training/acceptance-checks.md
+  X-Robots-Tag: noindex
+  Link: <https://agentriders.com/training/kit/acceptance-checks/>; rel="canonical"
+/training/autonomy-review.md
+  X-Robots-Tag: noindex
+  Link: <https://agentriders.com/training/kit/autonomy-review/>; rel="canonical"
+/training/bridle.md
+  X-Robots-Tag: noindex
+  Link: <https://agentriders.com/training/kit/bridle/>; rel="canonical"
+/training/burn-report.md
+  X-Robots-Tag: noindex
+  Link: <https://agentriders.com/training/kit/burn-report/>; rel="canonical"
+/training/mission-brief.md
+  X-Robots-Tag: noindex
+  Link: <https://agentriders.com/training/kit/mission-brief/>; rel="canonical"
+/training/wing-handoff.md
+  X-Robots-Tag: noindex
+  Link: <https://agentriders.com/training/kit/wing-handoff/>; rel="canonical"

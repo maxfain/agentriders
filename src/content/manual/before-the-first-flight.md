@@ -84,3 +84,5 @@ Know how to cancel the run and any scheduled or background work it starts. Stopp
 - Is there a recovery path and a named reviewer?
 
 If those answers are clear, take [your first flight](/training/your-first-flight/). Keep the reusable brief in your [training kit](/training/kit/). Log what happened before expanding the assignment.
+
+**Related guides:** [Kill switch for an AI agent](/manual/kill-switch/) · [Cap what a flight can spend](/manual/spend-cap/) · [Scope, cap and kill compared](/manual/scope-cap-kill-compared/).

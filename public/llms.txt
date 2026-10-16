@@ -11,6 +11,7 @@ AgentRiders treats AI agents as dragons and the humans who run them as riders. F
 - [Field kit](https://agentriders.com/training/kit/): reusable briefs, review criteria, and run records
 - [Field Manual](https://agentriders.com/manual/): playbooks on scope, budgets, kill switches, review loops and burns
 - [Flight Logs](https://agentriders.com/logs/): real agent runs with the numbers left in
+- [Flight data](https://agentriders.com/data/): the evidence layer — how runs are counted, the log schema, and the one logged case study
 - [Riders](https://agentriders.com/riders/): directory of riders and their track records
 - [Guild](https://agentriders.com/guild/): membership, The Roost forum, monthly live flights
 - [About](https://agentriders.com/about/): why riders
@@ -30,6 +31,23 @@ AgentRiders treats AI agents as dragons and the humans who run them as riders. F
 - [Ship a small code change](https://agentriders.com/missions/ship-a-small-code-change/): a scoped code change, evidence, and human review
 - [Research with receipts](https://agentriders.com/missions/research-with-receipts/): a sourced brief with traceable claims and uncertainty
 - [Triage without autopilot](https://agentriders.com/missions/triage-without-autopilot/): classify a fixed set of sample requests without sending messages
+
+## Field Manual guides
+
+- [Kill switch for an AI agent](https://agentriders.com/manual/kill-switch/): five reins that stop a run, with a test for each
+- [Cap what a flight can spend](https://agentriders.com/manual/spend-cap/): why an alert is not a cap, and where a hard limit actually lives
+- [Scope, cap and kill compared](https://agentriders.com/manual/scope-cap-kill-compared/): permissions, budgets and stop controls in Claude Code, Cursor, Codex CLI and Gemini CLI
+
+## Flight data
+
+- [How the Guild counts](https://agentriders.com/data/methodology/): what a flight, burn, cost and outcome mean, and the n-gates every number waits behind
+- [The flight log, field by field](https://agentriders.com/data/schema/): every field of a run log, and how to fetch and cite /logs.json
+- [The est. $550 flight](https://agentriders.com/data/the-550-dollar-flight/): one logged run — five hours, three burns, and the review that caught an IDOR and a stored XSS 38 tests missed
+
+## Rider track record
+
+- [How ranks are earned](https://agentriders.com/riders/ranks/): Fledgling, Rider, Wingleader — a public track record, not a claim
+- [What a Verified flight proves](https://agentriders.com/riders/verified-flight/): a device-signed, metadata-only session record, and what it does not prove
 
 ## For AI agents
 
