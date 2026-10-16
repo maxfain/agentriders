@@ -94,6 +94,12 @@ const reins = fm.reins ?? { scope: '', budget: '', kill_switch: '', autonomy: ''
   <section class="section section--bone">
     <div class="container composer">
       <p class="composer__as">Publishing as <strong>@{rider.handle}</strong>{prefill.kind === 'edit' && <> · editing <code>/logs/{prefill.targetSlug}</code></>}</p>
+      {prefill.kind === 'new' && (
+        <div class="composer__fork">
+          <p>Prefer your agent to file this? <a class="text-link" href="/start/">Set it up at /start/</a> — this form is the by-hand path.</p>
+          <p class="composer__fork-fine">A by-hand flight publishes the same way. It just has no signed session record, so it won't show the Verified mark.</p>
+        </div>
+      )}
       {prefill.notice && <p class="composer__notice" role="alert">{prefill.notice}</p>}
       {prefill.status === 'changes_requested' && prefill.reviewerNotes && (
         <div class="composer__changes" role="alert">
@@ -226,6 +232,9 @@ const reins = fm.reins ?? { scope: '', budget: '', kill_switch: '', autonomy: ''
   .composer__as { font-size: 14px; color: var(--text-on-bone-soft); margin-bottom: 20px; }
   .composer__as code, .composer__changes code { font-family: var(--mono); font-size: 12px; }
   .composer__notice, .composer__changes { padding: 14px 18px; border: 1px solid var(--bone-line); border-left: 3px solid var(--ember); background: var(--bone-raised); margin-bottom: 22px; }
+  .composer__fork { padding: 14px 18px; border: 1px solid var(--bone-line); border-left: 3px solid var(--ember); background: var(--bone-raised); margin-bottom: 22px; }
+  .composer__fork p { font-size: 14px; line-height: 1.5; color: var(--text-on-bone); margin: 0; }
+  .composer__fork p.composer__fork-fine { margin-top: 8px; font-size: 13px; color: var(--text-on-bone-soft); }
   .composer__changes .micro { color: var(--ember-text); font-size: 9px; margin-bottom: 6px; }
   #composer { display: flex; flex-direction: column; gap: 22px; }
   .field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }

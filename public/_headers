@@ -22,6 +22,10 @@
   X-Robots-Tag: noindex
 /logs/new/
   X-Robots-Tag: noindex
+/start
+  X-Robots-Tag: noindex
+/start/
+  X-Robots-Tag: noindex
 
 # Worksheet source files (docs/seo-aeo-plan.md §4.4). The readable, linkable
 # version of each worksheet is its landing page at /training/kit/<name>/; the

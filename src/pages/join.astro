@@ -157,7 +157,9 @@ const error = errorKey ? (ERRORS[errorKey] ?? null) : null;
         const body = await response.json();
         if (response.ok) {
           track('handle_claimed', beacon);
-          window.location.assign('/me/');
+          // The agent-first spine is the post-claim home: enable the agent,
+          // then have it file the first flight. /me stays the durable ledger.
+          window.location.assign('/start/');
         } else {
           status.textContent = body.error ?? 'Something went wrong. Try again.';
         }

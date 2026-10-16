@@ -36,10 +36,18 @@ import { breadcrumbs } from '../lib/seo';
       <div class="opening-note">
         <h2>The Guild is open.</h2>
         <p>Reading stays free, no account needed. Create a rider account to log flights under your own name, earn your rank, and vouch for the riders you have flown with.</p>
-        <a class="btn btn--ember" href="/join/">Create your rider account <span aria-hidden="true">↗</span></a>
+        <div class="opening-note__cta">
+          <a class="btn btn--ember" href="/join/">Create your rider account <span aria-hidden="true">↗</span></a>
+          <p class="opening-note__already">Already in? <a class="text-link" href="/start/">Enable your agent →</a></p>
+        </div>
         <Signup id="email-guild" />
       </div>
     </div>
   </section>
   <PageCoda title="Ranks are earned. Never bought." description="Start with the craft. The first chapter is free." />
 </Base>
+
+<style>
+  .opening-note__cta { display: flex; flex-direction: column; gap: 14px; align-items: flex-start; }
+  .opening-note__already { font-size: 14px; color: var(--text-on-bone-soft); margin: 0; }
+</style>
