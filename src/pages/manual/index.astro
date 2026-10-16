@@ -6,8 +6,14 @@ import Base from '../../layouts/Base.astro';
 import Icon from '../../components/Icon.astro';
 import { breadcrumbs } from '../../lib/seo';
 
-const chapters = (await getCollection('manual', ({ data }) => !data.draft)).sort(
-  (a, b) => a.data.chapter - b.data.chapter,
+const chapters = (await getCollection('manual', ({ data }) => !data.draft && data.kind === 'chapter')).sort(
+  (a, b) => (a.data.chapter ?? 0) - (b.data.chapter ?? 0),
+);
+// The three S2 guides (docs/seo-aeo-plan.md §3.3), in reading order: stop a
+// run, cap its spend, then compare the four mounts.
+const GUIDE_ORDER = ['kill-switch', 'spend-cap', 'scope-cap-kill-compared'];
+const guides = (await getCollection('manual', ({ data }) => !data.draft && data.kind === 'guide')).sort(
+  (a, b) => GUIDE_ORDER.indexOf(a.id) - GUIDE_ORDER.indexOf(b.id),
 );
 const fmt = (d: Date) => d.toISOString().slice(0, 10);
 ---
@@ -38,6 +44,23 @@ const fmt = (d: Date) => d.toISOString().slice(0, 10);
         ))}
       </ol>
     </div>
+    {guides.length > 0 && (
+      <div class="container manual-guides">
+        <div class="manual-guides__head">
+          <p class="micro">FIELD MANUAL / GUIDES</p>
+          <h2>Reference guides</h2>
+          <p>Standalone references that sit beside the chapters: how to stop a run, how to cap what it spends, and how the four mounts compare.</p>
+        </div>
+        <ul class="guide-list">
+          {guides.map((g) => (
+            <li>
+              <h3><a href={`/manual/${g.id}/`}>{g.data.title.split(':')[0]}</a></h3>
+              <p>{g.data.summary}</p>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
   </section>
   <PageCoda title="Put the craft into practice." description="One task. One outcome. One honest record." href="/logs/template/" label="Log your first flight" />
 </Base>
