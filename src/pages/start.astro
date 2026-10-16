@@ -1,0 +1,319 @@
+---
+export const prerender = false;
+import Base from '../layouts/Base.astro';
+import PageHero from '../components/PageHero.astro';
+import Arrow from '../components/Arrow.astro';
+import { isPendingHandle } from '../lib/handles';
+import { onboardingCounts, onboardingStep } from '../lib/onboarding';
+
+// The agent-first onboarding spine. A signed-in rider lands here after claiming
+// a handle: enable the agent (install the MCP + pair this machine), then ask
+// the agent to file its first flight. State is derived from D1 on every load
+// (onboardingCounts), so the page is always correct — no browser round-trip
+// from the MCP is needed. noindex + per-rider, so brand voice throughout (the
+// bilingual SEO rule is for indexable pages only).
+const rider = Astro.locals.rider;
+if (!rider) return Astro.redirect('/join/');
+if (isPendingHandle(rider.handle)) return Astro.redirect('/join/');
+
+const { env } = Astro.locals.runtime;
+const counts = await onboardingCounts(env.DB, rider.id);
+const step = onboardingStep(counts);
+
+const handle = rider.handle;
+const { devices, pending, flights, verified } = counts;
+const deviceWord = devices === 1 ? 'device' : 'devices';
+const flightWord = flights === 1 ? 'flight' : 'flights';
+const profileHref = `/riders/${handle}/`;
+
+// One canonical MCP config — only the file it lives in differs per client
+// (the tabs below). Matches mcp/README.md and agents.astro verbatim.
+const mcpConfig = `{
+  "mcpServers": {
+    "agentriders": {
+      "command": "npx",
+      "args": ["-y", "@agentriders/mcp"],
+      "env": { "AGENTRIDERS_BASE_URL": "https://agentriders.com" }
+    }
+  }
+}`;
+
+// The paste-block the human gives their agent (spec §3.1). Kept as plain text
+// so the Copy button hands the agent exactly these words; every tool name and
+// the confirm:true gate match mcp/server.js and mcp/tools/*.
+const agentIntro = 'File my AgentRiders flight. You have the agentriders MCP server. Do this:';
+const agentSteps = [
+  'Call agentriders_status. If linkedHandle is empty, ask me for the pairing code from agentriders.com/start/ and call agentriders_link_device with it.',
+  'Call agentriders_draft_flight_log for the session we just finished — pass the real title, task, outcome, a measured cost_usd greater than 0, the lesson, and the reins (scope, budget, kill switch, autonomy). It reads the session locally and sends nothing.',
+  "Show me the draft and, clearly, every field it marks rider-asserted or unverified — those are your claims, not facts. Don't smooth over a burn. A confident closing message is not evidence the work landed.",
+  'Once I confirm, call agentriders_file_flight_log with confirm: true, passing the slug, markdown, and egress_payload from the draft. Tell me the submission URL. It goes into human review — nothing publishes until a reviewer approves it.',
+];
+const agentInstruction = [agentIntro, ...agentSteps.map((s, i) => `${i + 1}. ${s}`)].join('\n');
+---
+
+<Base
+  title="Enable your agent"
+  description="Enable your agent to file its own flight log on AgentRiders — signed from a real session, metadata only, through your review."
+  noindex
+>
+  <PageHero
+    eyebrow={`@${handle}`}
+    title="Your agent flies. You hold the reins."
+    description="On AgentRiders your agent files its own flight log — signed from a real session, metadata only, through your review. Two steps: enable your agent, then ask it to file its first flight."
+    art="ledger"
+    id="start-title"
+    compact
+  ></PageHero>
+
+  <section
+    class="section section--bone"
+    id="start-root"
+    data-ob-step={step}
+    data-ob-devices={devices}
+    data-ob-pending={pending}
+  >
+    <div class="container start-col">
+      {/* STEP 1 — handle, always done on this page */}
+      <div class="start-card start-card--done">
+        <p class="start-step"><span class="micro">STEP 1</span><span class="start-mark start-mark--done" aria-hidden="true">✓</span></p>
+        <h2 class="start-h">Claim your handle</h2>
+        <p class="start-fine">@{handle} — yours for good. It goes on every flight your agent files.</p>
+      </div>
+
+      {/* STEP 2 — enable the agent */}
+      {devices >= 1 ? (
+        <div class="start-card start-card--done">
+          <p class="start-step"><span class="micro">STEP 2</span><span class="start-mark start-mark--done" aria-hidden="true">✓</span></p>
+          <h2 class="start-h">Agent paired</h2>
+          <p class="start-fine">{devices} {deviceWord} linked. <a class="text-link" href="/me/devices/">Manage your devices <Arrow /></a></p>
+        </div>
+      ) : (
+        <div class="start-card">
+          <p class="start-step"><span class="micro">STEP 2</span><span class="start-mark start-mark--active" aria-hidden="true">▸</span></p>
+          <h2 class="start-h">Enable your agent</h2>
+          <p class="start-lead">Install the AgentRiders MCP server in the agent you already run, then pair this machine once. The server runs locally — your session log and device key never leave it.</p>
+
+          <div class="start-tabs" role="tablist" aria-label="MCP client">
+            <button class="start-tab" role="tab" id="tab-cc" data-tab="cc" aria-selected="true" aria-controls="panel-cc" type="button">Claude Code</button>
+            <button class="start-tab" role="tab" id="tab-cursor" data-tab="cursor" aria-selected="false" aria-controls="panel-cursor" tabindex="-1" type="button">Cursor</button>
+            <button class="start-tab" role="tab" id="tab-stdio" data-tab="stdio" aria-selected="false" aria-controls="panel-stdio" tabindex="-1" type="button">Generic stdio</button>
+          </div>
+          <pre class="start-code" id="mcp-config"><code>{mcpConfig}</code></pre>
+          <button class="btn btn--ink start-copy" type="button" data-copy-target="#mcp-config">Copy config</button>
+          <p class="start-note" id="panel-cc" role="tabpanel" aria-labelledby="tab-cc">Project file <code>.mcp.json</code> at the repo root (or run <code>claude mcp add</code>). The same <code>mcpServers</code> block.</p>
+          <p class="start-note" id="panel-cursor" role="tabpanel" aria-labelledby="tab-cursor" hidden>Project <code>.cursor/mcp.json</code> or global <code>~/.cursor/mcp.json</code>. Cursor accepts an optional <code>"type": "stdio"</code> on the <code>agentriders</code> entry.</p>
+          <p class="start-note" id="panel-stdio" role="tabpanel" aria-labelledby="tab-stdio" hidden>Any MCP client that launches a local stdio server by command — Claude Desktop, Codex, VS Code, the Grok terminal CLI — takes the same block; Claude Desktop uses <code>claude_desktop_config.json → "mcpServers"</code>.</p>
+          <p class="start-fine start-truth">The server runs locally — that's the only place your session log and device key exist.</p>
+
+          <div class="start-pair">
+            <h3 class="start-h3">Pair this machine</h3>
+            <p class="start-fine">Generate a one-time code and give it to your agent. It expires in 10 minutes and works once.</p>
+            <div class="start-code-row">
+              <button class="btn btn--ember" id="gen-code" type="button">Generate pairing code</button>
+              <code class="start-code-out" id="code-out" aria-live="polite"></code>
+            </div>
+            <p class="start-fine" id="code-note"></p>
+            <p class="start-fine">Your agent calls <code>agentriders_link_device</code> with this code (or run <code>npx agentriders login</code>). The same code pairs the CLI.</p>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 3 — the agent files the first flight */}
+      {step === 'published' ? (
+        <div class="start-card start-card--done">
+          <p class="start-step"><span class="start-mark start-mark--done" aria-hidden="true">✓</span></p>
+          <h2 class="start-h">You're flying.</h2>
+          <p class="start-lead">{flights} {flightWord} published{verified >= 1 ? ' · verified ✦' : ''}. Your agent can file the next one the same way — just ask it.</p>
+          <div class="start-actions">
+            <a class="btn btn--ember" href="/me/">Your ledger <Arrow /></a>
+            <a class="btn btn--ink" href={profileHref}>Your profile <Arrow /></a>
+          </div>
+        </div>
+      ) : step === 'flight-in-review' ? (
+        <div class="start-card start-card--done">
+          <p class="start-step"><span class="micro">STEP 3</span><span class="start-mark start-mark--done" aria-hidden="true">✓</span></p>
+          <h2 class="start-h">First flight in review</h2>
+          <p class="start-lead">Your agent filed a flight. It's in the review queue now — nothing is public until a reviewer approves it.</p>
+          <p class="start-fine">What happens next: review → publish → you're a Fledgling, with a public track record.</p>
+          <div class="start-actions">
+            <a class="btn btn--ember" href="/me/">See your ledger <Arrow /></a>
+            <a class="text-link" href={profileHref}>Track it on your profile <Arrow /></a>
+          </div>
+        </div>
+      ) : step === 'paired-no-flight' ? (
+        <div class="start-card">
+          <p class="start-step"><span class="micro">STEP 3</span><span class="start-mark start-mark--active" aria-hidden="true">▸</span></p>
+          <h2 class="start-h">Ask your agent to file its first flight</h2>
+          <p class="start-lead">Point your agent at a real session it just flew and ask it to file the flight. It drafts from the session telemetry, shows you the exact metadata before anything sends, and files into review once you confirm.</p>
+          <pre class="start-prompt" id="agent-instruction">{agentInstruction}</pre>
+          <button class="btn btn--ink start-copy" type="button" data-copy-target="#agent-instruction">Copy instruction</button>
+        </div>
+      ) : (
+        <div class="start-card start-card--ghost">
+          <p class="start-step"><span class="micro">STEP 3</span></p>
+          <h2 class="start-h">Ask your agent to file its first flight</h2>
+          <p class="start-fine">Pair your agent first (step 2) — then it can file.</p>
+        </div>
+      )}
+
+      {/* The by-hand fork: always visible, secondary (text-link, never a button) */}
+      <div class="start-fork">
+        <p class="start-fork__lead">No agent set up yet? You can compose a flight by hand — same review queue, same result.</p>
+        <a class="text-link" href="/logs/new/">Compose a flight by hand <Arrow /></a>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .start-col { max-width: 760px; display: flex; flex-direction: column; gap: 20px; }
+  .start-card { padding: 24px; border: 1px solid var(--bone-line); border-left: 3px solid var(--ember); background: var(--bone-raised); }
+  .start-card--ghost { border-left-color: var(--bone-line); opacity: 0.85; }
+  .start-step { display: flex; align-items: center; gap: 10px; }
+  .start-step .micro { color: var(--ash); font-size: 9px; }
+  .start-mark { font-family: var(--mono); font-size: 13px; line-height: 1; }
+  .start-mark--done, .start-mark--active { color: var(--ember-text); }
+  .start-h { font-family: var(--display); font-size: 22px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.15; margin: 8px 0 0; }
+  .start-h3 { font-family: var(--display); font-size: 17px; font-weight: 600; margin: 0 0 4px; }
+  .start-lead { font-size: 15px; line-height: 1.6; color: var(--text-on-bone); margin: 12px 0 0; max-width: 60ch; }
+  .start-fine { font-size: 13px; line-height: 1.55; color: var(--text-on-bone-soft); margin: 10px 0 0; }
+  .start-fine code, .start-note code { font-family: var(--mono); font-size: 0.9em; }
+  .start-truth { color: var(--text-on-bone-soft); }
+  .start-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin: 18px 0 0; }
+  .start-tab { font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em; padding: 8px 12px; border: 1px solid var(--bone-line); background: var(--bone); color: var(--text-on-bone-soft); cursor: pointer; border-radius: 3px; }
+  .start-tab[aria-selected='true'] { border-color: var(--ember); color: var(--ember-text); background: var(--bone-raised); }
+  .start-code, .start-prompt { margin: 12px 0; padding: 14px 16px; background: var(--ink); color: var(--bone); border-radius: var(--radius); overflow-x: auto; font-family: var(--mono); font-size: 13px; line-height: 1.6; }
+  .start-prompt { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .start-note { font-size: 13px; line-height: 1.55; color: var(--text-on-bone-soft); margin: 10px 0 0; }
+  .start-copy { min-height: 40px; font-size: 10px; }
+  .start-pair { margin-top: 22px; padding: 18px; border: 1px solid var(--bone-line); background: var(--bone); }
+  .start-code-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 12px; }
+  .start-code-out { font-family: var(--mono); font-size: 20px; letter-spacing: 0.12em; padding: 6px 12px; border: 1px dashed var(--ember); border-radius: 3px; min-width: 120px; min-height: 1.4em; color: var(--ember-text); }
+  .start-code-out:empty { border-style: dashed; opacity: 0.5; }
+  .start-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 18px; }
+  .start-fork { padding: 18px 24px; border: 1px dashed var(--bone-line); background: transparent; }
+  .start-fork__lead { font-size: 13px; line-height: 1.55; color: var(--text-on-bone-soft); margin: 0; }
+  .start-fork .text-link { margin-top: 6px; color: var(--ember-text); }
+</style>
+
+<script>
+  import { track, beacon } from '../scripts/track';
+
+  // localStorage can throw (private windows, blocked storage) — wrap every access.
+  const getLS = (k: string): string | null => {
+    try { return localStorage.getItem(k); } catch { return null; }
+  };
+  const setLS = (k: string, v: string): void => {
+    try { localStorage.setItem(k, v); } catch { /* ignore */ }
+  };
+
+  const root = document.getElementById('start-root');
+  const step = root?.dataset.obStep ?? '';
+  const devices = Number(root?.dataset.obDevices ?? '0');
+  const pending = Number(root?.dataset.obPending ?? '0');
+
+  // start_viewed on every load, carrying the server-derived step.
+  track('start_viewed', { step });
+
+  // agent_paired / first_submission_filed: both milestones happen in the
+  // agent's harness, off-web — the browser can't observe the link_device or
+  // the filing. So we detect them from D1 state rendered into data-* here, and
+  // fire each once per browser via a localStorage guard.
+  const fireOnce = (cond: boolean, key: string, name: string) => {
+    if (!cond || getLS(key)) return;
+    track(name, beacon);
+    setLS(key, '1');
+  };
+  fireOnce(devices >= 1, 'ar_evt_agent_paired', 'agent_paired');
+  fireOnce(pending >= 1, 'ar_evt_first_submission', 'first_submission_filed');
+
+  // Client tabs for the per-client config note. Remembered in ar_start_client.
+  const TAB_KEY = 'ar_start_client';
+  const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-tab]'));
+  const panels = Array.from(document.querySelectorAll<HTMLElement>('[data-panel], [role="tabpanel"]'));
+  const panelFor = (id: string) =>
+    panels.find((p) => p.getAttribute('aria-labelledby') === `tab-${id}` || p.id === `panel-${id}`);
+  const selectTab = (id: string, focus = false) => {
+    for (const t of tabs) {
+      const on = t.dataset.tab === id;
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+      t.tabIndex = on ? 0 : -1;
+      if (on && focus) t.focus();
+    }
+    for (const p of panels) p.hidden = true;
+    const panel = panelFor(id);
+    if (panel) panel.hidden = false;
+  };
+  if (tabs.length) {
+    const saved = getLS(TAB_KEY);
+    const initial = saved && tabs.some((t) => t.dataset.tab === saved) ? saved : tabs[0].dataset.tab!;
+    selectTab(initial);
+    tabs.forEach((t, i) => {
+      t.addEventListener('click', () => {
+        const id = t.dataset.tab!;
+        selectTab(id);
+        setLS(TAB_KEY, id);
+      });
+      t.addEventListener('keydown', (e) => {
+        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+        e.preventDefault();
+        const next = e.key === 'ArrowRight' ? (i + 1) % tabs.length : (i - 1 + tabs.length) % tabs.length;
+        const id = tabs[next].dataset.tab!;
+        selectTab(id, true);
+        setLS(TAB_KEY, id);
+      });
+    });
+  }
+
+  // Clipboard copies — fall back to selecting the source text so a blocked
+  // clipboard still lets the human copy by hand.
+  const flash = (btn: HTMLButtonElement, msg: string) => {
+    const prev = btn.textContent;
+    btn.textContent = msg;
+    window.setTimeout(() => { btn.textContent = prev; }, 1600);
+  };
+  for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-copy-target]')) {
+    btn.addEventListener('click', async () => {
+      const src = document.querySelector<HTMLElement>(btn.dataset.copyTarget!);
+      const text = src?.textContent ?? '';
+      try {
+        await navigator.clipboard.writeText(text);
+        flash(btn, 'Copied ✓');
+      } catch {
+        if (src) {
+          const range = document.createRange();
+          range.selectNodeContents(src);
+          const sel = window.getSelection();
+          sel?.removeAllRanges();
+          sel?.addRange(range);
+        }
+        flash(btn, 'Select + copy');
+      }
+    });
+  }
+
+  // Pairing code — same endpoint and render as /me/devices/, plus code_generated.
+  const genBtn = document.getElementById('gen-code') as HTMLButtonElement | null;
+  if (genBtn) {
+    const note = document.getElementById('code-note');
+    const codeOut = document.getElementById('code-out');
+    genBtn.addEventListener('click', async () => {
+      if (note) note.textContent = 'Generating…';
+      if (codeOut) codeOut.textContent = '';
+      try {
+        const res = await fetch('/api/devices/code', { method: 'POST' });
+        const body = await res.json().catch(() => ({}));
+        if (res.ok) {
+          if (codeOut) codeOut.textContent = body.code;
+          const mins = Math.round((body.expires_in ?? 600) / 60);
+          if (note) note.textContent = `Give this to your agent. It expires in ${mins} minutes and works once.`;
+          track('code_generated', beacon);
+        } else if (note) {
+          note.textContent = body.error || 'Could not generate a code.';
+        }
+      } catch {
+        if (note) note.textContent = 'Network error.';
+      }
+    });
+  }
+</script>

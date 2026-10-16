@@ -7,6 +7,7 @@ Disallow: /admin/
 Disallow: /me/
 Disallow: /join
 Disallow: /logs/new
+Disallow: /start
 
 # Answer engines are an audience for this site. Explicit so a future blanket rule never catches them.
 # A crawler obeys only the group that names it (RFC 9309), so the rules are repeated here in full.
@@ -26,5 +27,6 @@ Disallow: /admin/
 Disallow: /me/
 Disallow: /join
 Disallow: /logs/new
+Disallow: /start
 
 Sitemap: https://agentriders.com/sitemap-index.xml
