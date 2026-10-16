@@ -28,7 +28,7 @@ const joined = new Date(rider.created_at).toLocaleDateString('en-US', {
   month: 'long',
   day: 'numeric',
 });
-const rankLabel = rider.rank ? rider.rank.toUpperCase() : 'UNRANKED';
+const rankLabel = rider.rank ? rider.rank[0].toUpperCase() + rider.rank.slice(1) : 'Unranked';
 ---
 
 <Base

@@ -51,8 +51,10 @@ const vouchRemoved = myVouch?.status === 'removed';
 
 const fmt = (iso: string) =>
   new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-const joined = new Date(rider.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
-const rankLabel = rider.rank ? rider.rank.toUpperCase() : 'UNRANKED';
+// Short month + title-case rank: these sit in narrow stat cards, and uppercase
+// display type ("WINGLEADER") is wide enough to overflow a card on a laptop.
+const joined = new Date(rider.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+const rankLabel = rider.rank ? rider.rank[0].toUpperCase() + rider.rank.slice(1) : 'Unranked';
 const landed = flights.filter((f) => f.outcome === 'landed').length;
 ---
 
@@ -182,10 +184,13 @@ const landed = flights.filter((f) => f.outcome === 'landed').length;
 
 <style>
   .rider-profile { max-width: 920px; display: flex; flex-direction: column; gap: 30px; }
-  .rider-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 16px; margin: 0; }
-  .rider-stats > div { border: 1px solid var(--bone-line); border-left: 3px solid var(--ember); background: var(--bone-raised); padding: 16px 18px; }
+  .rider-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(136px, 1fr)); gap: 16px; margin: 0; }
+  .rider-stats > div { min-width: 0; container-type: inline-size; border: 1px solid var(--bone-line); border-left: 3px solid var(--ember); background: var(--bone-raised); padding: 16px 18px; }
   .rider-stats dt { font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ash); }
-  .rider-stats dd { margin: 6px 0 0; font-family: var(--display); font-size: 22px; font-weight: 600; }
+  /* Values scale with the card: "Wingleader" (the longest rank) is ~5.5× the
+     font size wide in the display face, so 17.5cqw keeps it inside the card
+     at laptop widths where five cards share the row. */
+  .rider-stats dd { margin: 6px 0 0; font-family: var(--display); font-size: clamp(16px, 17.5cqw, 22px); font-weight: 600; }
   .rider-stats__fine { margin: 4px 0 0; font-size: 11px; color: var(--text-on-bone-soft); }
   .rider-evals { border: 1px solid var(--bone-line); border-left: 3px solid var(--ember); background: var(--bone-raised); padding: 16px 18px; }
   .rider-evals .micro { color: var(--ash); font-size: 9px; }
