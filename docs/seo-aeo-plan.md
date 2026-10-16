@@ -150,11 +150,11 @@ Deferred entirely (not cut — gated on things that don't exist yet): mount hubs
 
 ### 4.1 URL rules
 
-- `trailingSlash: 'always'`; every internal link, `logs.json` URL and `llms.txt` line carries the slash.
+- Every page URL carries a trailing slash, but `trailingSlash` stays at `'ignore'` in `astro.config.mjs`: `'always'` redirects the extension-less `/api/*` endpoints before the middleware runs, which would break the signed CLI/MCP paths, so `src/middleware.ts` 301s extension-less page paths to the slashed form and `canonicalUrl()` builds every canonical. Every internal link, `logs.json` URL and `llms.txt` line carries the slash.
 - Lowercase, hyphenated ASCII slugs; no dates, query strings or capitals (`SLUG_REGEX` already enforces this for logs).
 - Hubs at the root: `/manual/ /training/ /missions/ /logs/ /burns/ /glossary/ /data/ /riders/ /newsletter/ /agents/`. Content never deeper than three path segments (`/training/kit/bridle/` is the deepest shape).
 - Logs stay flat at `/logs/[slug]/`; a published slug never changes.
-- Facets keep `/logs/{task,outcome,burns,mount}/[value]/`; `noindex` below n=3 with a canonical to `/logs/`. No promotion to `/mounts/` this quarter.
+- Facets keep `/logs/{task,outcome,burns,mount}/[value]/`; `noindex` below n=3; cards link to `/logs/`. No promotion to `/mounts/` this quarter.
 - `/flight-log` → `/newsletter/` (301); issues, when they exist, at `/newsletter/[issue]/`.
 - Three slug renames with 301s in `public/_redirects` — **decision for Max** (§8): `/training/when-your-dragon-breathes-fire/` → `/training/when-an-agent-fails/`; `/manual/the-bond/` → `/manual/agent-trust-and-autonomy/`; `/training/earn-the-longer-leash/` → `/training/earning-autonomy/`. H1s keep the brand phrase.
 - Worksheets: `/training/kit/[worksheet]/` pages; raw files move to `/kit/*.md` with `X-Robots-Tag: noindex` and a `Link: rel="canonical"` header to the page.
@@ -227,7 +227,7 @@ Titles and descriptions (≤60 / ≤155 chars, enforced by `src/lib/seo.ts`):
 |---|---|---|---|
 | Burn patterns | `/burns/[pattern]/` | `src/content/burn-patterns/` + optional `pattern` slug on `burnSchema` (curated registry; composer dropdown; backfill the real log) | Indexed from day one as definitions; "logged examples" section says "none yet" honestly |
 | Worksheet pages | `/training/kit/[worksheet]/` | `public/training/*.md` rendered + download | Indexed; raw `.md` noindex + canonical header |
-| Facets | `/logs/[facet]/[value]/` | enums + `mount` free text | `noindex` + canonical `/logs/` below n=3 |
+| Facets | `/logs/[facet]/[value]/` | enums + `mount` free text | `noindex,follow` below n=3, no canonical (`Base.astro` ignores `canonical` under `noindex`); cards link to `/logs/` |
 | Rider profiles | `/riders/[handle]/` | D1 | `noindex` at 0 published flights; indexed from Fledgling; `public, max-age=60` for anonymous GETs |
 | Aggregates | `/data/{cost,duration,outcomes,burn-rate}/` | build-time from logs + telemetry | **Not built this quarter.** Ship only when n≥10 from ≥3 riders with the methodology page live; segment rows hidden below 5; no cross-product URLs |
 | Releases | `/data/releases/[yyyy-qn]/` | frozen `logs.json` + de-identified records, CC BY 4.0 | At ~50 logs |
@@ -242,10 +242,10 @@ Emitted from `Base.astro` via a `jsonLd` prop (`src/components/JsonLd.astro`) wi
 | `Organization` | every page | name, url, logo, description, founder → `#founder`, `sameAs` [GitHub, npm ×2, X, LinkedIn], email |
 | `WebSite` | home | name, alternateName, publisher. No `SearchAction` |
 | `BreadcrumbList` | inner pages | ≥2 `ListItem` mirroring the visible trail |
-| `TechArticle` | chapters, kill-switch/spend-cap/compared, burn patterns | headline (industry term), datePublished, dateModified, author → Person, isPartOf → "The Field Manual" |
+| `TechArticle` | chapters, kill-switch/spend-cap/compared, burn patterns | headline (industry term), datePublished, dateModified, author → `#org` until a named byline exists (S1), then Person, isPartOf → "The Field Manual" |
 | `Article` | logs | headline, generated description, datePublished, author → Person {name, `@handle`, url → profile}, keywords [mount, model, task, outcome], isPartOf → `#dataset` |
-| `Dataset` | `/logs/`, `/data/` | name, description, `distribution` → `/logs.json`, **license URL (CC BY 4.0)**, temporalCoverage, variableMeasured |
-| `ProfilePage` + `Person` | profiles, `/about` | name, alternateName, description, sameAs (rider-supplied links), interactionStatistic (flights, vouches) |
+| `Dataset` | `/logs/`, `/data/` | name, description, `distribution` → `/logs.json`, **license: the Terms URL until a public reuse grant is added to the Terms** (§8 decision 5), isAccessibleForFree, temporalCoverage, variableMeasured |
+| `ProfilePage` + `Person` | profiles, `/about` | name, alternateName, description, sameAs (rider-supplied links), agentInteractionStatistic (flights written), interactionStatistic (vouches received), dateCreated at the precision the page shows |
 | `LearningResource` + `Article` | lessons, missions | educationalLevel (rank), timeRequired, teaches, isPartOf → Course "Flight School" (free) |
 | `SoftwareApplication` | `/agents/` | CLI + MCP: category, OS, version, installUrl, price 0, license, codeRepository. No ratings |
 | `DefinedTermSet` | `/glossary/` | one set, terms with alternateName (industry synonyms) |
@@ -259,6 +259,7 @@ Dropped on purpose: `HowTo`, `FAQPage`, `Course` rich-result markup (retired), `
 ```
 User-agent: *
 Allow: /
+Content-Signal: search=yes, ai-input=yes, ai-train=yes
 Disallow: /api/
 Allow: /api/public/
 Disallow: /admin/
@@ -267,6 +268,7 @@ Disallow: /join
 Disallow: /logs/new
 
 # Answer engines are an audience for this site. Explicit so a future blanket rule never catches them.
+# A crawler obeys only the group that names it (RFC 9309), so the rules are repeated here in full.
 User-agent: OAI-SearchBot
 User-agent: ChatGPT-User
 User-agent: Claude-SearchBot
@@ -276,8 +278,14 @@ User-agent: Perplexity-User
 User-agent: Googlebot
 User-agent: Bingbot
 Allow: /
-
 Content-Signal: search=yes, ai-input=yes, ai-train=yes
+Disallow: /api/
+Allow: /api/public/
+Disallow: /admin/
+Disallow: /me/
+Disallow: /join
+Disallow: /logs/new
+
 Sitemap: https://agentriders.com/sitemap-index.xml
 ```
 
@@ -388,7 +396,7 @@ Each milestone is a branch, adversarially reviewed, PR'd into `main`, merged. Ex
 
 ### S0 — Technical baseline + measurement (1 PR, ~4 h)
 
-- `trailingSlash: 'always'`; normalize every internal link (Header, Footer, ChapterRail, TrainingNav, LogCard, FlightAtlas, PageCoda, pages, `logs.json.ts`, `llms.txt` slashes only); 301 mixed-case handles; `canonical` prop.
+- Trailing slashes through the middleware 301 for extension-less page paths plus `canonicalUrl()`, with `trailingSlash` left at `'ignore'` (`'always'` redirects `/api/*` before the middleware runs and would break the signed CLI/MCP paths); normalize every internal link (Header, Footer, ChapterRail, TrainingNav, LogCard, FlightAtlas, PageCoda, pages, `logs.json.ts`, `llms.txt` slashes only); 301 mixed-case handles in that same hop; `canonical` prop.
 - `public/robots.txt` (§4.6); `X-Robots-Tag` in `_headers`; `noindex` prop on private pages and 404; `public/_redirects` with `/flight-log → /newsletter/` (slug renames land in S1 after the decision).
 - `@astrojs/sitemap` with filter + `lastmod`; `sitemap-riders.xml` from D1; `@astrojs/rss`.
 - `JsonLd.astro` + `jsonLd` prop; Organization + WebSite + BreadcrumbList site-wide; Article on logs, TechArticle on chapters, ProfilePage on profiles, Dataset on `/logs/`, SoftwareApplication on `/agents/`.
@@ -397,7 +405,7 @@ Each milestone is a branch, adversarially reviewed, PR'd into `main`, merged. Ex
 - Middleware caching rule; `Astro.rewrite('/404')` for SSR misses; LogCard `level`; TrainingArt alt map.
 - GA4 funnel events; a post-build link report (orphans, redirecting links) printed, not failing.
 
-*Exit:* `curl -I /manual` → one 308 to `/manual/`; `/robots.txt` and `/sitemap-index.xml` 200; Rich Results Test passes for a chapter, a log and a profile; no indexable page emits a canonical that differs from its linked URL; the link report shows zero redirecting internal links; unit tests green. Founder: GSC + Bing verified, sitemap submitted, Cloudflare settings done.
+*Exit:* `curl -I /manual` → one 308 to `/manual/`; `/robots.txt` and `/sitemap-index.xml` 200; Rich Results Test passes for a chapter, a log and a profile; no indexable page emits a canonical that differs from its linked URL; the link report shows zero redirecting internal links; unit tests green. Founder: GSC + Bing verified, sitemap submitted, Cloudflare settings done; a ≥112px square PNG logo for the Organization markup (`favicon.svg` stands in until then).
 
 ### S1 — The 16 pages, made literal (~1.5 weeks)
 
@@ -433,6 +441,7 @@ Aggregates with n-gates and billing-method labels; per-mount numbers; releases; 
 2. **The directory gate.** The site promises "opens at 20 flights". Options: (a) keep the promise and ship the "Riders who logged flights" strip on `/riders/` (profiles discoverable from one flight; recommended as the minimum); (b) lower the gate to 5 and update the copy — a 5-profile directory is better than a counter. The Rider rank also cannot bootstrap (2 Rider vouches, no Riders): the first Riders are admin-granted, which the admin surface already supports.
 3. **Training crawlers**: allow for the founding season (§2.4), or block.
 4. **Who the 10–15 practitioners are**, and whether concierge-drafting their first flight from a session summary is acceptable to them.
+5. **A public license for `logs.json` metadata.** The Dataset JSON-LD names the Terms as its license because the Terms grant the public no reuse right on rider-written log metadata, and declaring CC BY 4.0 before they do would be false. Recommended: add a CC BY 4.0 grant for published-log metadata to the Terms (accepted at submission), then switch the Dataset `license` to `https://creativecommons.org/licenses/by/4.0/`.
 
 ---
 

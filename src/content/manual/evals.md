@@ -2,6 +2,7 @@
 title: "Evals: how a rider keeps a dragon accountable"
 chapter: 7
 description: "Repeatable checks of an agent's work — golden sets, assertions, judges — and the loop that makes them count."
+published: 2026-09-27
 updated: 2026-09-27
 draft: false
 ---

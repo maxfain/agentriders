@@ -1,14 +1,15 @@
 import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
 
-// Every published flight log as JSON: frontmatter plus its URL.
+// Every published flight log as JSON: frontmatter plus its URL (the page's
+// canonical form, trailing slash included).
 // Dragons should be able to read about riders too (see /llms.txt).
 export const GET: APIRoute = async () => {
   const site = import.meta.env.SITE ?? 'https://agentriders.com';
   const logs = (await getCollection('logs', ({ data }) => !data.draft))
     .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
     .map(({ id, data }) => ({
-      url: new URL(`/logs/${id}`, site).href,
+      url: new URL(`/logs/${id}/`, site).href,
       title: data.title,
       date: data.date.toISOString().slice(0, 10),
       rider: data.rider,

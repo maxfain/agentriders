@@ -1,0 +1,7 @@
+# Cloudflare Pages redirects: one rule per line, `<from>  <to>  <status>`.
+# Only ever point at a route that exists — a redirect into a 404 is worse
+# than none. The three slug renames land here in S1 once they are decided
+# (docs/seo-aeo-plan.md §4.1, §8).
+#
+# The newsletter stays at /flight-log until /newsletter/ ships (S3); then:
+# /flight-log  /newsletter/  301

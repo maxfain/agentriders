@@ -2,6 +2,7 @@
 title: "Riding a wing: running several agents without losing the reins"
 chapter: 6
 description: "Holding the reins on a fleet without becoming the bottleneck."
+published: 2026-09-26
 updated: 2026-09-29
 draft: false
 ---

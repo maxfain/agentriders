@@ -48,7 +48,7 @@ const counts = {
 const GATE = 20;
 ---
 
-<Base title="Review queue — AgentRiders" description="Admin: flight-log submissions.">
+<Base title="Review queue — AgentRiders" description="Admin: flight-log submissions." noindex>
   <PageHero eyebrow="Admin" title="Review queue." description="Every flight goes through here before it flies." art="ledger" id="admin-title" compact></PageHero>
 
   <section class="section section--bone">
@@ -73,7 +73,7 @@ const GATE = 20;
         <ul class="admin__list">
           {queue.map((q) => (
             <li class={`admin__item admin__item--${q.status}`}>
-              <a href={`/admin/submissions/${q.id}`}>
+              <a href={`/admin/submissions/${q.id}/`}>
                 <span class="admin__item-status">{q.status.replace('_', ' ')}</span>
                 <span class="admin__item-title">{q.title}</span>
                 <span class="admin__item-meta">@{q.handle} · {q.kind}{q.kind === 'edit' ? ` /logs/${q.slug}` : ''} · {q.submitted_at ? new Date(q.submitted_at).toLocaleDateString('en-US') : 'draft'}</span>

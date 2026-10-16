@@ -2,6 +2,8 @@
 title: "Teach it where to land"
 order: 2
 description: "Define success before the run. Build checks that catch convincing work that is still wrong."
+published: 2026-09-29
+updated: 2026-09-29
 duration: "35-minute exercise"
 level: "Fledgling"
 art: "workbench"

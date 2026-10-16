@@ -73,8 +73,8 @@ export async function findOrCreateRider(
 
 /**
  * Opens a session for the rider and sets the cookie on the response.
- * Returns the post-login path: /join while the handle is unclaimed,
- * /me once it is. Banned riders get no session.
+ * Returns the post-login path: /join/ while the handle is unclaimed,
+ * /me/ once it is. Banned riders get no session.
  */
 export async function completeSignIn(
   context: APIContext,
@@ -82,7 +82,7 @@ export async function completeSignIn(
   pepper: string,
   rider: RiderRow,
 ): Promise<string> {
-  if (rider.banned_at) return '/join?error=banned';
+  if (rider.banned_at) return '/join/?error=banned';
   const { token } = await createSession(db, pepper, rider.id);
   const secure = context.url.protocol === 'https:';
   context.cookies.set(SESSION_COOKIE, token, {
@@ -100,5 +100,5 @@ export async function completeSignIn(
     path: '/',
     maxAge: SESSION_TTL_SECONDS,
   });
-  return isPendingHandle(rider.handle) ? '/join' : '/me';
+  return isPendingHandle(rider.handle) ? '/join/' : '/me/';
 }

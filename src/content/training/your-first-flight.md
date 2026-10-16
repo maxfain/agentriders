@@ -2,6 +2,8 @@
 title: "Your first flight"
 order: 1
 description: "Turn one real task into a small, reviewable agent run. Learn more from the landing than the launch."
+published: 2026-09-29
+updated: 2026-09-29
 duration: "25-minute exercise"
 level: "Fledgling"
 art: "yard"

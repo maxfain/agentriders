@@ -1,6 +1,8 @@
 ---
 title: "Research with receipts"
 description: "Turn a plausible answer into a decision memo whose claims you can trace and whose unknowns stay visible."
+published: 2026-09-29
+updated: 2026-09-29
 audience: "Founders"
 duration: "35–50 minutes"
 art: "yard"

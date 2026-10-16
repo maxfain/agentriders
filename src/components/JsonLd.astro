@@ -1,0 +1,12 @@
+---
+import { jsonLdString } from '../lib/seo';
+
+// One JSON-LD script per page. The JSON goes through jsonLdString, which
+// escapes "<" (and the U+2028/2029 line terminators) so a rider-submitted
+// title containing "</script>" can never close the element.
+interface Props {
+  data: object | object[];
+}
+const { data } = Astro.props;
+---
+<script type="application/ld+json" is:inline set:html={jsonLdString(data)}></script>

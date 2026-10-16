@@ -3,6 +3,7 @@ import { getCollection, render } from 'astro:content';
 import PageHero from '../../components/PageHero.astro';
 import Base from '../../layouts/Base.astro';
 import { fetchSiteState, riderLink, isVerified } from '../../lib/build-state';
+import { abs, article, breadcrumbs } from '../../lib/seo';
 
 export async function getStaticPaths() {
   // One build-time fetch of live site state decides rider links + badges.
@@ -24,10 +25,24 @@ const d = log.data;
 const date = d.date.toISOString().slice(0, 10);
 const burns = d.burns.length;
 const hasBody = log.body ? log.body.replace(/<!--[\s\S]*?-->/g, '').trim().length > 0 : false;
+// The lesson leads the description (it is what a result page should show),
+// the telemetry follows; Base clamps the whole to 155.
+const lesson = d.lesson.trim();
+const description = `${lesson}${/[.!?…]$/.test(lesson) ? '' : '.'} ${d.mount} · ${d.duration} · $${d.cost_usd} · ${burns} ${burns === 1 ? 'burn' : 'burns'}`;
+const path = `/logs/${log.id}/`;
+const jsonLd = [
+  breadcrumbs([{ name: 'Home', path: '/' }, { name: 'Flight Logs', path: '/logs/' }, { name: d.title, path }]),
+  article({
+    headline: d.title, description, path, datePublished: d.date,
+    riderName: d.rider, riderHandle: d.rider, riderPath: riderHref ?? undefined,
+    keywords: [d.mount, d.model, d.task, d.outcome].filter((k): k is string => !!k),
+    datasetId: abs('/logs/#dataset'),
+  }),
+];
 ---
 
-<Base title={`${d.title} — Flight Logs — AgentRiders`} description={`${d.mount} · ${d.duration} · $${d.cost_usd} · ${burns} ${burns === 1 ? 'burn' : 'burns'}. Lesson: ${d.lesson}`}>
-  <PageHero eyebrow={`Flight Log / ${date}`} title={d.title} description={undefined} art="ledger" compact><p class="page-hero__meta">Rider: {riderHref ? <a href={riderHref}>{d.rider}</a> : d.rider}{verified && <span class="verified-badge" title="Signed by a registered device via the agentriders CLI">✦ Verified flight</span>} · <a href="/logs">All flights</a></p></PageHero>
+<Base title={`${d.title} — Flight Logs — AgentRiders`} description={description} ogType="article" publishedTime={d.date} jsonLd={jsonLd}>
+  <PageHero eyebrow="Flight Log" title={d.title} description={undefined} art="ledger" compact><Fragment slot="eyebrow">Flight Log / <time datetime={date}>{date}</time></Fragment><p class="page-hero__meta">Rider: {riderHref ? <a href={riderHref}>{d.rider}</a> : d.rider}{verified && <span class="verified-badge" title="Signed by a registered device via the agentriders CLI">✦ Verified flight</span>} · <a href="/logs/">All flights</a></p></PageHero>
 
   <section class="section section--bone">
     <div class="container">
@@ -57,9 +72,10 @@ const hasBody = log.body ? log.body.replace(/<!--[\s\S]*?-->/g, '').trim().lengt
           )}
         </div>
 
-        <aside class="panel" aria-label="Flight telemetry">
+        <aside class="panel" aria-labelledby="telemetry-title">
+          <h2 class="sr-only" id="telemetry-title">Flight telemetry</h2>
           <div class="panel__head">
-            <span>Flight · {date}</span>
+            <span>Flight · <time datetime={date}>{date}</time></span>
             <span>{d.outcome}</span>
           </div>
           <dl class="kv">

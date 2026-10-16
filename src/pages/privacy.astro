@@ -1,17 +1,19 @@
 ---
 import PageHero from '../components/PageHero.astro';
 import Base from '../layouts/Base.astro';
+import { breadcrumbs } from '../lib/seo';
 ---
 
 <Base
   title="Privacy — AgentRiders"
-  description="What AgentRiders collects, in full: nothing to read, a small account record if you join, and metadata-only CLI records. No tracking pixels, no ad cookies, no session recorders."
+  description="What AgentRiders collects, in full: nothing to read, a small account record if you join, metadata-only CLI records. No ad cookies, no session recorders."
+  jsonLd={breadcrumbs([{ name: 'Home', path: '/' }, { name: 'Privacy', path: '/privacy/' }])}
 >
   <PageHero eyebrow="The fine print" title="Privacy." description="Your information, handled with care." art="seal" id="privacy-title" compact></PageHero>
 
   <section class="section section--bone">
     <div class="container legal-layout">
-      <nav class="legal-nav" aria-label="Legal pages"><p class="micro">THE FINE PRINT</p><a href="/privacy" aria-current="page">Privacy</a><a href="/terms">Terms</a><a href="/about">About the Guild ↗</a></nav>
+      <nav class="legal-nav" aria-label="Legal pages"><p class="micro">THE FINE PRINT</p><a href="/privacy/" aria-current="page">Privacy</a><a href="/terms/">Terms</a><a href="/about/">About the Guild ↗</a></nav>
       <div class="prose">
         <p>We keep collection small, and this page lists all of it. Reading the site needs no account and sets nothing beyond the analytics below.</p>
 

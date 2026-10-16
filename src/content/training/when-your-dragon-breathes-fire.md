@@ -2,6 +2,8 @@
 title: "When your dragon breathes fire"
 order: 4
 description: "Stop a bad run, preserve the evidence, and turn one failure into a check that survives the next revision."
+published: 2026-09-29
+updated: 2026-09-29
 duration: "35-minute exercise"
 level: "Rider"
 art: "yard"

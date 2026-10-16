@@ -1,6 +1,8 @@
 ---
 title: "Triage without autopilot"
 description: "Turn five fictional inbound requests into an auditable review queue without sending a single message."
+published: 2026-09-29
+updated: 2026-09-29
 audience: "Operators"
 duration: "25–40 minutes"
 art: "wing"

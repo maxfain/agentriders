@@ -1,17 +1,19 @@
 ---
 import PageHero from '../components/PageHero.astro';
 import Base from '../layouts/Base.astro';
+import { breadcrumbs } from '../lib/seo';
 ---
 
 <Base
   title="Terms — AgentRiders"
   description="The terms for reading and using AgentRiders: field notes, not advice; content belongs to its authors."
+  jsonLd={breadcrumbs([{ name: 'Home', path: '/' }, { name: 'Terms', path: '/terms/' }])}
 >
   <PageHero eyebrow="The fine print" title="Terms." description="A few ground rules for the field." art="seal" id="terms-title" compact></PageHero>
 
   <section class="section section--bone">
     <div class="container legal-layout">
-      <nav class="legal-nav" aria-label="Legal pages"><p class="micro">THE FINE PRINT</p><a href="/privacy">Privacy</a><a href="/terms" aria-current="page">Terms</a><a href="/about">About the Guild ↗</a></nav>
+      <nav class="legal-nav" aria-label="Legal pages"><p class="micro">THE FINE PRINT</p><a href="/privacy/">Privacy</a><a href="/terms/" aria-current="page">Terms</a><a href="/about/">About the Guild ↗</a></nav>
       <div class="prose">
         <p>AgentRiders publishes field notes about running AI agents: the Field Manual, the Flight Logs, and the Flight Log newsletter. They describe what happened on real flights. They are not legal, financial or safety advice, and what landed on one flight can burn on the next. Use your own judgment; you hold your own reins.</p>
         <p>Content on this site belongs to its authors. Quote it with attribution and a link. Do not republish whole chapters or logs without permission.</p>
@@ -19,7 +21,7 @@ import Base from '../layouts/Base.astro';
         <h2>Your rider account</h2>
         <p>You are responsible for what happens under your account. Keep one account, choose a handle that does not impersonate someone else, and keep your sign-in to yourself. The Guild is free during the founding season; the ranks are earned from logged flights and vouches, never bought, and no rank can be paid for.</p>
         <p>Flights you log must be real. Vouches are public and carry your name, and must reflect work you have actually seen. Logs that turn out to be invented are removed, along with the vouches attached to them, and accounts that fake flights or vouch dishonestly can be grounded. Moderation may remove content or vouches and suspend accounts to keep the record honest.</p>
-        <p>You keep the rights to the logs you write and grant AgentRiders a non-exclusive license to publish them — on this site and in the public Git repository behind it. You can ask for your account and your published flights to be removed; see the <a href="/privacy">Privacy</a> page.</p>
+        <p>You keep the rights to the logs you write and grant AgentRiders a non-exclusive license to publish them — on this site and in the public Git repository behind it. You can ask for your account and your published flights to be removed; see the <a href="/privacy/">Privacy</a> page.</p>
 
         <h2>Verified flights and the CLI</h2>
         <p>A “Verified flight” means a device you registered signed that flight's session metadata with the <code>agentriders</code> CLI. It attests that a registered device produced the record — not that every number in it is true; the figures are self-reported and are shown for standing, never as a rank shortcut. Only upload records for sessions you actually ran, and do not tamper with what the tool produces.</p>

@@ -4,6 +4,7 @@ import Base from '../../layouts/Base.astro';
 import PageHero from '../../components/PageHero.astro';
 import Arrow from '../../components/Arrow.astro';
 import { RIDER_FLIGHT_GATE } from '../../lib/ranks';
+import { breadcrumbs } from '../../lib/seo';
 
 // The directory opens when 20 flights are logged — the launch-defining
 // number, counted live from published_logs. Below the gate, the page shows
@@ -43,6 +44,7 @@ const remaining = Math.max(0, RIDER_FLIGHT_GATE - total);
 <Base
   title="The directory — AgentRiders"
   description={open ? 'The riders of the Guild, by rank and record.' : `The directory opens at ${RIDER_FLIGHT_GATE} logged flights.`}
+  jsonLd={breadcrumbs([{ name: 'Home', path: '/' }, { name: 'The Riders', path: '/riders/' }, { name: 'The directory', path: '/riders/directory/' }])}
 >
   <PageHero
     eyebrow="The Guild"
@@ -60,13 +62,13 @@ const remaining = Math.max(0, RIDER_FLIGHT_GATE - total);
           <p class="dir-gate__count"><strong>{total}</strong> <span>/ {RIDER_FLIGHT_GATE} flights logged</span></p>
           <div class="dir-gate__bar" aria-hidden="true"><span style={`width:${Math.min(100, (total / RIDER_FLIGHT_GATE) * 100)}%`}></span></div>
           <p class="dir-gate__line">The directory opens at {RIDER_FLIGHT_GATE}. {remaining} to go — log yours and move the number.</p>
-          <a class="btn btn--ember" href="/logs/new">Log a flight <Arrow /></a>
+          <a class="btn btn--ember" href="/logs/new/">Log a flight <Arrow /></a>
         </div>
       ) : (
         <ul class="dir-list">
           {riders.map((r) => (
             <li class="dir-row">
-              <a href={`/riders/${r.handle}`}>
+              <a href={`/riders/${r.handle}/`}>
                 <span class="dir-rank">{r.rank ?? 'unranked'}</span>
                 <span class="dir-name">{r.display_name} <span class="dir-handle">@{r.handle}</span></span>
                 <span class="dir-meta">{r.flights} {r.flights === 1 ? 'flight' : 'flights'}{r.verified > 0 ? ` · ${r.verified} verified` : ''}</span>

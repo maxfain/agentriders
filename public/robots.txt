@@ -1,0 +1,30 @@
+User-agent: *
+Allow: /
+Content-Signal: search=yes, ai-input=yes, ai-train=yes
+Disallow: /api/
+Allow: /api/public/
+Disallow: /admin/
+Disallow: /me/
+Disallow: /join
+Disallow: /logs/new
+
+# Answer engines are an audience for this site. Explicit so a future blanket rule never catches them.
+# A crawler obeys only the group that names it (RFC 9309), so the rules are repeated here in full.
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: Claude-SearchBot
+User-agent: Claude-User
+User-agent: PerplexityBot
+User-agent: Perplexity-User
+User-agent: Googlebot
+User-agent: Bingbot
+Allow: /
+Content-Signal: search=yes, ai-input=yes, ai-train=yes
+Disallow: /api/
+Allow: /api/public/
+Disallow: /admin/
+Disallow: /me/
+Disallow: /join
+Disallow: /logs/new
+
+Sitemap: https://agentriders.com/sitemap-index.xml

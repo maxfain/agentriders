@@ -3,15 +3,18 @@ import type { CollectionEntry } from 'astro:content';
 
 interface Props {
   log: CollectionEntry<'logs'>;
+  /** Heading level for the card title: 2 on listing pages whose H1 the cards sit directly under, 3 inside a titled section. */
+  level?: 2 | 3;
 }
-const { log } = Astro.props;
+const { log, level = 3 } = Astro.props;
+const Title = `h${level}` as 'h2' | 'h3';
 const d = log.data;
 const burns = d.burns.length;
 const date = d.date.toISOString().slice(0, 10);
 ---
 <article class="log">
-  <div class="log__meta"><span>{date}</span><span>{d.mount}</span></div>
-  <h3><a href={`/logs/${log.id}`}>{d.title}</a></h3>
+  <div class="log__meta"><span><time datetime={date}>{date}</time></span><span>{d.mount}</span></div>
+  <Title><a href={`/logs/${log.id}/`}>{d.title}</a></Title>
   <dl class="stats">
     <div><dt>Flight</dt><dd>{d.duration}</dd></div>
     <div><dt>Cost</dt><dd>${d.cost_usd}</dd></div>

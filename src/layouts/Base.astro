@@ -11,20 +11,75 @@ import CinematicMotion from '../components/CinematicMotion.astro';
 import frauncesWoff2 from '@fontsource-variable/fraunces/files/fraunces-latin-opsz-normal.woff2?url';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import JsonLd from '../components/JsonLd.astro';
+import { abs, canonicalUrl, clampTitle, clampDescription, siteGraph } from '../lib/seo';
 
+// The head contract every page template relies on (docs/seo-aeo-plan.md
+// §4.3, §4.5). Titles and descriptions are clamped here so no template can
+// ship an 80-character title; structured data is merged into one @graph.
 interface Props {
-  title: string;
-  description: string;
+  title: string;                 // ≤60 chars after " — AgentRiders" is appended (unless the caller did)
+  description: string;           // ≤155 chars
+  canonical?: string;            // absolute URL or site path; default: this page's path; ignored under noindex
+  noindex?: boolean;             // robots noindex,follow; no canonical (not even an explicit one), no og:url
+  ogType?: 'website' | 'article';
+  ogImage?: string;              // path or URL; default /og.png
+  ogImageAlt?: string;
+  publishedTime?: Date | string; // article:published_time
+  modifiedTime?: Date | string;  // article:modified_time
+  jsonLd?: object | object[];    // page-level nodes, merged into the site @graph
+  alternates?: { href: string; type: string; title?: string }[]; // <link rel="alternate">
 }
 
-const { title, description } = Astro.props;
-const canonical = new URL(Astro.url.pathname, Astro.site);
-const ogImage = new URL('/og.png', Astro.site);
+const props = Astro.props;
+const isHome = Astro.url.pathname === '/';
+const title = clampTitle(/AgentRiders/.test(props.title) ? props.title : `${props.title} — AgentRiders`);
+const description = clampDescription(props.description);
+const noindex = props.noindex === true;
+const canonical = canonicalUrl(props.canonical ?? Astro.url.pathname);
+const ogType = props.ogType ?? 'website';
+const defaultOgImage = props.ogImage === undefined;
+const ogImage = abs(props.ogImage ?? '/og.png');
+const ogImageAlt = props.ogImageAlt ?? 'AgentRiders — the guild for people who run AI agents on real work.';
+const iso = (d: Date | string | undefined) =>
+  d === undefined ? undefined : (d instanceof Date ? d : new Date(d)).toISOString();
+const publishedTime = iso(props.publishedTime);
+const modifiedTime = iso(props.modifiedTime);
+const alternates = props.alternates ?? [];
+const graph = siteGraph(props.jsonLd, isHome);
 ---
 
 <!doctype html>
 <html lang="en">
 <head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#16130F" />
+<title>{title}</title>
+<meta name="description" content={description} />
+{noindex ? <meta name="robots" content="noindex,follow" /> : <link rel="canonical" href={canonical} />}
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="preload" as="font" type="font/woff2" href={frauncesWoff2} crossorigin />
+<link rel="alternate" type="application/rss+xml" href="/rss.xml" title="AgentRiders" />
+{alternates.map((alt) => <link rel="alternate" type={alt.type} href={abs(alt.href)} title={alt.title} />)}
+<meta property="og:type" content={ogType} />
+<meta property="og:site_name" content="AgentRiders" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+{!noindex && <meta property="og:url" content={canonical} />}
+<meta property="og:image" content={ogImage} />
+{defaultOgImage && <meta property="og:image:width" content="1200" />}
+{defaultOgImage && <meta property="og:image:height" content="630" />}
+<meta property="og:image:alt" content={ogImageAlt} />
+{publishedTime && <meta property="article:published_time" content={publishedTime} />}
+{modifiedTime && <meta property="article:modified_time" content={modifiedTime} />}
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={ogImage} />
+<meta name="twitter:image:alt" content={ogImageAlt} />
+<JsonLd data={graph} />
 <!-- Google tag (gtag.js) -->
 <script is:inline async src="https://www.googletagmanager.com/gtag/js?id=G-ZJ0QNE2BB3"></script>
 <script is:inline>
@@ -33,26 +88,13 @@ const ogImage = new URL('/og.png', Astro.site);
   gtag('js', new Date());
 
   gtag('config', 'G-ZJ0QNE2BB3');
+
+  // Funnel events (join_view, handle_claimed, log_submitted, …) go through one
+  // helper so a page never has to care whether gtag loaded.
+  window.arTrack = (name, params) => { try { gtag('event', name, params || {}) } catch {} };
 </script>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="theme-color" content="#16130F" />
-<title>{title}</title>
-<meta name="description" content={description} />
-<link rel="canonical" href={canonical} />
-<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-<link rel="preload" as="font" type="font/woff2" href={frauncesWoff2} crossorigin />
-<meta property="og:type" content="website" />
-<meta property="og:site_name" content="AgentRiders" />
-<meta property="og:title" content={title} />
-<meta property="og:description" content={description} />
-<meta property="og:url" content={canonical} />
-<meta property="og:image" content={ogImage} />
-<meta property="og:image:width" content="1200" />
-<meta property="og:image:height" content="630" />
-<meta name="twitter:card" content="summary_large_image" />
 </head>
-<body class:list={{ "is-home": Astro.url.pathname === "/", "is-inner": Astro.url.pathname !== "/" }}>
+<body class:list={{ "is-home": isHome, "is-inner": !isHome }}>
 <a class="skip-link" href="#main-content">Skip to content</a>
 
 <Header />

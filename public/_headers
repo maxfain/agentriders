@@ -2,3 +2,23 @@
 # Everything under /_astro/ is content-hashed, so it can cache forever.
 /_astro/*
   Cache-Control: public, max-age=31536000, immutable
+
+# Private surfaces are never indexed. These paths are Pages Functions, whose
+# responses get the same header from src/middleware.ts; the rules here cover
+# the static forms and anything that ever lands under these paths as a file.
+/admin
+  X-Robots-Tag: noindex
+/admin/*
+  X-Robots-Tag: noindex
+/me
+  X-Robots-Tag: noindex
+/me/*
+  X-Robots-Tag: noindex
+/join
+  X-Robots-Tag: noindex
+/join/
+  X-Robots-Tag: noindex
+/logs/new
+  X-Robots-Tag: noindex
+/logs/new/
+  X-Robots-Tag: noindex

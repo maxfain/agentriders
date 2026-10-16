@@ -6,10 +6,11 @@ import TrainingNav from '../../components/TrainingNav.astro';
 import TrainingArt from '../../components/TrainingArt.astro';
 import Arrow from '../../components/Arrow.astro';
 import '../../styles/training.css';
+import { breadcrumbs } from '../../lib/seo';
 const lessons=(await getCollection('training')).sort((a,b)=>a.data.order-b.data.order);
 const missions=await getCollection('missions');
 ---
-<Base title="Train your agent. Earn your wings. — AgentRiders Flight School" description="Six practical lessons for founders, engineers, and operators: scope useful work, set boundaries, check results, and earn more autonomy. Free lessons and field templates.">
+<Base title="Flight School: 6 lessons on running AI agents — AgentRiders" description="Six practical lessons for founders, engineers and operators: scope useful work, set boundaries, check results and earn more autonomy. Free to read." jsonLd={breadcrumbs([{name:'Home',path:'/'},{name:'Flight School',path:'/training/'}])}>
   <TrainingHero eyebrow="Flight School / Open to every rider" title="Train your agent." emphasis="Earn your wings." description="A powerful agent is only the beginning. Learn to give it direction, check its work, and know when to take the reins.">
     <div class="school-actions"><a class="btn btn--ember" href="/training/your-first-flight/">Take your first flight <Arrow/></a><a class="school-link" href="#curriculum">Explore the six lessons ↓</a></div>
     <p class="school-hero__note micro">FREE TO READ · BUILT TO PRACTICE · NO ACCOUNT NEEDED</p>
