@@ -9,7 +9,6 @@ author: "Max Faingezicht"
 lastVerified: 2026-10-16
 sources:
   - https://code.claude.com/docs/en/sessions#where-transcripts-are-stored
-  - https://creativecommons.org/licenses/by/4.0/
   - https://agentriders.com/terms/
 ---
 
@@ -131,7 +130,7 @@ curl -s https://agentriders.com/logs.json \
 
 Today it holds 1 entry from 1 rider on 1 mount: a case study, not a sample; no median is published below 10 flights from 3 or more riders. Every value is self-reported; a verified flight's device-signed record lives outside this file (`/api/public/site-state.json` lists which slugs carry one; [/agents/](/agents/) describes it). `public/_headers` sets no CORS header, so read the file from a script, server or agent, not another site's browser page.
 
-The license lives in two places today, and they do not yet say the same thing. The `Dataset` JSON-LD on [/logs/](/logs/) declares [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) for the corpus `/logs.json` distributes: the frontmatter fields, never the log bodies, which stay the author's. The visible [Terms](/terms/) are narrower: content belongs to its authors; quote it with attribution and a link; do not republish whole chapters or logs without permission; riders keep their rights and grant AgentRiders a non-exclusive licence to publish. The Terms carry no public CC BY grant, so this page promises none. Until they do: credit "AgentRiders Flight Logs, https://agentriders.com/logs.json", keep each record's `rider` handle (it is the byline), and ask hello@agentriders.com before republishing whole records. If the Terms gain a public reuse grant, this page changes with them.
+The license lives in one document today. The `Dataset` JSON-LD on [/logs/](/logs/) names the [Terms](/terms/) as its license, not a Creative Commons one: declaring CC BY 4.0 would promise a public reuse right the Terms do not grant. What the corpus `/logs.json` distributes is the frontmatter fields, never the log bodies, which stay the author's. The Terms are narrow: content belongs to its authors; quote it with attribution and a link; do not republish whole chapters or logs without permission; riders keep their rights and grant AgentRiders a non-exclusive licence to publish. They carry no public CC BY grant, so this page promises none. Until they do: credit "AgentRiders Flight Logs, https://agentriders.com/logs.json", keep each record's `rider` handle (it is the byline), and ask hello@agentriders.com before republishing whole records. If the Terms gain a public reuse grant, this page changes with them.
 
 ## Is logs.json a transcript dataset?
 
@@ -151,4 +150,4 @@ Yes. [/logs/template/](/logs/template/) shows the YAML frontmatter, copyable and
 
 **Can I use logs.json in my own project or paper?**
 
-Quote it with attribution and a link, per the [Terms](/terms/): "AgentRiders Flight Logs, https://agentriders.com/logs.json" plus each record's `rider` handle. The Dataset markup on /logs/ declares CC BY 4.0, but the Terms do not yet grant it, so ask hello@agentriders.com before republishing whole records. Do not average one flight; [/data/methodology/](/data/methodology/) says when a number is safe.
+Quote it with attribution and a link, per the [Terms](/terms/): "AgentRiders Flight Logs, https://agentriders.com/logs.json" plus each record's `rider` handle. The Dataset markup on /logs/ names the Terms as its license, and the Terms grant no public CC BY reuse, so ask hello@agentriders.com before republishing whole records. Do not average one flight; [/data/methodology/](/data/methodology/) says when a number is safe.

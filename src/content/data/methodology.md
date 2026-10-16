@@ -1,6 +1,6 @@
 ---
 title: "How the Guild counts: flights, burns, cost, time, outcomes, and what verified means"
-seoTitle: "AI agent cost and outcomes: how they are counted"
+seoTitle: "AI agent cost and outcomes: how we count them"
 description: "How AgentRiders counts AI agent runs: what a flight, burn, cost and outcome mean, what a verified record proves, and the n-gates before any number ships."
 summary: "AgentRiders counts one AI agent run with an outcome as a flight. Cost, duration and outcome are self-reported by the rider in the log; a verified record adds device-signed session metadata, including a telemetry duration, but does not prove the claims. No aggregate is published below 10 flights from 3 or more riders."
 published: 2026-10-16

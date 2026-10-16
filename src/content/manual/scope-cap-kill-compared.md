@@ -1,7 +1,7 @@
 ---
 title: "Four mounts, four sets of reins: scope, cap and kill a run in Claude Code, Cursor, Codex CLI and Gemini CLI"
 kind: "guide"
-seoTitle: "Permissions compared: Claude Code, Cursor, Codex"
+seoTitle: "AI agent permissions compared: four tools"
 description: "Permissions, approval prompts, hooks, caps, sandbox, stop keys and session logs in Claude Code, Cursor, Codex CLI and Gemini CLI. Verified 2026-10-16."
 summary: "AI agent permissions, run caps and kill switches differ across Claude Code, Cursor, Codex CLI and Gemini CLI. Claude Code has allow, ask and deny rules and a per-run dollar cap in print mode. Codex sandboxes by default and fails closed. Gemini CLI ships a turn cap and a policy engine. Cursor uses a classifier, hooks and team spend limits."
 published: 2026-10-16
