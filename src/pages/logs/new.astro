@@ -164,10 +164,12 @@ const reins = fm.reins ?? { scope: '', budget: '', kill_switch: '', autonomy: ''
           <div id="burns-list">
             {burns.map((b) => (
               <div class="burn-row">
-                <input class="burn-what" type="text" maxlength="280" placeholder="What burned" aria-label="What burned" value={b.what} />
-                <input class="burn-recovery" type="text" maxlength="280" placeholder="Recovery" aria-label="Recovery" value={b.recovery} />
-                <input class="burn-cost" type="number" min="0" step="0.01" placeholder="$0" aria-label="Cost in USD" value={b.cost_usd} />
-                <button type="button" class="burn-remove btn btn--ink" aria-label="Remove burn">×</button>
+                <div class="burn-fields">
+                  <label class="burn-field"><span class="burn-label">What burned</span><input class="burn-what" type="text" maxlength="280" placeholder="e.g. Touched prod once" value={b.what} /></label>
+                  <label class="burn-field"><span class="burn-label">Recovery</span><input class="burn-recovery" type="text" maxlength="280" placeholder="e.g. Reverted the commit" value={b.recovery} /></label>
+                  <label class="burn-field burn-field--cost"><span class="burn-label">Cost (USD)</span><input class="burn-cost" type="number" min="0" step="0.01" placeholder="0" value={b.cost_usd} /></label>
+                </div>
+                <button type="button" class="burn-remove btn btn--ink">Remove</button>
               </div>
             ))}
           </div>
@@ -232,12 +234,18 @@ const reins = fm.reins ?? { scope: '', budget: '', kill_switch: '', autonomy: ''
   .field input, .field select, .field textarea, .burn-row input { font-family: inherit; font-size: 15px; padding: 11px 13px; border: 1px solid var(--bone-line); background: var(--bone-raised); color: var(--text-on-bone); border-radius: var(--radius); width: 100%; }
   .field textarea { resize: vertical; line-height: 1.55; }
   .burns, .reins { border: 1px solid var(--bone-line); padding: 18px; display: flex; flex-direction: column; gap: 14px; border-radius: var(--radius); }
-  .burn-row { display: grid; grid-template-columns: 1fr 1fr 90px auto; gap: 10px; align-items: center; }
-  .burn-remove { min-height: 40px; padding: 0 14px; }
+  /* Burn rows are created in JS (innerHTML), which Astro's scoped styles
+     don't reach — so these rules are :global to cover server + JS rows. */
+  :global(.burn-row) { display: flex; gap: 14px; align-items: flex-end; padding: 14px; border: 1px solid var(--bone-line); border-left: 3px solid var(--ember); background: var(--bone-raised); border-radius: var(--radius); }
+  :global(.burn-fields) { flex: 1; min-width: 0; display: grid; grid-template-columns: 1fr 1fr 110px; gap: 12px; }
+  :global(.burn-field) { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  :global(.burn-label) { font-family: var(--mono); font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ash); }
+  :global(.burn-row input) { font-family: inherit; font-size: 15px; padding: 11px 13px; border: 1px solid var(--bone-line); background: var(--bone-raised); color: var(--text-on-bone); border-radius: var(--radius); width: 100%; }
+  :global(.burn-remove) { min-height: 44px; padding: 0 16px; white-space: nowrap; flex-shrink: 0; }
   #add-burn { align-self: flex-start; min-height: 42px; }
+  @media (max-width: 560px) { :global(.burn-row) { flex-direction: column; align-items: stretch; } :global(.burn-fields) { grid-template-columns: 1fr; } }
   .composer__actions { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
   .composer__status { font-size: 14px; color: var(--text-on-bone-soft); min-height: 1.4em; }
-  @media (max-width: 600px) { .burn-row { grid-template-columns: 1fr 1fr; } .burn-row .burn-cost { grid-column: 1; } }
 </style>
 
 <script>
@@ -251,10 +259,12 @@ const reins = fm.reins ?? { scope: '', budget: '', kill_switch: '', autonomy: ''
       const div = document.createElement('div');
       div.className = 'burn-row';
       div.innerHTML =
-        '<input class="burn-what" type="text" maxlength="280" placeholder="What burned" aria-label="What burned">' +
-        '<input class="burn-recovery" type="text" maxlength="280" placeholder="Recovery" aria-label="Recovery">' +
-        '<input class="burn-cost" type="number" min="0" step="0.01" placeholder="$0" aria-label="Cost in USD">' +
-        '<button type="button" class="burn-remove btn btn--ink" aria-label="Remove burn">×</button>';
+        '<div class="burn-fields">' +
+        '<label class="burn-field"><span class="burn-label">What burned</span><input class="burn-what" type="text" maxlength="280" placeholder="e.g. Touched prod once"></label>' +
+        '<label class="burn-field"><span class="burn-label">Recovery</span><input class="burn-recovery" type="text" maxlength="280" placeholder="e.g. Reverted the commit"></label>' +
+        '<label class="burn-field burn-field--cost"><span class="burn-label">Cost (USD)</span><input class="burn-cost" type="number" min="0" step="0.01" placeholder="0"></label>' +
+        '</div>' +
+        '<button type="button" class="burn-remove btn btn--ink">Remove</button>';
       (div.querySelector('.burn-what') as HTMLInputElement).value = what;
       (div.querySelector('.burn-recovery') as HTMLInputElement).value = recovery;
       (div.querySelector('.burn-cost') as HTMLInputElement).value = cost;
