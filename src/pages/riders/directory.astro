@@ -20,24 +20,23 @@ type Dir = {
   handle: string; display_name: string; rank: string | null;
   flights: number; verified: number;
 };
-let riders: Dir[] = [];
-if (open) {
-  // Only riders with at least one published flight; sorted by rank, then by
-  // flight count. Verified count fills in with the CLI (M4).
-  riders = (
-    await env.DB.prepare(
-      `SELECT r.handle, r.display_name, r.rank,
-              COUNT(p.slug) AS flights,
-              (SELECT COUNT(*) FROM flight_records fr WHERE fr.rider_id = r.id AND fr.matched_log_slug IS NOT NULL) AS verified
-       FROM riders r JOIN published_logs p ON p.rider_id = r.id
-       WHERE r.banned_at IS NULL AND r.handle NOT LIKE 'pending-%'
-       GROUP BY r.id
-       ORDER BY CASE r.rank WHEN 'wingleader' THEN 0 WHEN 'rider' THEN 1 WHEN 'fledgling' THEN 2 ELSE 3 END,
-                flights DESC, r.handle ASC
-       LIMIT 500`,
-    ).all<Dir>()
-  ).results ?? [];
-}
+// Always fetch the riders who have logged a flight: above the gate this is
+// the directory; below it, the founding riders shown under the counter so a
+// visitor meets real people, not an empty promise. Sorted by rank, then by
+// flight count. Verified count fills in with the CLI (M4).
+const riders: Dir[] = (
+  await env.DB.prepare(
+    `SELECT r.handle, r.display_name, r.rank,
+            COUNT(p.slug) AS flights,
+            (SELECT COUNT(*) FROM flight_records fr WHERE fr.rider_id = r.id AND fr.matched_log_slug IS NOT NULL) AS verified
+     FROM riders r JOIN published_logs p ON p.rider_id = r.id
+     WHERE r.banned_at IS NULL AND r.handle NOT LIKE 'pending-%'
+     GROUP BY r.id
+     ORDER BY CASE r.rank WHEN 'wingleader' THEN 0 WHEN 'rider' THEN 1 WHEN 'fledgling' THEN 2 ELSE 3 END,
+              flights DESC, r.handle ASC
+     LIMIT 500`,
+  ).all<Dir>()
+).results ?? [];
 const remaining = Math.max(0, RIDER_FLIGHT_GATE - total);
 ---
 
@@ -57,25 +56,29 @@ const remaining = Math.max(0, RIDER_FLIGHT_GATE - total);
 
   <section class="section section--bone">
     <div class="container directory">
-      {!open ? (
+      {!open && (
         <div class="dir-gate">
           <p class="dir-gate__count"><strong>{total}</strong> <span>/ {RIDER_FLIGHT_GATE} flights logged</span></p>
           <div class="dir-gate__bar" aria-hidden="true"><span style={`width:${Math.min(100, (total / RIDER_FLIGHT_GATE) * 100)}%`}></span></div>
           <p class="dir-gate__line">The directory opens at {RIDER_FLIGHT_GATE}. {remaining} to go — log yours and move the number.</p>
           <a class="btn btn--ember" href="/logs/new/">Log a flight <Arrow /></a>
         </div>
-      ) : (
-        <ul class="dir-list">
-          {riders.map((r) => (
-            <li class="dir-row">
-              <a href={`/riders/${r.handle}/`}>
-                <span class="dir-rank">{r.rank ?? 'unranked'}</span>
-                <span class="dir-name">{r.display_name} <span class="dir-handle">@{r.handle}</span></span>
-                <span class="dir-meta">{r.flights} {r.flights === 1 ? 'flight' : 'flights'}{r.verified > 0 ? ` · ${r.verified} verified` : ''}</span>
-              </a>
-            </li>
-          ))}
-        </ul>
+      )}
+      {riders.length > 0 && (
+        <div class="dir-roster">
+          {!open && <p class="micro dir-roster__label">The founding riders — flying before the directory opens.</p>}
+          <ul class="dir-list">
+            {riders.map((r) => (
+              <li class="dir-row">
+                <a href={`/riders/${r.handle}/`}>
+                  <span class="dir-rank">{r.rank ?? 'unranked'}</span>
+                  <span class="dir-name">{r.display_name} <span class="dir-handle">@{r.handle}</span></span>
+                  <span class="dir-meta">{r.flights} {r.flights === 1 ? 'flight' : 'flights'}{r.verified > 0 ? ` · ${r.verified} verified` : ''}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   </section>
@@ -90,6 +93,8 @@ const remaining = Math.max(0, RIDER_FLIGHT_GATE - total);
   .dir-gate__bar { width: 100%; height: 8px; background: var(--bone-line); border-radius: 4px; overflow: hidden; }
   .dir-gate__bar span { display: block; height: 100%; background: var(--ember); transition: width .4s; }
   .dir-gate__line { color: var(--text-on-bone-soft); font-size: 15px; }
+  .dir-roster { margin-top: 36px; }
+  .dir-roster__label { color: var(--ash); margin-bottom: 14px; }
   .dir-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
   .dir-row a { display: grid; grid-template-columns: 110px 1fr auto; gap: 16px; align-items: center; padding: 16px 18px; border: 1px solid var(--bone-line); background: var(--bone-raised); text-decoration: none; color: var(--text-on-bone); }
   .dir-row a:hover { border-color: var(--ink); }
