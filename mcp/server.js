@@ -12,6 +12,7 @@ import { linkDeviceTool } from './tools/link.js';
 import { draftFlightLog } from './tools/draft.js';
 import { fileFlightLog } from './tools/file.js';
 import { TASK_VALUES, OUTCOME_VALUES } from './lib/slug.js';
+import { makeConfirmWithHuman } from './lib/confirm.js';
 
 // AGENTRIDERS_BASE_URL is the documented knob; the shared core reads
 // AGENTRIDERS_API, so bridge them once here.
@@ -19,6 +20,7 @@ process.env.AGENTRIDERS_API =
   process.env.AGENTRIDERS_BASE_URL || process.env.AGENTRIDERS_API || 'https://agentriders.com';
 
 const server = new McpServer({ name: 'agentriders', version: '0.1.0' });
+const confirmWithHuman = makeConfirmWithHuman(server);
 
 const asResult = (obj) => ({
   content: [{ type: 'text', text: typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2) }],
@@ -42,7 +44,7 @@ server.registerTool(
       'Register this machine\'s device key to your rider account using a one-time 8-character code from <baseUrl>/me/devices.',
     inputSchema: { code: z.string().describe('The 8-char code from /me/devices'), name: z.string().optional() },
   },
-  async (args) => asResult(await linkDeviceTool(args)),
+  async (args) => asResult(await linkDeviceTool(args, { confirmWithHuman })),
 );
 
 const reins = z.object({
@@ -89,17 +91,17 @@ server.registerTool(
   'agentriders_file_flight_log',
   {
     description:
-      'OUTWARD-FACING. Requires confirm: true. Files the draft into the human review queue (never straight to Git) and, on the verified path, uploads the signed flight record. Show the user the egress payload from the draft first.',
+      'OUTWARD-FACING. Requires confirm: true, and asks the user to approve the exact upload when the client supports it. Files the draft into the human review queue (never straight to Git) and, on the verified path, uploads the signed flight record for draft_id (from agentriders_draft_flight_log). Show the user the egress payload from the draft first.',
     inputSchema: {
       slug: z.string(),
       markdown: z.string(),
-      egress_payload: z.any().optional(),
+      draft_id: z.string().optional().describe('draft_id from agentriders_draft_flight_log; omit for an unverified log'),
       confirm: z.boolean(),
       link_to_slug: z.string().optional(),
     },
   },
   async (args) => {
-    const r = await fileFlightLog(args);
+    const r = await fileFlightLog(args, { confirmWithHuman });
     return r.error
       ? { content: [{ type: 'text', text: JSON.stringify(r, null, 2) }], structuredContent: r, isError: true }
       : asResult(r);

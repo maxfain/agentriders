@@ -25,9 +25,15 @@ sent.
 
 `agentriders_draft_flight_log` performs **no network writes**. It prints the
 exact `egress_payload` and marks every field it could not verify from telemetry
-as rider-asserted. Nothing is uploaded until you call
-`agentriders_file_flight_log` with `confirm: true`. Everything filed goes into
-the human review queue — a reviewer approves before anything reaches Git.
+as rider-asserted. Nothing is uploaded until `agentriders_file_flight_log` is
+called with `confirm: true` **and**, on clients that support MCP elicitation
+(Claude Code does), you accept a prompt showing the exact log and payload. That
+prompt comes from this server, not the model, so an agent can't approve its own
+upload. On clients without elicitation, `confirm: true` from the agent is the
+only gate — keep the file tool on "ask" rather than "always allow" there. The
+signed payload is always the one the draft tool built from your session log;
+the agent can't substitute its own. Everything filed goes into the human review
+queue — a reviewer approves before anything reaches Git.
 
 ## Deletion
 

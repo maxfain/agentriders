@@ -41,11 +41,24 @@ export function loadOrCreateKey() {
       public_raw: rawPublicKeyB64(publicKey),
     };
     fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
-    fs.writeFileSync(file, JSON.stringify(stored, null, 2), { mode: 0o600 });
+    // Write a private temp file, then hard-link it into place: the link is
+    // atomic and fails if key.json already exists. So when two first runs race
+    // (an MCP server per session, plus the CLI), exactly one key wins, and no
+    // reader ever sees a half-written file. The loser adopts the winner's key.
+    const tmp = `${file}.${process.pid}.${crypto.randomBytes(6).toString('hex')}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(stored, null, 2), { mode: 0o600, flag: 'wx' });
     try {
-      fs.chmodSync(file, 0o600);
+      fs.chmodSync(tmp, 0o600);
     } catch {
       /* best effort on platforms without POSIX perms */
+    }
+    try {
+      fs.linkSync(tmp, file);
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+      stored = JSON.parse(fs.readFileSync(file, 'utf8'));
+    } finally {
+      fs.rmSync(tmp, { force: true });
     }
   }
 
