@@ -18,10 +18,35 @@ export function mangleCwd(cwd) {
   return String(cwd).replace(/[^A-Za-z0-9]/g, '-');
 }
 
-export function discoverSession(explicitPath, cwd = process.cwd()) {
-  if (explicitPath) return fs.existsSync(explicitPath) ? explicitPath : null;
+// Claude Code honors CLAUDE_CONFIG_DIR as a relocated ~/.claude.
+export function sessionsBase() {
+  return path.join(process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude'), 'projects');
+}
 
-  const base = path.join(os.homedir(), '.claude', 'projects');
+// Generous ceiling — real session logs are MBs — that still refuses to slurp
+// something enormous into memory.
+const MAX_SESSION_BYTES = 256 * 1024 * 1024;
+
+// session_log_path is a tool argument, so the model (or a prompt injection)
+// chooses it. Only accept a regular *.jsonl file under the sessions dir: no
+// /dev/stdin (which would hang the stdio transport), FIFOs, devices, or
+// arbitrary files elsewhere on disk.
+export function safeSessionPath(candidate) {
+  try {
+    const real = fs.realpathSync(candidate);
+    const base = fs.realpathSync(sessionsBase());
+    if (!real.startsWith(base + path.sep) || !real.endsWith('.jsonl')) return null;
+    const st = fs.statSync(real);
+    return st.isFile() && st.size <= MAX_SESSION_BYTES ? real : null;
+  } catch {
+    return null;
+  }
+}
+
+export function discoverSession(explicitPath, cwd = process.cwd()) {
+  if (explicitPath) return safeSessionPath(explicitPath);
+
+  const base = sessionsBase();
   if (!fs.existsSync(base)) return null;
 
   const sessionId = process.env.CLAUDE_SESSION_ID || process.env.CLAUDE_CODE_SESSION_ID || '';

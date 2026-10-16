@@ -22,3 +22,14 @@
   X-Robots-Tag: noindex
 /logs/new/
   X-Robots-Tag: noindex
+
+# Security headers for every static page. Dynamic (Pages Functions) responses
+# don't get _headers, so src/middleware.ts sets the same set on those.
+# No script-src/style-src yet: pages rely on inline styles and Astro-inlined
+# scripts, so a strict policy needs its own pass with a browser check.
+/*
+  Content-Security-Policy: frame-ancestors 'none'; base-uri 'self'; object-src 'none'
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Strict-Transport-Security: max-age=31536000

@@ -33,14 +33,19 @@ Runs locally — that is the only place your session log and device key exist.
 - **`agentriders_status`** — read-only: the device key, who it's linked to, the
   base URL, and whether a session log is discoverable.
 - **`agentriders_link_device`** — register this machine's key with a one-time
-  code from `<baseUrl>/me/devices` (the same code that pairs the CLI).
+  code from `<baseUrl>/me/devices` (the same code that pairs the CLI). Asks you
+  to approve the link when the client supports elicitation.
 - **`agentriders_draft_flight_log`** — **local, sends nothing.** Builds the
   draft, grounds `duration`/`model`/`date` in telemetry when available, marks
-  the rest rider-asserted, and prints the exact `egress_payload`. `cost_usd`
-  must be a measured amount > 0.
-- **`agentriders_file_flight_log`** — **requires `confirm: true`.** Files the
-  submission into the review queue and, on the verified path, uploads the
-  signed flight record. Nothing reaches Git without a reviewer's approval.
+  the rest rider-asserted, and prints the exact `egress_payload` plus a
+  `draft_id` for it. `cost_usd` must be a measured amount > 0.
+- **`agentriders_file_flight_log`** — **requires `confirm: true`, and your own
+  approval.** When the client supports MCP elicitation (Claude Code does), you
+  are shown the exact log and payload and must accept before anything is sent.
+  Files the submission into the review queue and, on the verified path, uploads
+  the signed flight record for `draft_id` — only a payload the draft tool built
+  from your session log is ever signed. Nothing reaches Git without a
+  reviewer's approval.
 
 ## Session discovery
 
@@ -48,8 +53,8 @@ Claude Code writes `~/.claude/projects/<mangled-cwd>/<session-id>.jsonl`
 (`<mangled-cwd>` = the working directory with every non-alphanumeric character
 replaced by `-`). Discovery order: an explicit `session_log_path` → a session
 id from the environment → the newest `*.jsonl` in the directory matching the
-current `cwd` → none (the unverified path). Always pass an explicit path to
-override.
+current `cwd` → none (the unverified path). An explicit path must be a regular
+`*.jsonl` file under `~/.claude/projects` (or `$CLAUDE_CONFIG_DIR/projects`).
 
 ## Privacy
 
