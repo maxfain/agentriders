@@ -1,0 +1,43 @@
+{
+  "name": "@agentriders/mcp",
+  "version": "0.1.0",
+  "description": "MCP server that lets an AI agent file its own AgentRiders flight log — grounded in real session telemetry, metadata-only, and routed through human review.",
+  "type": "module",
+  "bin": {
+    "agentriders-mcp": "dist/server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "PRIVACY.md"
+  ],
+  "scripts": {
+    "build": "esbuild server.js --bundle --platform=node --format=esm --packages=external --outfile=dist/server.js",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "yaml": "^2.8.1",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  },
+  "keywords": [
+    "agentriders",
+    "mcp",
+    "model-context-protocol",
+    "claude-code",
+    "flight-log"
+  ],
+  "license": "UNLICENSED",
+  "homepage": "https://agentriders.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maxfain/agentriders.git",
+    "directory": "mcp"
+  }
+}
