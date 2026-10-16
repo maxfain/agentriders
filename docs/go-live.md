@@ -25,8 +25,8 @@ Phase 2 turns the static publication into a product (accounts, logging, vouches,
 
 ## 4. Copy / legal (author TODOs)
 
-- [ ] Stand up a monitored **hello@agentriders.com** inbox — `/terms` and `/privacy` point legal questions and deletion requests there. (Change the address in those two files if you prefer another.)
-- [ ] `/terms` — add a governing-law / jurisdiction clause (see the `AUTHOR` comment; this is a real legal choice only you can make).
+- [x] Monitored **hello@agentriders.com** inbox (routes to the founder's mail) — `/terms` and `/privacy` point there.
+- [x] `/terms` governing law: State of Delaware, United States; operator Permanent Ventures Inc. Code is MIT-licensed (`LICENSE`, also shipped in both npm packages).
 - [ ] First real flight is published (not the brief examples); the homepage shows real cards.
 
 ## 5. CLI

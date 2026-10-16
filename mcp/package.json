@@ -33,7 +33,7 @@
     "claude-code",
     "flight-log"
   ],
-  "license": "UNLICENSED",
+  "license": "MIT",
   "homepage": "https://agentriders.com",
   "repository": {
     "type": "git",
