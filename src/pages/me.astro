@@ -3,6 +3,7 @@ export const prerender = false;
 import Base from '../layouts/Base.astro';
 import PageHero from '../components/PageHero.astro';
 import Arrow from '../components/Arrow.astro';
+import { getCollection } from 'astro:content';
 import { isPendingHandle } from '../lib/handles';
 import { onboardingCounts, onboardingStep } from '../lib/onboarding';
 
@@ -43,6 +44,12 @@ const rankLabel = rider.rank ? rider.rank[0].toUpperCase() + rider.rank.slice(1)
 // requirement we state but don't tally, since `vouches` here is all vouches.)
 const isFledgling = !rider.rank || rider.rank === 'fledgling';
 const flightsToGo = Math.max(0, 20 - flights);
+// Latest from the guild: the newest published flights, so a returning rider
+// lands on something new to read. Content collections are bundled, so this
+// static read works inside the SSR route.
+const latestFlights = (await getCollection('logs', ({ data }) => !data.draft))
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
+  .slice(0, 3);
 ---
 
 <Base
@@ -163,6 +170,22 @@ const flightsToGo = Math.max(0, 20 - flights);
         </div>
       </div>
 
+      {latestFlights.length > 0 && (
+        <section class="me-latest" aria-labelledby="me-latest-title">
+          <div class="me-latest__head"><h2 id="me-latest-title" class="micro">LATEST FROM THE GUILD</h2><a class="text-link" href="/logs/">All flights <Arrow /></a></div>
+          <ul class="me-latest__list">
+            {latestFlights.map((log) => (
+              <li>
+                <a href={`/logs/${log.id}/`}>
+                  <span class="me-latest__title">{log.data.title}</span>
+                  <span class="me-latest__meta">{log.data.mount} · {log.data.date.toISOString().slice(0, 10)}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <form method="post" action="/api/auth/logout" class="me-signout">
         <button class="btn btn--ink" type="submit">Sign out</button>
       </form>
@@ -186,6 +209,14 @@ const flightsToGo = Math.max(0, 20 - flights);
   .me-card__value { font-family: var(--display); font-size: 26px; font-weight: 600; letter-spacing: -0.01em; }
   .me-card__sub { font-size: 14px; font-weight: 400; color: var(--ember-text); }
   .me-card__fine { font-size: 13px; line-height: 1.55; color: var(--text-on-bone-soft); }
+  .me-latest__head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin-bottom: 14px; }
+  .me-latest__head .micro { color: var(--ash); margin: 0; }
+  .me-latest__list { list-style: none; display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; }
+  .me-latest__list a { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 14px 16px; border: 1px solid var(--bone-line); background: var(--bone-raised); text-decoration: none; color: var(--text-on-bone); }
+  .me-latest__list a:hover { border-color: var(--ink); }
+  .me-latest__title { font-family: var(--display); font-size: 16px; font-weight: 600; }
+  .me-latest__meta { font-family: var(--mono); font-size: 11px; color: var(--text-on-bone-soft); white-space: nowrap; }
+  @media (max-width: 500px) { .me-latest__list a { flex-direction: column; gap: 4px; } }
   .me-signout { padding-top: 4px; }
 </style>
 
