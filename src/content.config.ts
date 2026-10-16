@@ -101,4 +101,34 @@ const explainer = defineCollection({
   schema: z.object(docShape),
 });
 
-export const collections = { manual, logs, training, missions, data, explainer };
+// The burns registry (docs/seo-aeo-plan.md §3.2, §4.4, S3): one page per named
+// failure pattern, plus the first-ten-minutes checklist. Each carries the S1
+// literal-answer fields (summary, seoTitle, faq) and the registry's own:
+// `plain_name` (the industry term shown in the hub list), `status`
+// (logged|illustrative — absent for the checklist), `pattern` (the slug a
+// log's burns[].pattern matches, absent for the checklist), `logged_examples`
+// (slugs named by the draft), and `related_chapter`/`related_lesson` for the
+// "Related" trail. The logged-examples list is also joined from the logs
+// collection at build (src/pages/burns/[pattern].astro).
+const burnPatterns = defineCollection({
+  loader: glob({ pattern: '**/*.md', base: './src/content/burn-patterns' }),
+  schema: z.object({
+    title: z.string(),
+    seoTitle: z.string().optional(),
+    description: z.string(),
+    summary: z.string(),
+    pattern: z.string().optional(),
+    plain_name: z.string(),
+    status: z.enum(['logged', 'illustrative']).optional(),
+    logged_examples: z.array(z.string()).default([]),
+    related_chapter: z.string().optional(),
+    related_lesson: z.string().optional(),
+    kind: z.string().optional(),
+    published: z.coerce.date(),
+    updated: z.coerce.date(),
+    author: z.string().default('AgentRiders'),
+    faq,
+  }),
+});
+
+export const collections = { manual, logs, training, missions, data, explainer, burnPatterns };

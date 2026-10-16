@@ -138,6 +138,22 @@
 .doc-sources li { margin-top: 8px; }
 .doc-sources li a { font: 12px/1.6 var(--mono); overflow-wrap:anywhere; }
 .doc-related__links { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 12px 28px; font: 12px/1.7 var(--mono); }
+/* Burns registry (S3): the status pill shared by the hub list and each pattern
+   page's status line, and the hub's list of pattern pages. All on the bone
+   reading column. */
+.burn-status { display: inline-block; padding: 2px 9px; border: 1px solid var(--bone-line); border-radius: 3px; font: 600 10px/1.5 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ash); white-space: nowrap; }
+.burn-status--logged { border-color: #e4572e88; color: var(--ember-text); background: #e4572e14; }
+.burn-status--illustrative { border-color: var(--bone-line); color: var(--ash); }
+.burn-status--checklist { border-color: #b9815188; color: #8a623f; background: #b9815114; }
+.burn-status-line { margin: 0 0 24px; }
+.burns-registry { max-width: 65ch; margin-top: 60px; padding-top: 32px; border-top: 1px solid var(--bone-line); }
+.burns-registry > h2 { font-size: clamp(20px, 2vw, 23px); line-height: 1.2; color: var(--text-on-bone); }
+.burns-index { list-style: none; margin: 28px 0 0; padding: 0; }
+.burns-index__item { border-top: 1px solid var(--bone-line); padding: 20px 0; }
+.burns-index__item:last-child { border-bottom: 1px solid var(--bone-line); }
+.burns-index__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 14px; margin: 0; }
+.burns-index__head a { font-size: 19px; font-weight: 500; color: var(--text-on-bone); }
+.burns-index__summary { margin-top: 8px; max-width: 64ch; color: var(--text-on-bone-soft); font-size: 15px; line-height: 1.6; }
 .chapter-in-progress { padding: 35px; border-left: 2px solid #b98151; background: #faf6ee; margin-top: 35px; }
 .chapter-in-progress .micro { font-size: 8px; color: #936942; }
 .chapter-in-progress h2 { font-size: 34px; font-weight: 500; margin: 15px 0; }

@@ -13,10 +13,21 @@ import { z } from 'zod';
 export const TASK_VALUES = ['code', 'ops', 'research', 'sales', 'writing', 'data', 'other'] as const;
 export const OUTCOME_VALUES = ['landed', 'partial', 'aborted'] as const;
 
+// Slug rules: lowercase, hyphenated, derived from the title but overridable.
+// Kept distinct from handles (longer, no reserved list) but equally strict so
+// it is safe as a file name and URL path. Declared here (above burnSchema) so
+// the burn `pattern` field can reuse it.
+export const SLUG_REGEX = /^[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?$/;
+
 export const burnSchema = z.object({
   what: z.string().min(1).max(280),
   recovery: z.string().min(1).max(280),
   cost_usd: z.number().nonnegative().default(0),
+  // The burns-registry pattern this burn is an instance of (S3,
+  // docs/seo-aeo-plan.md §3.2). Optional so every existing log and every
+  // MCP/CLI-filed burn without it still validates; when set it links the burn
+  // to its /burns/<pattern>/ page. Same slug rules as a log slug.
+  pattern: z.string().regex(SLUG_REGEX).optional(),
 });
 
 export const reinsSchema = z.object({
@@ -57,11 +68,6 @@ export const logFrontmatterShape = {
 export const logFrontmatterSchema = z.object(logFrontmatterShape);
 
 export type LogFrontmatter = z.infer<typeof logFrontmatterSchema>;
-
-// Slug rules: lowercase, hyphenated, derived from the title but overridable.
-// Kept distinct from handles (longer, no reserved list) but equally strict so
-// it is safe as a file name and URL path.
-export const SLUG_REGEX = /^[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?$/;
 
 export function slugify(input: string): string {
   return input
