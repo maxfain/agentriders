@@ -10,6 +10,7 @@ import { suggestFromPayload } from '../lib/suggest.js';
 import { toMarkdown } from '../lib/frontmatter.js';
 import { validateComposer } from '../lib/validate.js';
 import { slugify, isValidSlug } from '../lib/slug.js';
+import { rememberDraft } from '../lib/drafts.js';
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -91,6 +92,9 @@ export function draftFlightLog(input = {}, { cliVersion = '0.1.0' } = {}) {
     markdown,
     provenance,
     egress_payload: payload, // metadata-only (counts/models/timestamps/evals), or null
+    // Pass to agentriders_file_flight_log to upload THIS payload; file() never
+    // signs a payload handed to it directly.
+    draft_id: payload ? rememberDraft(payload) : null,
     verifiable: verified,
     validation: issues.length ? { issues } : 'ok',
     session_name: sessionName, // basename only — no directory/username in the transcript

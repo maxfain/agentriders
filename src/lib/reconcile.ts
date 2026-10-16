@@ -101,7 +101,11 @@ export async function reconcile(
                (slug, rider_id, title, date, task, outcome, burns_count, submission_id, published_at)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT(slug) DO UPDATE SET
-               rider_id = COALESCE(excluded.rider_id, published_logs.rider_id),
+               -- An owner, once set, is never reassigned from /logs.json: the
+               -- frontmatter rider string is just a handle, and a handle can be
+               -- claimed by anyone, so letting it overwrite would let a new
+               -- account take over an existing log (edits, rank, Verified badge).
+               rider_id = COALESCE(published_logs.rider_id, excluded.rider_id),
                title = excluded.title,
                date = excluded.date,
                task = excluded.task,

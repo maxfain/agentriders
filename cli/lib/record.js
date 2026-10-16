@@ -63,7 +63,9 @@ function scanSession(jsonl) {
     }
     const msg = entry.message;
     if (msg && typeof msg === 'object') {
-      if (typeof msg.model === 'string' && msg.model) models.add(msg.model);
+      // Claude Code stamps locally generated messages with "<synthetic>" —
+      // not a model, and the server's model-name check rejects the brackets.
+      if (typeof msg.model === 'string' && msg.model && msg.model !== '<synthetic>') models.add(msg.model);
       const blocks = Array.isArray(msg.content) ? msg.content : [];
       for (const block of blocks) {
         if (block && block.type === 'tool_use' && typeof block.name === 'string') {

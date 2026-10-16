@@ -3,6 +3,16 @@ import { SESSION_COOKIE, resolveSession } from './lib/session';
 import { resolveDeviceAuth } from './lib/device-auth';
 import { isAdmin } from './lib/admin';
 
+// Mirrors the `/*` block in public/_headers, which Pages applies to static
+// assets only — dynamic responses (sign-in, /me, admin) need them set here.
+const SECURITY_HEADERS: Record<string, string> = {
+  'Content-Security-Policy': "frame-ancestors 'none'; base-uri 'self'; object-src 'none'",
+  'X-Frame-Options': 'DENY',
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Strict-Transport-Security': 'max-age=31536000',
+};
+
 // Device-signature auth is honored only on the routes an agent (CLI / MCP)
 // legitimately needs — never the whole API. Human-intent writes (vouches,
 // handle claim, device management) stay cookie-only, so a device key can't
@@ -88,5 +98,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   const response = await next();
   response.headers.set('Cache-Control', 'no-store');
+  for (const [name, value] of Object.entries(SECURITY_HEADERS)) response.headers.set(name, value);
   return response;
 });

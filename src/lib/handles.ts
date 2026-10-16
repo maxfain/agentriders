@@ -19,6 +19,9 @@ export const RESERVED_HANDLES = new Set([
   'no-reply', 'mail', 'email', 'newsletter', 'bot', 'system', 'root',
   'www', 'claude', 'anthropic', 'official', 'team', 'about-us', 'null',
   'undefined', 'anonymous', 'everyone', 'all',
+  // placeholder `rider:` values in hand-written sample logs and the template —
+  // claiming one would inherit authorship of those logs via reconcile
+  'example', 'examples', 'handle', 'your-handle',
 ]);
 
 /** Prefix used for auto-generated handles before the rider claims one. */

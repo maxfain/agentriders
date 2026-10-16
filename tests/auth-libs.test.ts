@@ -35,7 +35,7 @@ test('handles: rejects bad shapes', () => {
 });
 
 test('handles: rejects reserved and pending-prefixed', () => {
-  for (const handle of ['admin', 'api', 'riders', 'me', 'agentriders', 'wingleader']) {
+  for (const handle of ['admin', 'api', 'riders', 'me', 'agentriders', 'wingleader', 'example', 'handle']) {
     assert.equal(validateHandle(handle).ok, false, handle);
   }
   assert.equal(validateHandle('pending-abc123').ok, false);

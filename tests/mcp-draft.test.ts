@@ -30,13 +30,18 @@ const base = () => ({
   body: 'Did the work.',
 });
 
-// Write the sample session to a temp file so discovery finds it by explicit path.
+// Write the sample session under a temp Claude config dir so discovery accepts
+// it by explicit path (explicit paths must live under <config>/projects).
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-'));
-const sessionFile = path.join(tmp, 'mcp-sess-1.jsonl');
+process.env.CLAUDE_CONFIG_DIR = tmp;
+fs.mkdirSync(path.join(tmp, 'projects', '-tmp-proj'), { recursive: true });
+const sessionFile = path.join(tmp, 'projects', '-tmp-proj', 'mcp-sess-1.jsonl');
 fs.writeFileSync(sessionFile, SESSION);
+const outsideFile = path.join(tmp, 'outside.jsonl');
+fs.writeFileSync(outsideFile, SESSION);
 
 test('slugify mirrors the real schema slugify', () => {
   for (const s of ['Shipped the Parser!', 'a  b__c', 'Ünïcödé Flight', '--edge--', 'ALLCAPS']) {
@@ -100,4 +105,39 @@ test('file refuses to upload an invalid (cost 0) log even with confirm (no netwo
   const d = draftFlightLog({ ...base(), cost_usd: 0, session_log_path: sessionFile });
   const r = await fileFlightLog({ slug: d.slug, markdown: d.markdown, confirm: true });
   assert.ok(r.error && Array.isArray(r.issues) && r.issues.some((i: string) => i.includes('cost_usd')));
+});
+
+test('explicit session path must be a regular .jsonl under the sessions dir', () => {
+  assert.equal(draftFlightLog({ ...base(), session_log_path: outsideFile, duration: '30m' }).verifiable, false);
+  assert.equal(draftFlightLog({ ...base(), session_log_path: '/dev/stdin', duration: '30m' }).verifiable, false);
+  const traversal = path.join(tmp, 'projects', '..', 'outside.jsonl');
+  assert.equal(draftFlightLog({ ...base(), session_log_path: traversal, duration: '30m' }).verifiable, false);
+  assert.equal(draftFlightLog({ ...base(), session_log_path: sessionFile }).verifiable, true);
+});
+
+test('verified draft returns a draft_id; file rejects an unknown one (no network)', async () => {
+  const d = draftFlightLog({ ...base(), session_log_path: sessionFile });
+  assert.equal(typeof d.draft_id, 'string');
+  const r = await fileFlightLog({ slug: d.slug, markdown: d.markdown, confirm: true, draft_id: 'not-a-draft' });
+  assert.ok(r.error && r.error.includes('draft_id'));
+});
+
+test('file stops when the human declines, before any key or network use', async () => {
+  const d = draftFlightLog({ ...base(), session_log_path: sessionFile });
+  let shown = '';
+  const r = await fileFlightLog(
+    { slug: d.slug, markdown: d.markdown, confirm: true, draft_id: d.draft_id },
+    { confirmWithHuman: async (msg: string) => ((shown = msg), 'declined') },
+  );
+  assert.ok(r.error && r.error.includes('declined'));
+  // The human saw the exact log and the signed payload.
+  assert.ok(shown.includes('Shipped the parser'));
+  assert.ok(shown.includes(d.egress_payload.cc_session_hash));
+});
+
+test('link stops when the human declines (no network)', async () => {
+  const { linkDeviceTool } = await import('../mcp/tools/link.js');
+  const r = await linkDeviceTool({ code: 'ABCD2345' }, { confirmWithHuman: async () => 'declined' });
+  assert.equal(r.linked, false);
+  assert.ok(r.error.includes('declined'));
 });

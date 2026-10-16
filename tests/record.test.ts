@@ -104,3 +104,14 @@ test('MCP tool names bucket to "mcp" — server/tool identity never leaves, and 
   // And the bucketed names pass the server's tool-name rules.
   assert.equal(validatePayload(rec).ok, true);
 });
+
+test('buildRecord drops the "<synthetic>" pseudo-model so the payload still validates', () => {
+  const withSynthetic = `${SESSION}\n${JSON.stringify({
+    sessionId: 'abc-123-session',
+    timestamp: '2026-10-16T10:02:06.000Z',
+    message: { role: 'assistant', model: '<synthetic>', content: [{ type: 'text', text: 'No response requested.' }] },
+  })}`;
+  const rec = buildRecord(withSynthetic, { cliVersion: '0.1.0' });
+  assert.deepEqual(rec.models, ['claude-opus-4-8']);
+  assert.equal(validatePayload(rec).ok, true);
+});
