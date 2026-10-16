@@ -1,0 +1,34 @@
+{
+  "name": "agentriders",
+  "version": "0.1.0",
+  "description": "Verifiable, metadata-only flight records for people who run AI agents. Signs a Claude Code session with a device key and earns a Verified flight badge on agentriders.com.",
+  "type": "module",
+  "bin": {
+    "agentriders": "bin.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "bin.js",
+    "lib/",
+    "eval-detector.js",
+    "PRIVACY.md",
+    "README.md"
+  ],
+  "keywords": [
+    "agentriders",
+    "claude-code",
+    "ai-agents",
+    "evals",
+    "flight-log",
+    "verifiable"
+  ],
+  "license": "UNLICENSED",
+  "homepage": "https://agentriders.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maxfain/agentriders.git",
+    "directory": "cli"
+  }
+}

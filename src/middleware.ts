@@ -17,7 +17,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const method = context.request.method;
   if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
     const origin = context.request.headers.get('Origin');
-    if (origin && origin !== context.url.origin) {
+    const hasSessionCookie = !!context.cookies.get(SESSION_COOKIE)?.value;
+    // A mismatched Origin is always rejected. A *missing* Origin is allowed
+    // only for the cookieless CLI endpoints (devices/link, flight-records),
+    // which authenticate by link code or signature — a cookie-authenticated
+    // write must carry a matching Origin, which browsers always send, so the
+    // Origin layer backstops SameSite=Lax instead of failing open.
+    if ((origin && origin !== context.url.origin) || (!origin && hasSessionCookie)) {
       return new Response(JSON.stringify({ error: 'cross-origin request rejected' }), {
         status: 403,
         headers: { 'Content-Type': 'application/json' },

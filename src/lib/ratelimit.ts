@@ -19,7 +19,9 @@ export async function rateLimit(
   windowSecs: number,
 ): Promise<boolean> {
   const fullKey = `rl:${key}`;
-  const current = Number((await kv.get(fullKey)) ?? '0');
+  const raw = Number((await kv.get(fullKey)) ?? '0');
+  // A corrupt (non-numeric) counter must not disable the limit: treat it as 0.
+  const current = Number.isFinite(raw) ? raw : 0;
   if (current >= max) return false;
   // Re-putting resets the TTL, stretching the window under sustained
   // traffic — stricter than a fixed window, never looser.
