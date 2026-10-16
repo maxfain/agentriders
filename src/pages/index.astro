@@ -9,8 +9,18 @@ import Arrow from '../components/Arrow.astro';
 import Preflight from '../components/Preflight.astro';
 import FlightAtlas from '../components/FlightAtlas.astro';
 import TrainingInvitation from '../components/TrainingInvitation.astro';
+import { fetchSiteState, riderLink, isVerified } from '../lib/build-state';
 const published = (await getCollection('logs', ({ data }) => !data.draft))
-  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf()).slice(0, 3);
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+// The record, live: feature the newest flight with its numbers left in, then
+// up to two more. Site-state (the verified map + claimed handles) is a
+// build-time fetch with a safe empty fallback, so the featured flight links
+// its rider and shows the Verified mark on production without risking the build.
+const siteState = await fetchSiteState();
+const featured = published[0];
+const featuredVerified = featured ? isVerified(featured.id, siteState) : false;
+const featuredRiderHref = featured ? riderLink(featured.data.rider, siteState) : null;
+const moreFlights = published.slice(1, 3);
 const ranks = [
   { name: 'Fledgling', id: 'fledgling', number: '01', label: 'Find your footing', req: 'Joined · 1 flight logged', body: 'Learning. Can read, log and ask. Everyone starts here, including the people who built this.' },
   { name: 'Rider', id: 'rider', number: '02', label: 'Earn your wings', req: '20 flights · 2 Rider vouches', body: 'Runs agents on real work, unsupervised. Can vouch for Fledglings.' },
@@ -132,10 +142,35 @@ const examples = [
 
   <TrainingInvitation />
 
-  <section class="section section--bone logs" aria-labelledby="logs-title">
+  <section class="section section--bone logs latest-flights" aria-labelledby="latest-title">
     <div class="container">
-      <div class="section-heading"><div><p class="micro section-label">04 / Notes from the field</p><h2 id="logs-title">From the <em>logs.</em></h2></div><a class="text-link" href="/logs/">All flights <Arrow /></a></div>
-      {published.length > 0 ? <div class="log-grid">{published.map((log) => <LogCard log={log} />)}</div> : (
+      <div class="section-heading"><div><p class="micro section-label">04 / The record, live</p><h2 id="latest-title">Latest <em>flights.</em></h2></div><a class="text-link" href="/logs/">All flights <Arrow /></a></div>
+
+      {featured ? (
+        <>
+          <article class="featured-flight">
+            <div class="featured-flight__head">
+              <p class="micro">{featured.data.date.toISOString().slice(0, 10)} · {featured.data.mount}{featured.data.model && ` · ${featured.data.model}`}</p>
+              {featuredVerified && <span class="verified-badge" title="Signed from a real session by a registered device">✦ Verified flight</span>}
+            </div>
+            <h3 class="featured-flight__title"><a href={`/logs/${featured.id}/`}>{featured.data.title}</a></h3>
+            <dl class="featured-flight__stats">
+              <div><dt>Flight</dt><dd>{featured.data.duration}</dd></div>
+              <div><dt>Cost</dt><dd>${featured.data.cost_usd}</dd></div>
+              <div><dt>Outcome</dt><dd>{featured.data.outcome[0].toUpperCase() + featured.data.outcome.slice(1)}</dd></div>
+              <div><dt>Burns</dt><dd class:list={[featured.data.burns.length > 0 && 'burn']}>{featured.data.burns.length}</dd></div>
+            </dl>
+            <p class="featured-flight__lesson">Lesson: {featured.data.lesson}</p>
+            <p class="featured-flight__by">Flown by {featuredRiderHref ? <a href={featuredRiderHref}>{featured.data.rider}</a> : featured.data.rider} · <a class="text-link" href={`/logs/${featured.id}/`}>Read the flight <Arrow /></a></p>
+          </article>
+
+          {moreFlights.length > 0 && <div class="log-grid">{moreFlights.map((log) => <LogCard log={log} />)}</div>}
+
+          {published.length === 1 && (
+            <p class="latest-flights__seed">One flight on the record so far — the founding season is just beginning. <a class="text-link" href="/start/">Enable your agent</a> and file yours; it goes on the public ledger, numbers and all.</p>
+          )}
+        </>
+      ) : (
         <>
           <p class="logs-context micro">ILLUSTRATIVE LOGS — A LOOK AT WHAT RIDERS WILL SHARE.</p>
           <div class="log-grid">
@@ -178,3 +213,27 @@ const examples = [
     <div class="container"><div class="newsletter__text"><p class="micro section-label">THE WEEKLY FLIGHT LOG</p><h2 id="news-title">A little wiser.<br /><em>Every flight.</em></h2><p class="lead">One field-tested lesson a week, from riders who left the numbers in.</p></div><Signup /></div>
   </section>
 </Base>
+
+<style>
+  .latest-flights .section-heading { margin-bottom: 28px; }
+  /* The newest flight, with the numbers left in — the proof a first-time
+     visitor needs and the "what's new" a returning reader comes back for. */
+  .featured-flight { border: 1px solid var(--bone-line); border-left: 3px solid var(--ember); background: var(--bone-raised); padding: 32px; margin-bottom: 20px; }
+  .featured-flight__head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; justify-content: space-between; }
+  .featured-flight__head .micro { color: var(--ash); }
+  .featured-flight__title { font-family: var(--display); font-size: 28px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.15; margin: 10px 0 0; }
+  .featured-flight__title a { color: inherit; }
+  .featured-flight__stats { display: grid; grid-template-columns: repeat(4, auto); justify-content: start; gap: 32px; margin: 22px 0 0; }
+  .featured-flight__stats > div { min-width: 0; }
+  .featured-flight__stats dt { font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ash); }
+  .featured-flight__stats dd { margin: 4px 0 0; font-family: var(--display); font-size: 24px; font-weight: 600; }
+  .featured-flight__stats dd.burn { color: var(--ember-text); }
+  .featured-flight__lesson { margin: 20px 0 0; font-size: 15px; line-height: 1.6; color: var(--text-on-bone); max-width: 62ch; }
+  .featured-flight__by { margin: 16px 0 0; font-size: 13px; color: var(--text-on-bone-soft); }
+  .latest-flights__seed { margin: 22px 0 0; font-size: 14px; line-height: 1.6; color: var(--text-on-bone-soft); max-width: 60ch; }
+  @media (max-width: 560px) {
+    .featured-flight { padding: 24px; }
+    .featured-flight__stats { gap: 18px 24px; }
+    .featured-flight__title { font-size: 23px; }
+  }
+</style>
