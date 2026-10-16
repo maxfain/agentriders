@@ -32,7 +32,8 @@ if (open) {
        WHERE r.banned_at IS NULL AND r.handle NOT LIKE 'pending-%'
        GROUP BY r.id
        ORDER BY CASE r.rank WHEN 'wingleader' THEN 0 WHEN 'rider' THEN 1 WHEN 'fledgling' THEN 2 ELSE 3 END,
-                flights DESC, r.handle ASC`,
+                flights DESC, r.handle ASC
+       LIMIT 500`,
     ).all<Dir>()
   ).results ?? [];
 }

@@ -8,7 +8,7 @@
 // reconciliation must never break a page render, and the log is already
 // live in git regardless of the mirror's freshness.
 
-import { recomputeRank } from './ranks.ts';
+import { cascadeRank } from './ranks.ts';
 
 type Env = { DB: D1Database; RATE: KVNamespace };
 
@@ -140,10 +140,11 @@ export async function reconcile(
     if (statements.length) await env.DB.batch(statements);
 
     // Published flight counts just changed — recompute affected riders'
-    // ranks (first flight → Fledgling, 20th → Rider if vouched). Best-effort.
-    for (const riderId of ridersToRank) {
+    // ranks (first flight → Fledgling, 20th → Rider if vouched), rippling to
+    // their vouchees. Best-effort; a later reconcile retries.
+    if (ridersToRank.size) {
       try {
-        await recomputeRank(env.DB, riderId, 'system', 'reconcile_published');
+        await cascadeRank(env.DB, [...ridersToRank], 'system', 'reconcile_published');
       } catch {
         /* a later reconcile retries */
       }

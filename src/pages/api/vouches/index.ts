@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { rateLimit } from '../../../lib/ratelimit.ts';
-import { recomputeRank } from '../../../lib/ranks.ts';
+import { cascadeRank } from '../../../lib/ranks.ts';
 import {
   canVouch,
   validateStatement,
@@ -43,10 +43,6 @@ export const POST: APIRoute = async ({ locals, request }) => {
   if (!vouchee || vouchee.banned_at) return json(404, { error: 'No such rider.' });
   if (vouchee.id === voucher.id) return json(400, { error: 'You cannot vouch for yourself.' });
 
-  if (!(await rateLimit(env.RATE, `vouch:${voucher.id}`, MAX_VOUCHES_PER_DAY, 24 * 3600))) {
-    return json(429, { error: `That's ${MAX_VOUCHES_PER_DAY} vouches today. Come back tomorrow.` });
-  }
-
   const now = new Date().toISOString();
   const existing = await existingVouch(env.DB, voucher.id, vouchee.id);
   if (existing && existing.status === 'active') {
@@ -54,6 +50,12 @@ export const POST: APIRoute = async ({ locals, request }) => {
   }
   if (existing && existing.status === 'removed') {
     return json(403, { error: 'This vouch was removed by moderation and cannot be remade.' });
+  }
+
+  // Charge the daily budget only for a real create/reactivation — the no-op
+  // rejections above must not burn the rider's allowance.
+  if (!(await rateLimit(env.RATE, `vouch:${voucher.id}`, MAX_VOUCHES_PER_DAY, 24 * 3600))) {
+    return json(429, { error: `That's ${MAX_VOUCHES_PER_DAY} vouches today. Come back tomorrow.` });
   }
 
   if (existing) {
@@ -79,9 +81,10 @@ export const POST: APIRoute = async ({ locals, request }) => {
     }
   }
 
-  // A new qualifying vouch can promote the vouchee to Rider.
+  // A new qualifying vouch can promote the vouchee to Rider, which can in
+  // turn make their own vouches count — ripple it.
   try {
-    await recomputeRank(env.DB, vouchee.id, 'system', 'vouch_received');
+    await cascadeRank(env.DB, [vouchee.id], 'system', 'vouch_received');
   } catch {
     /* non-critical */
   }

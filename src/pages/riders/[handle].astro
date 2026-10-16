@@ -43,9 +43,9 @@ const earnedAt = rider.rank ? await rankEarnedAt(env.DB, rider.id, rider.rank) :
 
 const isSelf = viewer?.id === rider.id;
 const viewerCanVouch = !!viewer && !isSelf && canVouch(viewer.rank);
-const alreadyVouched = viewerCanVouch
-  ? (await existingVouch(env.DB, viewer!.id, rider.id))?.status === 'active'
-  : false;
+const myVouch = viewerCanVouch ? await existingVouch(env.DB, viewer!.id, rider.id) : null;
+const alreadyVouched = myVouch?.status === 'active';
+const vouchRemoved = myVouch?.status === 'removed';
 
 const fmt = (iso: string) =>
   new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -95,7 +95,10 @@ const landed = flights.filter((f) => f.outcome === 'landed').length;
           {viewer && !isSelf && !canVouch(viewer.rank) && (
             <p class="rider-vouchnote">Vouching opens at Rider. Keep flying.</p>
           )}
-          {viewerCanVouch && !alreadyVouched && (
+          {viewerCanVouch && vouchRemoved && (
+            <p class="rider-vouchnote">Your vouch for @{rider.handle} was removed by moderation and can't be remade.</p>
+          )}
+          {viewerCanVouch && !alreadyVouched && !vouchRemoved && (
             <form class="vouch-form" id="vouch-form" data-handle={rider.handle}>
               <label for="vouch-statement">Vouch for @{rider.handle}</label>
               <textarea id="vouch-statement" maxlength="500" rows="3" required placeholder="What have you seen them do? This is public and signed with your name."></textarea>
@@ -233,37 +236,42 @@ const landed = flights.filter((f) => f.outcome === 'landed').length;
     });
   }
 
-  // Admin moderation controls
+  const postReload = async (url: string, bodyObj: unknown, confirmMsg?: string, statusEl?: HTMLElement) => {
+    if (confirmMsg && !confirm(confirmMsg)) return;
+    if (statusEl) statusEl.textContent = 'Working…';
+    try {
+      const res = await fetch(url, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyObj),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok) location.reload();
+      else if (statusEl) statusEl.textContent = body.error || 'Failed.';
+    } catch { if (statusEl) statusEl.textContent = 'Network error.'; }
+  };
+
+  // Admin vouch moderation — rendered wherever an admin views received
+  // vouches, including the admin's own profile (so it must NOT depend on
+  // the .rider-admin panel, which only renders on other riders' profiles).
+  for (const btn of document.querySelectorAll<HTMLButtonElement>('.vouch-remove')) {
+    btn.addEventListener('click', () =>
+      postReload(`/api/admin/vouches/${btn.dataset.id}`, {}, 'Remove this vouch (moderation)? May demote the rider.'));
+  }
+
+  // Admin rank / ban controls (only on another rider's profile).
   const admin = document.querySelector('.rider-admin') as HTMLElement | null;
   if (admin) {
     const handle = admin.dataset.handle!;
     const status = document.getElementById('admin-status')!;
-    const call = async (url: string, bodyObj: unknown, confirmMsg?: string) => {
-      if (confirmMsg && !confirm(confirmMsg)) return;
-      status.textContent = 'Working…';
-      try {
-        const res = await fetch(url, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(bodyObj),
-        });
-        const body = await res.json().catch(() => ({}));
-        if (res.ok) location.reload();
-        else status.textContent = body.error || 'Failed.';
-      } catch { status.textContent = 'Network error.'; }
-    };
     document.getElementById('admin-grant')!.addEventListener('click', () => {
       const rank = (document.getElementById('admin-rank') as HTMLSelectElement).value || null;
-      call(`/api/admin/riders/${handle}/rank`, { rank });
+      postReload(`/api/admin/riders/${handle}/rank`, { rank }, undefined, status);
     });
     const banBtn = document.getElementById('admin-ban') as HTMLButtonElement;
     banBtn.addEventListener('click', () => {
       const banning = banBtn.dataset.banned !== '1';
-      call(`/api/admin/riders/${handle}/ban`, { banned: banning },
-        banning ? `Ban @${handle}? Kills their sessions and recomputes everyone they vouched.` : undefined);
+      postReload(`/api/admin/riders/${handle}/ban`, { banned: banning },
+        banning ? `Ban @${handle}? Kills their sessions and recomputes everyone they vouched.` : undefined, status);
     });
-    for (const btn of document.querySelectorAll<HTMLButtonElement>('.vouch-remove')) {
-      btn.addEventListener('click', () =>
-        call(`/api/admin/vouches/${btn.dataset.id}`, {}, 'Remove this vouch (moderation)? May demote the rider.'));
-    }
   }
 </script>

@@ -62,12 +62,17 @@ export async function loadRankStats(db: D1Database, riderId: string): Promise<Ra
   };
 }
 
+const VOUCH_RANKS = new Set(['rider', 'wingleader']);
+const CASCADE_CAP = 2000; // runaway guard; real vouch graphs are tiny
+
 /**
- * Recompute and persist a rider's rank, writing a rank_events row only when
- * it changes. Promotions always apply. Demotions apply only when allowed
- * (moderation/ban) — voluntary vouch revocation must never demote. An
- * admin-granted Wingleader is left in place unless a demotion is allowed,
- * since computeRank can't re-derive it.
+ * Recompute and persist one rider's rank, writing a rank_events row only when
+ * it changes. Promotions always apply; demotions only when allowed
+ * (moderation/ban) — voluntary vouch revocation must never demote. Wingleader
+ * is NEVER touched here: computeRank can't re-derive it (Wings are deferred),
+ * so only an explicit admin grant removes it, even under allowDemotion.
+ * The write is guarded on the rank we read, so a concurrent demotion can't be
+ * silently overwritten by a stale promotion.
  */
 export async function recomputeRank(
   db: D1Database,
@@ -77,38 +82,86 @@ export async function recomputeRank(
   opts: { allowDemotion?: boolean } = {},
 ): Promise<{ changed: boolean; from: string | null; to: string | null }> {
   const rider = await db
-    .prepare('SELECT rank, banned_at FROM riders WHERE id = ?')
+    .prepare('SELECT rank FROM riders WHERE id = ?')
     .bind(riderId)
-    .first<{ rank: string | null; banned_at: string | null }>();
+    .first<{ rank: string | null }>();
   if (!rider) return { changed: false, from: null, to: null };
 
   const current = rider.rank;
+  // Wingleader is admin-only — never auto-changed, up or down.
+  if (current === 'wingleader') return { changed: false, from: current, to: current };
+
   const computed = computeRank(await loadRankStats(db, riderId));
-
-  // Keep an admin-granted Wingleader unless we're explicitly allowed to demote.
-  let target: string | null;
-  if (current === 'wingleader' && !opts.allowDemotion) {
-    target = current;
-  } else if (opts.allowDemotion) {
-    target = computed; // moderation/ban: the computed rank wins, down included
-  } else {
-    // Normal path: rank only moves up automatically.
-    target = order(computed) > order(current) ? computed : current;
-  }
-
+  const target = opts.allowDemotion
+    ? computed
+    : order(computed) > order(current) ? computed : current;
   if (target === current) return { changed: false, from: current, to: current };
 
   const now = new Date().toISOString();
-  await db.batch([
-    db.prepare('UPDATE riders SET rank = ? WHERE id = ?').bind(target, riderId),
-    db
-      .prepare(
-        `INSERT INTO rank_events (id, rider_id, old_rank, new_rank, reason, actor, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .bind(crypto.randomUUID(), riderId, current, target, reason, actor, now),
-  ]);
+  // Conditional write: only if the rank is still what we read (null-safe IS).
+  const upd = await db
+    .prepare('UPDATE riders SET rank = ? WHERE id = ? AND rank IS ?')
+    .bind(target, riderId, current)
+    .run();
+  if (upd.meta.changes !== 1) {
+    // Lost a race with another recompute; a later trigger reconciles.
+    return { changed: false, from: current, to: current };
+  }
+  await db
+    .prepare(
+      `INSERT INTO rank_events (id, rider_id, old_rank, new_rank, reason, actor, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .bind(crypto.randomUUID(), riderId, current, target, reason, actor, now)
+    .run();
   return { changed: true, from: current, to: target };
+}
+
+/**
+ * Transitive recompute across the vouch graph. When a rider crosses the
+ * vouch-qualifying boundary (Rider), the people they vouched for may cross
+ * too — so a single ban or removal has to ripple through the whole ring, not
+ * just the first hop. BFS with a visited set; bounded by CASCADE_CAP.
+ *
+ * allowDemotion=true (ban / moderation): follow riders who STOP qualifying.
+ * allowDemotion=false (unban / publish / vouch): follow riders who START
+ * qualifying, promotion-only.
+ */
+export async function cascadeRank(
+  db: D1Database,
+  seedRiderIds: string[],
+  actor: string,
+  reason: string,
+  opts: { allowDemotion?: boolean } = {},
+): Promise<void> {
+  const allowDemotion = !!opts.allowDemotion;
+  const queue = [...new Set(seedRiderIds)];
+  const visited = new Set<string>();
+  let guard = 0;
+  while (queue.length && guard < CASCADE_CAP) {
+    guard += 1;
+    const id = queue.shift()!;
+    if (visited.has(id)) continue;
+    visited.add(id);
+
+    const res = await recomputeRank(db, id, actor, reason, { allowDemotion });
+    if (!res.changed) continue;
+
+    const wasVoucher = VOUCH_RANKS.has(res.from ?? '');
+    const nowVoucher = VOUCH_RANKS.has(res.to ?? '');
+    // Only a crossing of the Rider boundary changes whether this rider's
+    // outbound vouches count toward their vouchees' ranks.
+    const crossed = allowDemotion ? wasVoucher && !nowVoucher : !wasVoucher && nowVoucher;
+    if (!crossed) continue;
+
+    const vouchees = await db
+      .prepare("SELECT DISTINCT vouchee_id FROM vouches WHERE voucher_id = ? AND status = 'active'")
+      .bind(id)
+      .all<{ vouchee_id: string }>();
+    for (const v of vouchees.results ?? []) {
+      if (!visited.has(v.vouchee_id)) queue.push(v.vouchee_id);
+    }
+  }
 }
 
 /** When did this rider reach their current rank? (for "earned" on the profile) */

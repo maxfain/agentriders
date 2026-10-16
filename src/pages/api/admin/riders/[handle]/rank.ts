@@ -1,5 +1,8 @@
 import type { APIRoute } from 'astro';
+import { cascadeRank } from '../../../../../lib/ranks.ts';
 import type { RiderRow } from '../../../../../lib/session.ts';
+
+const VOUCH_RANKS = new Set(['rider', 'wingleader']);
 
 export const prerender = false;
 
@@ -40,5 +43,27 @@ export const POST: APIRoute = async ({ locals, params, request }) => {
        VALUES (?, ?, ?, ?, 'admin_grant', ?, ?)`,
     ).bind(crypto.randomUUID(), rider.id, rider.rank, newRank, `admin:${admin.handle}`, now),
   ]);
+
+  // If this grant crossed the Rider boundary, this rider's outbound vouches
+  // started or stopped counting — ripple to everyone they vouched for.
+  const wasVoucher = VOUCH_RANKS.has(rider.rank ?? '');
+  const nowVoucher = VOUCH_RANKS.has(newRank ?? '');
+  if (wasVoucher !== nowVoucher) {
+    const vouchees = (
+      await env.DB.prepare(
+        "SELECT DISTINCT vouchee_id FROM vouches WHERE voucher_id = ? AND status = 'active'",
+      )
+        .bind(rider.id)
+        .all<{ vouchee_id: string }>()
+    ).results?.map((v) => v.vouchee_id) ?? [];
+    try {
+      await cascadeRank(env.DB, vouchees, `admin:${admin.handle}`, 'voucher_rank_change', {
+        allowDemotion: !nowVoucher, // dropped below Rider → demote; raised → promote
+      });
+    } catch {
+      /* non-critical */
+    }
+  }
+
   return json(200, { ok: true, rank: newRank });
 };

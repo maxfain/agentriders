@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { recomputeRank } from '../../../../../lib/ranks.ts';
+import { cascadeRank } from '../../../../../lib/ranks.ts';
 import type { RiderRow } from '../../../../../lib/session.ts';
 
 export const prerender = false;
@@ -35,28 +35,36 @@ export const POST: APIRoute = async ({ locals, params, request }) => {
   }
 
   const now = new Date().toISOString();
+  const directVouchees = (
+    await env.DB.prepare(
+      "SELECT DISTINCT vouchee_id FROM vouches WHERE voucher_id = ? AND status = 'active'",
+    )
+      .bind(rider.id)
+      .all<{ vouchee_id: string }>()
+  ).results?.map((v) => v.vouchee_id) ?? [];
+
   if (banning) {
     await env.DB.batch([
       env.DB.prepare('UPDATE riders SET banned_at = ? WHERE id = ?').bind(now, rider.id),
       env.DB.prepare('DELETE FROM sessions WHERE rider_id = ?').bind(rider.id),
     ]);
-    // The banned rider's vouches no longer qualify — recompute each vouchee.
-    const vouchees = await env.DB.prepare(
-      "SELECT DISTINCT vouchee_id FROM vouches WHERE voucher_id = ? AND status = 'active'",
-    )
-      .bind(rider.id)
-      .all<{ vouchee_id: string }>();
-    for (const v of vouchees.results ?? []) {
-      try {
-        await recomputeRank(env.DB, v.vouchee_id, `admin:${admin.handle}`, 'voucher_banned', {
-          allowDemotion: true,
-        });
-      } catch {
-        /* non-critical */
-      }
+    // The banned rider's vouches no longer qualify — ripple the demotion
+    // through the whole sub-graph, not just the first hop.
+    try {
+      await cascadeRank(env.DB, directVouchees, `admin:${admin.handle}`, 'voucher_banned', {
+        allowDemotion: true,
+      });
+    } catch {
+      /* non-critical */
     }
   } else {
     await env.DB.prepare('UPDATE riders SET banned_at = NULL WHERE id = ?').bind(rider.id).run();
+    // Their vouches qualify again — re-promote any vouchee that now earns it.
+    try {
+      await cascadeRank(env.DB, directVouchees, `admin:${admin.handle}`, 'voucher_unbanned');
+    } catch {
+      /* non-critical */
+    }
   }
 
   return json(200, { ok: true, banned: banning });

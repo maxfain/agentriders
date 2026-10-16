@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { recomputeRank } from '../../../../lib/ranks.ts';
+import { cascadeRank } from '../../../../lib/ranks.ts';
 import type { VouchRow } from '../../../../lib/vouches.ts';
 
 export const prerender = false;
@@ -19,7 +19,9 @@ export const POST: APIRoute = async ({ locals, params }) => {
 
   await env.DB.prepare("UPDATE vouches SET status = 'removed' WHERE id = ?").bind(row.id).run();
   try {
-    await recomputeRank(env.DB, row.vouchee_id, `admin:${locals.rider!.handle}`, 'vouch_removed', {
+    // Demotion may ripple: if the vouchee drops below Rider, their own
+    // vouches stop counting too.
+    await cascadeRank(env.DB, [row.vouchee_id], `admin:${locals.rider!.handle}`, 'vouch_removed', {
       allowDemotion: true,
     });
   } catch {
