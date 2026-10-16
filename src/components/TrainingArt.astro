@@ -1,6 +1,14 @@
 ---
 interface Props { name?: 'yard' | 'workbench' | 'wing'; alt?: string; eager?: boolean; class?: string; sizes?: string; }
-const { name = 'yard', alt = '', eager = false, class: className, sizes = '100vw' } = Astro.props;
+// Each piece of art describes one scene, so the description lives with the
+// name: pages get a real alt without repeating it, and can still pass alt=""
+// where the picture is purely decorative (an explicit empty string stays).
+const ART_ALT: Record<NonNullable<Props['name']>, string> = {
+  yard: 'A rider and a copper dragon meet in a sunlit mountain training yard',
+  workbench: 'A rider at a workbench fitting a harness to a copper dragon',
+  wing: 'A silver-haired rider watches three copper dragons fly separate paths above a mountain range',
+};
+const { name = 'yard', alt = ART_ALT[name] ?? '', eager = false, class: className, sizes = '100vw' } = Astro.props;
 ---
 <picture class:list={['training-art', className]}>
   <img src={`/images/training-${name}-1600.webp`} srcset={[800,1200,1600].map(w => `/images/training-${name}-${w}.webp ${w}w`).join(', ')} sizes={sizes} width="1600" height="914" alt={alt} loading={eager ? 'eager' : 'lazy'} fetchpriority={eager ? 'high' : undefined} decoding="async" />

@@ -46,7 +46,7 @@ const { label, logs } = Astro.props;
   title={`Flights · ${label} — AgentRiders`}
   description={`Published flight logs filtered by ${facet}: ${label}.`}
 >
-  <PageHero eyebrow={`Flight Logs / ${facet}`} title={label} description={`${logs.length} published ${logs.length === 1 ? "flight" : "flights"}`} art="ledger" compact><p class="page-hero__meta"><a href="/logs">← All flights</a></p></PageHero>
+  <PageHero eyebrow={`Flight Logs / ${facet}`} title={label} description={`${logs.length} published ${logs.length === 1 ? "flight" : "flights"}`} art="ledger" compact><p class="page-hero__meta"><a href="/logs/">← All flights</a></p></PageHero>
 
   <section class="section section--bone" aria-label="Filtered flights">
     <div class="container">

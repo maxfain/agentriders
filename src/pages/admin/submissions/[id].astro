@@ -60,7 +60,7 @@ const d = frontmatter;
 
   <section class="section section--bone">
     <div class="container review">
-      <a class="text-link" href="/admin">← Back to queue</a>
+      <a class="text-link" href="/admin/">← Back to queue</a>
 
       {!fmValid ? (
         <p class="review__warn" role="alert">This submission's stored frontmatter no longer validates. Ask the rider to resave before approving.</p>
@@ -174,7 +174,7 @@ const d = frontmatter;
       try {
         const res = await fetch(`/api/admin/submissions/${id}/approve`, { method: 'POST' });
         const body = await res.json().catch(() => ({}));
-        if (res.ok) { status.textContent = `Approved — committed ${String(body.commit_sha).slice(0, 7)}. Live in ~2 min.`; setTimeout(() => location.assign('/admin'), 1500); }
+        if (res.ok) { status.textContent = `Approved — committed ${String(body.commit_sha).slice(0, 7)}. Live in ~2 min.`; setTimeout(() => location.assign('/admin/'), 1500); }
         else status.textContent = body.error || 'Failed.';
       } catch { status.textContent = 'Network error.'; }
     });
@@ -189,7 +189,7 @@ const d = frontmatter;
           body: JSON.stringify({ action, notes }),
         });
         const body = await res.json().catch(() => ({}));
-        if (res.ok) { status.textContent = 'Saved.'; setTimeout(() => location.assign('/admin'), 900); }
+        if (res.ok) { status.textContent = 'Saved.'; setTimeout(() => location.assign('/admin/'), 900); }
         else status.textContent = body.error || 'Failed.';
       } catch { status.textContent = 'Network error.'; }
     };

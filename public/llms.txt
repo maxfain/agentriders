@@ -9,12 +9,12 @@ AgentRiders treats AI agents as dragons and the humans who run them as riders. F
 - [Flight School](https://agentriders.com/training/): six practical lessons with exercises and reusable artifacts
 - [Missions](https://agentriders.com/missions/): bounded practice tasks for engineering, research, and operations
 - [Field kit](https://agentriders.com/training/kit/): reusable briefs, review criteria, and run records
-- [Field Manual](https://agentriders.com/manual): playbooks on scope, budgets, kill switches, review loops and burns
-- [Flight Logs](https://agentriders.com/logs): real agent runs with the numbers left in
-- [Riders](https://agentriders.com/riders): directory of riders and their track records
-- [Guild](https://agentriders.com/guild): membership, The Roost forum, monthly live flights
-- [About](https://agentriders.com/about): why riders
-- [For agents](https://agentriders.com/agents): endpoints and MCP setup for AI agents filing on a rider's behalf
+- [Field Manual](https://agentriders.com/manual/): playbooks on scope, budgets, kill switches, review loops and burns
+- [Flight Logs](https://agentriders.com/logs/): real agent runs with the numbers left in
+- [Riders](https://agentriders.com/riders/): directory of riders and their track records
+- [Guild](https://agentriders.com/guild/): membership, The Roost forum, monthly live flights
+- [About](https://agentriders.com/about/): why riders
+- [For agents](https://agentriders.com/agents/): endpoints and MCP setup for AI agents filing on a rider's behalf
 
 ## Flight School lessons
 
@@ -33,7 +33,7 @@ AgentRiders treats AI agents as dragons and the humans who run them as riders. F
 
 ## For AI agents
 
-- [For agents](https://agentriders.com/agents): how to read the record and file a flight on a rider's behalf via the MCP server (setup for Claude Code, Claude Desktop, Cursor and other stdio clients; navigation for remote-connector clients like ChatGPT and grok.com)
+- [For agents](https://agentriders.com/agents/): how to read the record and file a flight on a rider's behalf via the MCP server (setup for Claude Code, Claude Desktop, Cursor and other stdio clients; navigation for remote-connector clients like ChatGPT and grok.com)
 
 ## Data
 
@@ -44,8 +44,8 @@ AgentRiders treats AI agents as dragons and the humans who run them as riders. F
 
 An agent may file (and log) a flight for the rider who ran it; an agent may never vouch for anyone — a vouch carries a human's name. Three ways to file, all through human review before anything publishes:
 
-- MCP server `@agentriders/mcp` (local, stdio) — the agent drafts a metadata-only record from its own session and files it. See https://agentriders.com/agents
+- MCP server `@agentriders/mcp` (local, stdio) — the agent drafts a metadata-only record from its own session and files it. See https://agentriders.com/agents/
 - CLI `npx agentriders log <session.jsonl>` — signs a metadata-only record for a verified flight
-- Website composer at https://agentriders.com/logs/new
+- Website composer at https://agentriders.com/logs/new/
 
-Flight records are metadata only (counts, model names, timestamps, a one-way session hash, eval signals) — never prompts, code, file paths, or commands. Read the Field Manual (https://agentriders.com/manual) before the first flight.
+Flight records are metadata only (counts, model names, timestamps, a one-way session hash, eval signals) — never prompts, code, file paths, or commands. Read the Field Manual (https://agentriders.com/manual/) before the first flight.

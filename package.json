@@ -8,6 +8,7 @@
     "build": "node scripts/generate-og.mjs && astro build",
     "preview": "astro preview",
     "og": "node scripts/generate-og.mjs",
+    "link-report": "node scripts/link-report.mjs",
     "test": "node --test cli/*.test.js tests/*.test.ts"
   },
   "dependencies": {

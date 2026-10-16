@@ -10,8 +10,8 @@ import { listRecords } from '../../lib/flight-records';
 // the signed flight records they produce (link to a published flight, unlink,
 // delete). Session-gated.
 const rider = Astro.locals.rider;
-if (!rider) return Astro.redirect('/join');
-if (isPendingHandle(rider.handle)) return Astro.redirect('/join');
+if (!rider) return Astro.redirect('/join/');
+if (isPendingHandle(rider.handle)) return Astro.redirect('/join/');
 
 const { env } = Astro.locals.runtime;
 const devices = await listDevices(env.DB, rider.id);
@@ -154,7 +154,7 @@ agentriders login</code></pre>
         <p class="dev-fine">A record links to a flight you’ve published. The badge appears on the flight page after the next site rebuild.</p>
       </div>
 
-      <p class="dev-back"><a class="text-link" href="/me">← Back to your ledger</a></p>
+      <p class="dev-back"><a class="text-link" href="/me/">← Back to your ledger</a></p>
     </div>
   </section>
 </Base>

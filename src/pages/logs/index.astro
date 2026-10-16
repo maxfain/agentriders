@@ -37,7 +37,7 @@ const burned = logs.filter((l) => l.data.burns.length > 0);
   title="Flight Logs — AgentRiders"
   description="Real agent runs with the numbers left in: duration, cost, burns and the lesson, written by the rider who held the reins."
 >
-  <PageHero eyebrow="The Flight Logs" title="Real flights. Numbers left in." description="Every log is one agent, one task, one outcome, written by the rider who held the reins." art="ledger" id="logs-title"><div class="page-hero__actions"><a class="btn btn--ember" href="/logs/template">Log a flight ↗</a></div></PageHero>
+  <PageHero eyebrow="The Flight Logs" title="Real flights. Numbers left in." description="Every log is one agent, one task, one outcome, written by the rider who held the reins." art="ledger" id="logs-title"><div class="page-hero__actions"><a class="btn btn--ember" href="/logs/template/">Log a flight ↗</a></div></PageHero>
 
   <section class="section section--bone" aria-label="Published flights">
     <div class="container stack">
@@ -52,14 +52,14 @@ const burned = logs.filter((l) => l.data.burns.length > 0);
               <div class="facets__row">
                 <span class="facets__label">{f.label}</span>
                 {[...f.map.entries()].map(([value, { label, count }]: any) => (
-                  <a href={`/logs/${key}/${value}`}>{label} ({count})</a>
+                  <a href={`/logs/${key}/${value}/`}>{label} ({count})</a>
                 ))}
               </div>
             ))}
             {burned.length > 0 && (
               <div class="facets__row">
                 <span class="facets__label">Burns</span>
-                <a href="/logs/burns/burned">burns &gt; 0 ({burned.length})</a>
+                <a href="/logs/burns/burned/">burns &gt; 0 ({burned.length})</a>
               </div>
             )}
           </nav>
@@ -73,7 +73,7 @@ const burned = logs.filter((l) => l.data.burns.length > 0);
           <p class="micro">THE LOGBOOK IS OPEN</p>
           <h2>The first page is yours.</h2>
           <p>No flights published yet. The first ones land with the Guild's first riders. Start with the template: one task, one outcome, numbers left in.</p>
-          <a class="btn btn--ember" href="/logs/template">Get the flight template <span aria-hidden="true">↗</span></a>
+          <a class="btn btn--ember" href="/logs/template/">Get the flight template <span aria-hidden="true">↗</span></a>
         </div>
       )}
     </div>

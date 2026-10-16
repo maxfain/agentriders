@@ -8,8 +8,8 @@ import { parseAndValidateLog } from '../../lib/frontmatter';
 import type { SubmissionRow } from '../../lib/submissions';
 
 const rider = Astro.locals.rider;
-if (!rider) return Astro.redirect('/join');
-if (rider.handle.startsWith('pending-')) return Astro.redirect('/join');
+if (!rider) return Astro.redirect('/join/');
+if (rider.handle.startsWith('pending-')) return Astro.redirect('/join/');
 
 const { env } = Astro.locals.runtime;
 const url = Astro.url;
@@ -211,10 +211,10 @@ const reins = fm.reins ?? { scope: '', budget: '', kill_switch: '', autonomy: ''
         <div class="composer__actions">
           <button type="button" id="save-draft" class="btn btn--ink">Save draft</button>
           <button type="submit" id="submit-review" class="btn btn--ember">Submit for review</button>
-          <a class="text-link" href="/me">Back to your ledger</a>
+          <a class="text-link" href="/me/">Back to your ledger</a>
         </div>
         <p class="composer__status" id="composer-status" role="status"></p>
-        <noscript><p class="field__hint">Composing a log needs JavaScript. The <a href="/logs/template">git template</a> works without it.</p></noscript>
+        <noscript><p class="field__hint">Composing a log needs JavaScript. The <a href="/logs/template/">git template</a> works without it.</p></noscript>
       </form>
     </div>
   </section>
@@ -355,7 +355,7 @@ const reins = fm.reins ?? { scope: '', budget: '', kill_switch: '', autonomy: ''
         const res = await fetch(`/api/submissions/${submissionId}/submit`, { method: 'POST' });
         const body = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(body.error || 'Could not submit.');
-        window.location.assign('/me?submitted=1');
+        window.location.assign('/me/?submitted=1');
       } catch (e) {
         status.textContent = (e as Error).message;
       }

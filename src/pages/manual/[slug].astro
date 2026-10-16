@@ -33,12 +33,12 @@ const hasBody = chapter.body ? chapter.body.replace(/<!--[\s\S]*?-->/g, '').trim
           <Content />
         </div>
       ) : (
-        <div class="chapter-in-progress"><p class="micro">CHAPTER IN PROGRESS</p><h2>Still in the field.</h2><p>This chapter is being written from real flights. Read the <a href="/manual/evals">Evals chapter</a> while this one takes shape, or visit the <a href="/flight-log">Flight Log</a> for newsletter availability.</p></div>
+        <div class="chapter-in-progress"><p class="micro">CHAPTER IN PROGRESS</p><h2>Still in the field.</h2><p>This chapter is being written from real flights. Read the <a href="/manual/evals/">Evals chapter</a> while this one takes shape, or visit the <a href="/flight-log/">Flight Log</a> for newsletter availability.</p></div>
       )}
       <nav class="chapter-navigation" aria-label="Chapters">
-        <a href="/manual">← All chapters</a>
-        {previous && <a href={`/manual/${previous.id}`}>Previous chapter</a>}
-        {next && <a href={`/manual/${next.id}`}>Next: {next.data.title.split(':')[0]} →</a>}
+        <a href="/manual/">← All chapters</a>
+        {previous && <a href={`/manual/${previous.id}/`}>Previous chapter</a>}
+        {next && <a href={`/manual/${next.id}/`}>Next: {next.data.title.split(':')[0]} →</a>}
       </nav>
       </div>
     </div>

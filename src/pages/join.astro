@@ -6,7 +6,7 @@ import Arrow from '../components/Arrow.astro';
 import { isPendingHandle } from '../lib/handles';
 
 const rider = Astro.locals.rider;
-if (rider && !isPendingHandle(rider.handle)) return Astro.redirect('/me');
+if (rider && !isPendingHandle(rider.handle)) return Astro.redirect('/me/');
 
 const ERRORS: Record<string, string> = {
   oauth_state: 'That sign-in attempt expired. Start again.',
@@ -152,7 +152,7 @@ const error = errorKey ? (ERRORS[errorKey] ?? null) : null;
         });
         const body = await response.json();
         if (response.ok) {
-          window.location.assign('/me');
+          window.location.assign('/me/');
         } else {
           status.textContent = body.error ?? 'Something went wrong. Try again.';
         }

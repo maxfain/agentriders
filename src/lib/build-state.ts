@@ -65,10 +65,11 @@ export async function fetchSiteState(): Promise<SiteState> {
 /**
  * Decide how to render a log's `rider`. Returns a profile href only when the
  * rider string is a real claimed handle; otherwise the name renders as plain
- * text (legacy logs with "handle"/"example" never link).
+ * text (legacy logs with "handle"/"example" never link). The href carries
+ * the trailing slash like every other page link (the profile's canonical).
  */
 export function riderLink(rider: string, state: SiteState): string | null {
-  return state.handles.has(rider) ? `/riders/${rider}` : null;
+  return state.handles.has(rider) ? `/riders/${rider}/` : null;
 }
 
 export function isVerified(slug: string, state: SiteState): boolean {

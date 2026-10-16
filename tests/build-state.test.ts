@@ -8,9 +8,9 @@ afterEach(() => {
   delete process.env.SITE_STATE_ORIGIN;
 });
 
-test('riderLink: links only real claimed handles', () => {
+test('riderLink: links only real claimed handles, with the trailing slash', () => {
   const state = { handles: new Set(['maxfain', 'rhea']), verified: {} };
-  assert.equal(riderLink('maxfain', state), '/riders/maxfain');
+  assert.equal(riderLink('maxfain', state), '/riders/maxfain/');
   assert.equal(riderLink('handle', state), null); // legacy placeholder
   assert.equal(riderLink('example', state), null);
 });
@@ -30,7 +30,7 @@ test('fetchSiteState: parses a populated response', async () => {
   const state = await fetchSiteState();
   assert.ok(state.handles.has('maxfain'));
   assert.equal(state.verified['a-log'], true);
-  assert.equal(riderLink('maxfain', state), '/riders/maxfain');
+  assert.equal(riderLink('maxfain', state), '/riders/maxfain/');
 });
 
 test('fetchSiteState: falls back to empty on a failed fetch (deploys never break)', async () => {

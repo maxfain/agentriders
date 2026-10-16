@@ -95,7 +95,7 @@ const landed = flights.filter((f) => f.outcome === 'landed').length;
             <ul class="rider-flights">
               {flights.map((f) => (
                 <li>
-                  <a href={`/logs/${f.slug}`}>
+                  <a href={`/logs/${f.slug}/`}>
                     <span class="rider-flights__name">{f.title}</span>
                     <span class="rider-flights__meta">{f.date} · {f.task} · {f.outcome}{f.burns_count > 0 ? ` · ${f.burns_count} ${f.burns_count === 1 ? 'burn' : 'burns'}` : ''}</span>
                   </a>
@@ -135,7 +135,7 @@ const landed = flights.filter((f) => f.outcome === 'landed').length;
               {received.map((v) => (
                 <li class="vouch">
                   <p class="vouch__statement">“{v.statement}”</p>
-                  <p class="vouch__by"><a href={`/riders/${v.handle}`}>@{v.handle}</a>{v.rank && <span class="vouch__rank">{v.rank}</span>} · {fmt(v.created_at)}{viewerIsAdmin && <button type="button" class="vouch-remove" data-id={v.id} aria-label="Remove this vouch (moderation)">remove</button>}</p>
+                  <p class="vouch__by"><a href={`/riders/${v.handle}/`}>@{v.handle}</a>{v.rank && <span class="vouch__rank">{v.rank}</span>} · {fmt(v.created_at)}{viewerIsAdmin && <button type="button" class="vouch-remove" data-id={v.id} aria-label="Remove this vouch (moderation)">remove</button>}</p>
                 </li>
               ))}
             </ul>
@@ -148,7 +148,7 @@ const landed = flights.filter((f) => f.outcome === 'landed').length;
                 {given.map((v) => (
                   <li class="vouch">
                     <p class="vouch__statement">“{v.statement}”</p>
-                    <p class="vouch__by">for <a href={`/riders/${v.handle}`}>@{v.handle}</a> · {fmt(v.created_at)}{isSelf && <button type="button" class="vouch-revoke" data-id={v.id} aria-label="Revoke this vouch">revoke</button>}</p>
+                    <p class="vouch__by">for <a href={`/riders/${v.handle}/`}>@{v.handle}</a> · {fmt(v.created_at)}{isSelf && <button type="button" class="vouch-revoke" data-id={v.id} aria-label="Revoke this vouch">revoke</button>}</p>
                   </li>
                 ))}
               </ul>

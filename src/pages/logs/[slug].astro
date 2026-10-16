@@ -27,7 +27,7 @@ const hasBody = log.body ? log.body.replace(/<!--[\s\S]*?-->/g, '').trim().lengt
 ---
 
 <Base title={`${d.title} — Flight Logs — AgentRiders`} description={`${d.mount} · ${d.duration} · $${d.cost_usd} · ${burns} ${burns === 1 ? 'burn' : 'burns'}. Lesson: ${d.lesson}`}>
-  <PageHero eyebrow={`Flight Log / ${date}`} title={d.title} description={undefined} art="ledger" compact><p class="page-hero__meta">Rider: {riderHref ? <a href={riderHref}>{d.rider}</a> : d.rider}{verified && <span class="verified-badge" title="Signed by a registered device via the agentriders CLI">✦ Verified flight</span>} · <a href="/logs">All flights</a></p></PageHero>
+  <PageHero eyebrow={`Flight Log / ${date}`} title={d.title} description={undefined} art="ledger" compact><p class="page-hero__meta">Rider: {riderHref ? <a href={riderHref}>{d.rider}</a> : d.rider}{verified && <span class="verified-badge" title="Signed by a registered device via the agentriders CLI">✦ Verified flight</span>} · <a href="/logs/">All flights</a></p></PageHero>
 
   <section class="section section--bone">
     <div class="container">
