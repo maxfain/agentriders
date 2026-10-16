@@ -3,7 +3,8 @@
 // on the verified path, uploads the signed flight record.
 
 import { parseMarkdown } from '../lib/frontmatter.js';
-import { slugify } from '../lib/slug.js';
+import { validateComposer } from '../lib/validate.js';
+import { slugify, isValidSlug } from '../lib/slug.js';
 import { canonicalize } from '../../cli/lib/canonical.js';
 import { loadOrCreateKey } from '../../cli/lib/keys.js';
 import { signedFetch, postRecord } from '../../cli/lib/api.js';
@@ -25,7 +26,16 @@ export async function fileFlightLog(input = {}) {
     return { error: e.message };
   }
   const { frontmatter, body } = parsed;
-  const slug = (input.slug || slugify(frontmatter.title || '')).trim();
+
+  // Re-validate before anything leaves the machine — the cost rule and bounds
+  // are enforced here, not just advised by draft, so a confirmed file() can't
+  // fail late with a server 400 (or slip a cost_usd:0 "unchecked" past).
+  const { issues } = validateComposer(frontmatter);
+  if (issues.length) {
+    return { error: 'The flight log does not validate — fix these and re-draft before filing.', issues };
+  }
+
+  const slug = input.slug && isValidSlug(input.slug) ? input.slug : slugify(frontmatter.title || '');
   const composer = { ...frontmatter, slug, body_md: body };
 
   const key = loadOrCreateKey();
@@ -67,6 +77,6 @@ export async function fileFlightLog(input = {}) {
     submission: { id, slug, status, url: `/logs/${slug}` },
     submit_note: submitNote,
     record,
-    note: 'Pending admin review — not yet public. The Verified badge appears after approval, once the flight record is linked to the published log (from /me/devices).',
+    note: 'Pending admin review — not yet public. A verified record is self-attested: it proves your device signed this session metadata, not that every number is true. The Verified badge appears after approval, once the record is linked to the published log (from /me/devices).',
   };
 }

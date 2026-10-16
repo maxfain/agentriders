@@ -3,6 +3,18 @@ import { SESSION_COOKIE, resolveSession } from './lib/session';
 import { resolveDeviceAuth } from './lib/device-auth';
 import { isAdmin } from './lib/admin';
 
+// Device-signature auth is honored only on the routes an agent (CLI / MCP)
+// legitimately needs — never the whole API. Human-intent writes (vouches,
+// handle claim, device management) stay cookie-only, so a device key can't
+// silently cast a vouch, squat a handle, or enroll more devices.
+function deviceAuthAllowed(path: string, method: string): boolean {
+  if (method === 'GET') return path === '/api/me';
+  if (method === 'POST') {
+    return path === '/api/submissions' || /^\/api\/submissions\/[^/]+\/submit$/.test(path);
+  }
+  return false;
+}
+
 // Runs for server routes (prerender = false) at request time, and once at
 // build time for prerendered pages — where it passes straight through so
 // the static output is untouched. The adapter populates locals.runtime
@@ -52,9 +64,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
   }
 
   // Device-signature auth (CLI / MCP) as a fallback when there is no cookie
-  // session. sessionId stays null — the admin gate below uses that to keep a
-  // device identity out of /admin even if the device belongs to an admin.
-  if (!context.locals.rider) {
+  // session, and only on the allowlisted routes. sessionId stays null — the
+  // admin gate below uses that to keep a device identity out of /admin even if
+  // the device belongs to an admin.
+  if (!context.locals.rider && deviceAuthAllowed(context.url.pathname, method)) {
     try {
       const viaDevice = await resolveDeviceAuth(env, context.request, context.url);
       if (viaDevice) context.locals.rider = viaDevice;

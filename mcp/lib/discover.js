@@ -3,9 +3,12 @@
 // the working directory with every non-alphanumeric character replaced by '-'
 // (e.g. /home/u/proj -> -home-u-proj).
 //
-// Order: explicit path → session id from the environment → newest *.jsonl in
-// the directory that matches the current cwd → none (unverified path). We
-// never grab a session from an unrelated project.
+// Order: explicit path → session id from the environment (scoped to the cwd's
+// project dir when cwd is a known project, so we never grab an unrelated
+// project's session) → newest *.jsonl in the dir matching cwd → none
+// (unverified path). When cwd is not a project dir at all — e.g. Claude Desktop
+// launches the stdio server at '/' — the env session id is trusted globally,
+// since it's the only grounding signal and is same-user, set at spawn.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -52,12 +55,14 @@ export function discoverSession(explicitPath, cwd = process.cwd()) {
   }
   if (files.length === 0) return null;
 
+  const mangled = mangleCwd(cwd);
+  const cwdIsProject = files.some((x) => x.dir === mangled);
+
   if (sessionId) {
     const hit = files.find((x) => x.id === sessionId);
-    if (hit) return hit.path;
+    if (hit && (!cwdIsProject || hit.dir === mangled)) return hit.path;
   }
 
-  const mangled = mangleCwd(cwd);
   const inCwd = files.filter((x) => x.dir === mangled).sort((a, b) => b.mtime - a.mtime);
   return inCwd.length ? inCwd[0].path : null;
 }

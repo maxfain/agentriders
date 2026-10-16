@@ -59,6 +59,8 @@ timestamps, a one-way session hash, and eval signals only.
 
 ## Note on packaging
 
-This package reuses the `agentriders` CLI core (`../cli/lib/*`) by relative
-path within the monorepo. Publishing to npm bundles those modules
-(`esbuild --bundle server.js`) so the published package is self-contained.
+The tools reuse the `agentriders` CLI core (`../cli/lib/*`) by relative path
+within the monorepo. `npm run build` (run automatically by `prepublishOnly`)
+bundles them with esbuild into a self-contained `dist/server.js` — that bundle
+is what the published package ships and what `bin` points at, so
+`npx @agentriders/mcp` works outside the repo.

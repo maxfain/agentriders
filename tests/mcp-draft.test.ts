@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 
 import { draftFlightLog } from '../mcp/tools/draft.js';
 import { fileFlightLog } from '../mcp/tools/file.js';
+import { validateComposer } from '../mcp/lib/validate.js';
 import { parseMarkdown } from '../mcp/lib/frontmatter.js';
 import { slugify as mcpSlugify } from '../mcp/lib/slug.js';
 import { slugify as realSlugify } from '../src/lib/log-schema.ts';
@@ -84,4 +85,19 @@ test('schema round-trip: draft markdown parses under composerSchema AND the cont
 test('file refuses without confirm: true (no network)', async () => {
   const r = await fileFlightLog({ slug: 'x', markdown: '---\ntitle: x\n---\n', confirm: false });
   assert.ok(r.error && r.error.includes('confirm'));
+});
+
+test('validateComposer enforces the real bounds + the cost rule', () => {
+  const good = parseMarkdown(draftFlightLog({ ...base(), session_log_path: sessionFile }).markdown).frontmatter;
+  assert.deepEqual(validateComposer(good).issues, []);
+  assert.ok(validateComposer({ ...good, cost_usd: 0 }).issues.some((i) => i.includes('cost_usd')));
+  assert.ok(validateComposer({ ...good, date: '2026-13-45' }).issues.some((i) => i.includes('date')));
+  assert.ok(validateComposer({ ...good, title: 'x'.repeat(141) }).issues.some((i) => i.includes('title')));
+  assert.ok(validateComposer({ ...good, outcome: 'nope' }).issues.some((i) => i.includes('outcome')));
+});
+
+test('file refuses to upload an invalid (cost 0) log even with confirm (no network)', async () => {
+  const d = draftFlightLog({ ...base(), cost_usd: 0, session_log_path: sessionFile });
+  const r = await fileFlightLog({ slug: d.slug, markdown: d.markdown, confirm: true });
+  assert.ok(r.error && Array.isArray(r.issues) && r.issues.some((i: string) => i.includes('cost_usd')));
 });
