@@ -13,7 +13,7 @@ const published = (await getCollection('logs', ({ data }) => !data.draft))
   .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf()).slice(0, 3);
 const ranks = [
   { name: 'Fledgling', id: 'fledgling', number: '01', label: 'Find your footing', req: 'Joined · 1 flight logged', body: 'Learning. Can read, log and ask. Everyone starts here, including the people who built this.' },
-  { name: 'Rider', id: 'rider', number: '02', label: 'Earn your wings', req: '20 flights · 2 vouches from Riders', body: 'Runs agents on real work, unsupervised. Can vouch for Fledglings.' },
+  { name: 'Rider', id: 'rider', number: '02', label: 'Earn your wings', req: '20 flights · 2 Rider vouches', body: 'Runs agents on real work, unsupervised. Can vouch for Fledglings.' },
   { name: 'Wingleader', id: 'wingleader', number: '03', label: 'Lead the formation', req: '100 flights · runs a wing · 5 vouches', body: 'Trusted to lead others and set the reins for a team or a fleet.' },
 ];
 const examples = [

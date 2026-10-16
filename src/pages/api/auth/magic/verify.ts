@@ -1,8 +1,14 @@
 import type { APIRoute } from 'astro';
 import { sha256Hex } from '../../../../lib/crypto';
+import { rateLimit } from '../../../../lib/ratelimit';
 import { findOrCreateRider, completeSignIn } from '../../../../lib/auth';
 
 export const prerender = false;
+
+// Per-IP cap on verify attempts — defense-in-depth against token probing on
+// top of the token's own entropy and single-use consumption.
+const verifyAllowed = (env: AgentRidersEnv, request: Request) =>
+  rateLimit(env.RATE, `magicverify:${request.headers.get('CF-Connecting-IP') ?? 'unknown'}`, 30, 3600);
 
 // Sign-in is a two-step on purpose: the emailed link is a GET, and mail
 // scanners (SafeLinks, Mimecast, link previews) prefetch GETs — so the
@@ -56,8 +62,9 @@ const confirmPage = (token: string, email: string) => `<!doctype html>
 </html>`;
 
 // Read-only: show the confirm page if the token is still live.
-export const GET: APIRoute = async ({ locals, url, redirect }) => {
+export const GET: APIRoute = async ({ locals, url, redirect, request }) => {
   const { env } = locals.runtime;
+  if (!(await verifyAllowed(env, request))) return redirect('/join?error=too_many', 302);
   const token = url.searchParams.get('token') ?? '';
   if (!TOKEN_SHAPE.test(token) || !env.SESSION_PEPPER) {
     return redirect('/join?error=link_invalid', 302);
@@ -80,6 +87,7 @@ export const GET: APIRoute = async ({ locals, url, redirect }) => {
 export const POST: APIRoute = async (context) => {
   const { locals, request, redirect } = context;
   const { env } = locals.runtime;
+  if (!(await verifyAllowed(env, request))) return redirect('/join?error=too_many', 302);
   let token = '';
   try {
     token = String((await request.formData()).get('token') ?? '');
