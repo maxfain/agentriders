@@ -19,6 +19,11 @@ const counts = await onboardingCounts(env.DB, rider.id);
 const step = onboardingStep(counts);
 const { flights, verified, vouches, devices, pending } = counts;
 const deviceWord = devices === 1 ? 'device' : 'devices';
+// A flight reaches review either from the agent (a device is paired) or by hand
+// (devices = 0, the /logs/new fork). Only claim "your agent filed it" when a
+// device is actually linked — otherwise the banner would contradict the YOUR
+// AGENT card, which reads "Not set up" on the by-hand path.
+const byAgent = devices >= 1;
 const profileHref = `/riders/${rider.handle}/`;
 
 // /logs/new redirects here with ?submitted=1 after a by-hand filing — confirm it.
@@ -82,7 +87,7 @@ const rankLabel = rider.rank ? rider.rank[0].toUpperCase() + rider.rank.slice(1)
           ) : (
             <>
               <h2 id="me-next-title" class="me-next__title">First flight in review.</h2>
-              <p class="me-next__lead">Your agent filed it. A reviewer approves before it's public — you'll become a Fledgling when it publishes.</p>
+              <p class="me-next__lead">{byAgent ? 'Your agent filed it.' : "It's filed."} A reviewer approves before it's public — you'll become a Fledgling when it publishes.</p>
               <p class="me-next__fine"><a class="text-link" href={profileHref}>Track it on your profile →</a></p>
             </>
           )}

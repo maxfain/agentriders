@@ -25,9 +25,9 @@ function deviceAuthAllowed(path: string, method: string): boolean {
   return false;
 }
 
-// Private surfaces: never cached, never indexed. /me, /join and /logs/new are
-// per-rider. /admin must never be cached at all: a shared cache would hand
-// the review queue, a rider's email or a submission body to the next
+// Private surfaces: never cached, never indexed. /me, /join, /start and
+// /logs/new are per-rider. /admin must never be cached at all: a shared cache
+// would hand the review queue, a rider's email or a submission body to the next
 // visitor, and its 404-for-everyone-else shape (below) only holds while no
 // cache ever stores a real response for the path.
 function isPrivatePath(path: string): boolean {
@@ -35,6 +35,7 @@ function isPrivatePath(path: string): boolean {
     path === '/admin' || path.startsWith('/admin/') ||
     path === '/me' || path.startsWith('/me/') ||
     path === '/join' || path === '/join/' ||
+    path === '/start' || path === '/start/' ||
     path === '/logs/new' || path === '/logs/new/'
   );
 }

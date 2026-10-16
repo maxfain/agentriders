@@ -24,6 +24,11 @@ const handle = rider.handle;
 const { devices, pending, flights, verified } = counts;
 const deviceWord = devices === 1 ? 'device' : 'devices';
 const flightWord = flights === 1 ? 'flight' : 'flights';
+// The in-review flight was filed by the agent only when a device is paired;
+// otherwise it came through the by-hand /logs/new fork (devices = 0). Gate the
+// "your agent filed" wording on that, so step 3 never claims the agent filed a
+// flight while step 2 is still showing the active "enable your agent" card.
+const byAgent = devices >= 1;
 const profileHref = `/riders/${handle}/`;
 
 // One canonical MCP config — only the file it lives in differs per client
@@ -46,7 +51,7 @@ const agentSteps = [
   'Call agentriders_status. If linkedHandle is empty, ask me for the pairing code from agentriders.com/start/ and call agentriders_link_device with it.',
   'Call agentriders_draft_flight_log for the session we just finished — pass the real title, task, outcome, a measured cost_usd greater than 0, the lesson, and the reins (scope, budget, kill switch, autonomy). It reads the session locally and sends nothing.',
   "Show me the draft and, clearly, every field it marks rider-asserted or unverified — those are your claims, not facts. Don't smooth over a burn. A confident closing message is not evidence the work landed.",
-  'Once I confirm, call agentriders_file_flight_log with confirm: true, passing the slug, markdown, and egress_payload from the draft. Tell me the submission URL. It goes into human review — nothing publishes until a reviewer approves it.',
+  'Once I confirm, call agentriders_file_flight_log with confirm: true, passing the slug, markdown, and draft_id from the draft — the draft_id is what uploads the signed session record (egress_payload is for you to show me, not an argument). Tell me the submission URL. It goes into human review — nothing publishes until a reviewer approves it.',
 ];
 const agentInstruction = [agentIntro, ...agentSteps.map((s, i) => `${i + 1}. ${s}`)].join('\n');
 ---
@@ -133,7 +138,7 @@ const agentInstruction = [agentIntro, ...agentSteps.map((s, i) => `${i + 1}. ${s
         <div class="start-card start-card--done">
           <p class="start-step"><span class="micro">STEP 3</span><span class="start-mark start-mark--done" aria-hidden="true">✓</span></p>
           <h2 class="start-h">First flight in review</h2>
-          <p class="start-lead">Your agent filed a flight. It's in the review queue now — nothing is public until a reviewer approves it.</p>
+          <p class="start-lead">{byAgent ? 'Your agent filed a flight.' : 'Your flight is filed.'} It's in the review queue now — nothing is public until a reviewer approves it.</p>
           <p class="start-fine">What happens next: review → publish → you're a Fledgling, with a public track record.</p>
           <div class="start-actions">
             <a class="btn btn--ember" href="/me/">See your ledger <Arrow /></a>
