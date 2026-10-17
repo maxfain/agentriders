@@ -16,6 +16,11 @@ const active = (href: string) => {
       {links.map(([href, label]) => <a href={href} aria-current={active(href) ? 'page' : undefined}>{label}</a>)}
     </nav>
     <a class="btn btn--ember header-join" href="/guild/" data-auth-link><span data-auth-label>Join the Guild</span> <Arrow /></a>
+    <!-- Always-visible auth entry on mobile, where the nav and the "Join"
+         button collapse into the hamburger: a returning rider needs an
+         obvious way to sign in without opening the menu. Routes straight to
+         /join/ (sign in or create an account) and swaps to the handle. -->
+    <a class="btn btn--ember header-signin" href="/join/" data-auth-link><span data-auth-label>Sign in</span></a>
     <details class="mobile-menu">
       <summary aria-label="Navigation menu"><span></span><span></span></summary>
       <nav aria-label="Mobile navigation">

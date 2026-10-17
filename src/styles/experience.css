@@ -36,6 +36,9 @@ a:hover > .arrow, button:hover > .arrow { transform: translateX(4px); }
 .nav a[aria-current] { color: var(--bone); }
 .site-header .btn { font-size: 10px; gap: 18px; }
 .mobile-menu { display: none; }
+/* The compact "Sign in" button shows only on mobile, where the full nav and
+   the "Join the Guild" button collapse into the hamburger. */
+.header-signin { display: none; }
 /* A film still, with a readable editorial foreground. */
 .cinema-hero { position: relative; isolation: isolate; overflow: hidden; min-height: 800px; }
 .cinema-hero__art { position: absolute; inset: 0; z-index: -3; }
@@ -276,6 +279,8 @@ a:hover > .arrow, button:hover > .arrow { transform: translateX(4px); }
   .site-header .container { min-height: 76px; padding-block: 10px; }
   .nav, .header-join { display: none; }
   .mobile-menu { display: block; }
+  /* Visible, clearly-labelled auth entry next to the hamburger. */
+  .header-signin { display: inline-flex; min-height: 40px; padding: 0 16px; font-size: 11px; gap: 0; white-space: nowrap; flex-shrink: 0; }
   .mobile-menu summary { width: 44px; height: 44px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 6px; cursor: pointer; border: 1px solid #594839; border-radius: 4px; list-style: none; }
   .mobile-menu summary::-webkit-details-marker { display: none; }
   .mobile-menu summary > span { width: 18px; height: 1px; background: var(--bone); transition: transform .2s; }
