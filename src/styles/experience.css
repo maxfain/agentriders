@@ -276,11 +276,21 @@ a:hover > .arrow, button:hover > .arrow { transform: translateX(4px); }
   .newsletter .container { gap: 40px; }
 }
 @media (max-width: 860px) {
-  .site-header .container { min-height: 76px; padding-block: 10px; }
+  /* 12px gap, not 24px: the brand, the sign-in button and the hamburger
+     share ~346px at 390px wide, and space-between spreads them out again
+     whenever there is slack. */
+  .site-header .container { min-height: 76px; padding-block: 10px; gap: 12px; }
   .nav, .header-join { display: none; }
-  .mobile-menu { display: block; }
-  /* Visible, clearly-labelled auth entry next to the hamburger. */
-  .header-signin { display: inline-flex; min-height: 40px; padding: 0 16px; font-size: 11px; gap: 0; white-space: nowrap; flex-shrink: 0; }
+  .mobile-menu { display: block; flex-shrink: 0; }
+  /* Visible, clearly-labelled auth entry next to the hamburger. It is the
+     one item in the row that gives way: the brand stays whole and the
+     hamburger keeps its 44px, so a long handle shrinks the button and
+     ellipsises inside it instead of pushing the row past the viewport.
+     Scoped under .site-header to outrank the `.site-header .btn` padding
+     (which also sets the 44px height and 10px type); 12px keeps "Sign in"
+     whole down to 360px wide. */
+  .site-header .header-signin { display: inline-flex; padding: 0 12px; gap: 0; white-space: nowrap; flex-shrink: 1; min-width: 0; }
+  .header-signin [data-auth-label] { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .mobile-menu summary { width: 44px; height: 44px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 6px; cursor: pointer; border: 1px solid #594839; border-radius: 4px; list-style: none; }
   .mobile-menu summary::-webkit-details-marker { display: none; }
   .mobile-menu summary > span { width: 18px; height: 1px; background: var(--bone); transition: transform .2s; }
