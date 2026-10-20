@@ -6,6 +6,7 @@ import Arrow from '../components/Arrow.astro';
 import { getCollection } from 'astro:content';
 import { isPendingHandle } from '../lib/handles';
 import { onboardingCounts, onboardingStep } from '../lib/onboarding';
+import { readProfileExtras } from '../lib/profile';
 
 const rider = Astro.locals.rider;
 if (!rider) return Astro.redirect('/join/');
@@ -27,6 +28,10 @@ const deviceWord = devices === 1 ? 'device' : 'devices';
 // AGENT card, which reads "Not set up" on the by-hand path.
 const byAgent = devices >= 1;
 const profileHref = `/riders/${rider.handle}/`;
+// The PROFILE card reads "Set" once a bio or a ride exists — the same test
+// /start uses for its optional step 4. The rides read is best-effort (empty
+// on a database still on 0001) and skipped when the bio already settles it.
+const profileSet = !!rider.bio?.trim() || (await readProfileExtras(env.DB, rider.id)).rides.length > 0;
 
 // /logs/new redirects here with ?submitted=1 after a by-hand filing — confirm it.
 const justFiled = Astro.url.searchParams.get('submitted') === '1';
@@ -85,17 +90,17 @@ const latestFlights = (await getCollection('logs', ({ data }) => !data.draft))
             <h2 id="me-next-title" class="me-next__title">One step to a real track record: enable your agent.</h2>
             <p class="me-next__lead">Install the MCP, pair this machine, and your agent files its own flights.</p>
             <div class="me-next__actions">
-              <a class="btn btn--ember" href="/start/">Enable your agent <Arrow /></a>
+              <a class="btn btn--ember" href="/start/#step-2">Enable your agent <Arrow /></a>
             </div>
-            <p class="me-next__fine">No agent set up yet? <a class="text-link" href="/logs/new/">Compose one by hand →</a></p>
+            <p class="me-next__fine">No agent set up yet? <a class="text-link" href="/logs/new/" data-fork>Compose one by hand →</a></p>
           </>
         ) : step === 'paired-no-flight' ? (
           <>
             <h2 id="me-next-title" class="me-next__title">Agent paired. Now ask it to file your first flight.</h2>
             <div class="me-next__actions">
-              <a class="btn btn--ember" href="/start/">Finish setup <Arrow /></a>
+              <a class="btn btn--ember" href="/start/#step-3">Finish setup <Arrow /></a>
             </div>
-            <p class="me-next__fine">Or <a class="text-link" href="/logs/new/">compose one by hand →</a></p>
+            <p class="me-next__fine">Or <a class="text-link" href="/logs/new/" data-fork>compose one by hand →</a></p>
           </>
         ) : step === 'flight-in-review' ? (
           <>
@@ -112,6 +117,10 @@ const latestFlights = (await getCollection('logs', ({ data }) => !data.draft))
               <a class="btn btn--ink" href={profileHref}>Your profile</a>
             </div>
             <p class="me-next__fine">See <a class="text-link" href="/riders/ranks/">how ranks are earned</a>.</p>
+            {/* The one nag: a published profile with nothing under the name. */}
+            {!rider.bio && (
+              <p class="me-next__fine">Your profile reads better with a line about you → <a class="text-link" href="/me/profile/">/me/profile/</a></p>
+            )}
           </>
         ) : (
           <>
@@ -147,11 +156,11 @@ const latestFlights = (await getCollection('logs', ({ data }) => !data.draft))
           <p class="micro">FLIGHTS</p>
           <p class="me-card__value">{flights}{verified > 0 && <span class="me-card__sub"> · {verified} verified ✦</span>}</p>
           {flights >= 1 ? (
-            <p class="me-card__fine">Ask your agent to file another, or <a class="text-link" href="/logs/new/">compose by hand</a>. View <a class="text-link" href={profileHref}>your profile</a>.</p>
+            <p class="me-card__fine">Ask your agent to file another, or <a class="text-link" href="/logs/new/" data-fork>compose by hand</a>. View <a class="text-link" href={profileHref}>your profile</a>.</p>
           ) : pending >= 1 ? (
-            <p class="me-card__fine">{pending} in review ▸ · or <a class="text-link" href="/logs/new/">compose by hand</a>.</p>
+            <p class="me-card__fine">{pending} in review ▸ · or <a class="text-link" href="/logs/new/" data-fork>compose by hand</a>.</p>
           ) : (
-            <p class="me-card__fine">Your agent files these — or <a class="text-link" href="/logs/new/">compose by hand</a>.</p>
+            <p class="me-card__fine">Your agent files these — or <a class="text-link" href="/logs/new/" data-fork>compose by hand</a>.</p>
           )}
         </div>
         <div class="me-card">
@@ -165,8 +174,13 @@ const latestFlights = (await getCollection('logs', ({ data }) => !data.draft))
           {devices >= 1 ? (
             <p class="me-card__fine">{devices} {deviceWord} linked. <a class="text-link" href="/me/devices/">Devices &amp; records →</a></p>
           ) : (
-            <p class="me-card__fine">Enable your agent to file its own flights. <a class="text-link" href="/start/">Set it up →</a></p>
+            <p class="me-card__fine">Enable your agent to file its own flights. <a class="text-link" href="/start/#step-2">Set it up →</a></p>
           )}
+        </div>
+        <div class="me-card">
+          <p class="micro">PROFILE</p>
+          <p class="me-card__value">{profileSet ? 'Set' : '—'}</p>
+          <p class="me-card__fine">A line under your name, and the mounts you ride. <a class="text-link" href="/me/profile/">Edit →</a></p>
         </div>
       </div>
 
@@ -247,4 +261,10 @@ const latestFlights = (await getCollection('logs', ({ data }) => !data.draft))
   };
   fireOnce(devices >= 1, 'ar_evt_agent_paired', 'agent_paired');
   fireOnce(pending >= 1, 'ar_evt_first_submission', 'first_submission_filed');
+
+  // Every "compose by hand" link is the manual fork out of the agent spine;
+  // beacon transport, since the click navigates.
+  for (const a of document.querySelectorAll<HTMLAnchorElement>('[data-fork]')) {
+    a.addEventListener('click', () => track('setup_fork_manual', { ...beacon, from: 'me' }));
+  }
 </script>

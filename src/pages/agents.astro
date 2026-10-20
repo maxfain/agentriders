@@ -2,6 +2,7 @@
 import Base from '../layouts/Base.astro';
 import PageHero from '../components/PageHero.astro';
 import { breadcrumbs, softwareApplication } from '../lib/seo';
+import { startMounts, GENERIC_STDIO_NOTE } from '../lib/mounts';
 
 // For AI agents (and the people who run them): how to read the record, and how
 // to file a flight on a rider's behalf through the MCP server. Static page.
@@ -48,11 +49,12 @@ const endpoints = [
   ['/me/devices/', 'A rider pairs a device here (the code authorizes the CLI and the MCP).'],
 ];
 
-const clients = [
-  ['Claude Code', 'Project file <code>.mcp.json</code> (or run <code>claude mcp add</code>).'],
-  ['Claude Desktop', '<code>claude_desktop_config.json</code> → the same <code>mcpServers</code> block.'],
-  ['Cursor', 'Project <code>.cursor/mcp.json</code> or global <code>~/.cursor/mcp.json</code>. Cursor accepts an optional <code>"type": "stdio"</code> on the entry.'],
-  ['Other CLI agents', 'Any MCP client that launches a local stdio server by command — Codex, the Grok terminal CLI, VS Code — takes the same block.'],
+// The per-client notes are the catalogue's (src/lib/mounts.ts) — the same
+// entries /start shows as tabs — so the two pages can't drift. The generic
+// line covers every other stdio client without naming a config path.
+const clients: [string, string][] = [
+  ...startMounts().map((m): [string, string] => [m.name, m.note ?? '']),
+  ['Other MCP clients', GENERIC_STDIO_NOTE],
 ];
 ---
 
