@@ -27,6 +27,9 @@ type LogsJsonEntry = {
 
 const THROTTLE_KEY = 'reconcile:last';
 const THROTTLE_SECONDS = 60;
+// An approved edit's rebuild takes ~2 minutes to land in /logs.json; inside
+// this window the mount backfill below leaves the edit's fresh mount alone.
+const RECENT_EDIT_MS = 5 * 60_000;
 
 function slugFromUrl(url: string): string | null {
   const m = /\/logs\/([^/?#]+)/.exec(url);
@@ -152,12 +155,27 @@ export async function reconcile(
     // reconcile after the migration stamps every log already in the record.
     // On a 0001 database the batch fails as a unit and the mirror above is
     // untouched. Edits being flipped this pass skip, for the reason the
-    // mirror skips them: /logs.json still carries the old mount. Slug from
-    // facets.ts, the /logs/mount/<slug>/ key.
+    // mirror skips them: /logs.json still carries the old mount — and so do
+    // edits published inside RECENT_EDIT_MS, which the next reconcile would
+    // otherwise meet with the same stale /logs.json and put the old mount
+    // back over the fresh one approve wrote. Slug from facets.ts, the
+    // /logs/mount/<slug>/ key.
+    const recentEdits = new Set<string>();
+    try {
+      const since = new Date(Date.now() - RECENT_EDIT_MS).toISOString();
+      const rows = await env.DB.prepare(
+        "SELECT slug FROM submissions WHERE kind = 'edit' AND status = 'published' AND published_at > ?",
+      )
+        .bind(since)
+        .all<{ slug: string }>();
+      for (const r of rows.results ?? []) recentEdits.add(r.slug);
+    } catch {
+      /* the guard narrows a window; it never gates the backfill */
+    }
     const mountUpdates: D1PreparedStatement[] = [];
     for (const log of logs) {
       const slug = slugFromUrl(log.url);
-      if (!slug || slugToSubmission.get(slug)?.kind === 'edit') continue;
+      if (!slug || slugToSubmission.get(slug)?.kind === 'edit' || recentEdits.has(slug)) continue;
       const mount = cleanMount(log.mount);
       const mountSlug = slugify(mount);
       if (!mountSlug) continue;

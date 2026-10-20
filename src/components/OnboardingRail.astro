@@ -35,9 +35,13 @@ const stripHead = current ? `STEP ${current.n} OF 4 · ${current.name.toUpperCas
     <ol class="ob-rail__steps">
       {rail.steps.map((s) => {
         const state = stateOf(s);
+        // The optional step's card is on /start only once a flight is filed,
+        // so until then its item is a placeholder (an <a> with no href), not
+        // a link to an anchor that isn't there.
+        const href = s.required || rail.flight !== false ? `#step-${s.n}` : undefined;
         return (
           <li class={`ob-rail__item ob-rail__item--${state}`}>
-            <a href={`#step-${s.n}`} aria-current={state === 'current' ? 'step' : undefined}>
+            <a href={href} aria-current={state === 'current' ? 'step' : undefined}>
               <span class={`ob-rail__mark ob-rail__mark--${state}`} aria-hidden="true">{MARK[state]}</span>
               {SR[state] && <span class="sr-only">{SR[state]}: </span>}
               <span class="ob-rail__n">{s.n}</span>
@@ -69,6 +73,7 @@ const stripHead = current ? `STEP ${current.n} OF 4 · ${current.name.toUpperCas
   .ob-rail__item a:hover { color: var(--ember-text); }
   .ob-rail__item a[aria-current] { color: var(--ember-text); font-weight: 600; }
   .ob-rail__item--plain a { color: var(--ash); }
+  .ob-rail__item a:not([href]):hover { color: var(--ash); cursor: default; }
   .ob-rail__mark { flex-shrink: 0; width: 14px; font-family: var(--mono); font-size: 13px; line-height: 1; color: var(--ember-text); }
   /* Hollow: a flight filed by hand counts, but it carries no signed record — so it does not get the ember check. */
   .ob-rail__mark--hand, .ob-rail__mark--plain { color: var(--ash); }
@@ -78,7 +83,7 @@ const stripHead = current ? `STEP ${current.n} OF 4 · ${current.name.toUpperCas
   .ob-rail__time { font-family: var(--mono); font-size: 12px; line-height: 1.5; color: var(--text-on-bone); margin: 0; }
   .ob-rail__foot { font-size: 12px; line-height: 1.5; color: var(--ash); margin: 6px 0 0; }
 
-  /* Strip — one line and a four-segment bar; block layout so a page can restyle it without fighting flex. */
+  /* Strip — a line (it wraps at phone width; start.astro's scroll margin allows for that) and a four-segment bar; block layout so a page can restyle it without fighting flex. */
   .ob-strip__line { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 0 0 8px; }
   .ob-strip__head { font-size: 9px; color: var(--ember-text); }
   .ob-strip__time { font-family: var(--mono); font-size: 12px; color: var(--text-on-bone-soft); }

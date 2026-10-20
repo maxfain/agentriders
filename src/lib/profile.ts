@@ -92,6 +92,8 @@ export const MOUNTS_MAX = 8;
 const MOUNT_RE = /^[A-Za-z0-9][A-Za-z0-9 .+/()&_-]*$/;
 
 const ERR_JSON = 'Send JSON.';
+const ERR_MOUNTS_SHAPE = 'Send mounts as a list.';
+const ERR_GITHUB_SHAPE = 'Send githubPublic as true or false.';
 const ERR_DISPLAY_NAME = 'Display name: 1 to 60 characters.';
 const ERR_BIO_LENGTH = 'One line, 160 characters at most.';
 const ERR_BIO_LINK = 'Links go in your flights, not your bio.';
@@ -101,10 +103,15 @@ const ERR_MOUNT = 'A mount is a product name, not a link.';
 /**
  * Validate a PUT /api/me/profile body into a patch. Missing keys mean
  * "unchanged", unknown keys are ignored, and `githubPublic` is dropped
- * entirely when the rider has no GitHub login to show. Patch keys are the
- * column whitelist; the API binds the values.
+ * entirely when the rider has no GitHub login to show. `ctx.record` is the
+ * mounts published flights already name (mountCounts), accepted the way the
+ * picker offers them. Patch keys are the column whitelist; the API binds the
+ * values.
  */
-export function validateProfileInput(body: unknown, ctx: { hasGithubLogin: boolean }): ProfileValidation {
+export function validateProfileInput(
+  body: unknown,
+  ctx: { hasGithubLogin: boolean; record?: ReadonlyMap<string, { name: string }> },
+): ProfileValidation {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) return { ok: false, error: ERR_JSON };
   const b = body as Record<string, unknown>;
   const patch: ProfilePatch = {};
@@ -129,27 +136,36 @@ export function validateProfileInput(body: unknown, ctx: { hasGithubLogin: boole
 
   if (Object.hasOwn(b, 'mounts')) {
     const list = b.mounts;
-    if (!Array.isArray(list)) return { ok: false, error: ERR_JSON };
+    if (!Array.isArray(list)) return { ok: false, error: ERR_MOUNTS_SHAPE };
     if (list.length > MOUNTS_MAX) return { ok: false, error: ERR_MOUNTS_MANY };
     const seen = new Set<string>();
     const mounts: { slug: string; name: string }[] = [];
     for (const item of list) {
       const text = cleanMount(item);
-      if (text.length < 1 || text.length > MOUNT_MAX || !MOUNT_RE.test(text)) return { ok: false, error: ERR_MOUNT };
+      if (text.length < 1) return { ok: false, error: ERR_MOUNT };
       const slug = canonicalSlug(slugify(text));
       const def = mountBySlug(slug);
-      // A catalogued name is ours to show even when it reads like a domain
-      // ("Claude.ai"); anything else that looks like a link is refused.
-      if (!def && LINKISH.test(text)) return { ok: false, error: ERR_MOUNT };
+      // A mount a published flight already names is offered by the picker in
+      // the record's own spelling, which only the flight schema bounded (80
+      // chars, any characters). It is accepted the way a catalogued name is
+      // and stored under the record's name; the product-name rule below is
+      // for free text.
+      const flown = def ? undefined : ctx.record?.get(slug);
+      if (!flown) {
+        if (text.length > MOUNT_MAX || !MOUNT_RE.test(text)) return { ok: false, error: ERR_MOUNT };
+        // A catalogued name is ours to show even when it reads like a domain
+        // ("Claude.ai"); anything else that looks like a link is refused.
+        if (!def && LINKISH.test(text)) return { ok: false, error: ERR_MOUNT };
+      }
       if (seen.has(slug)) continue;
       seen.add(slug);
-      mounts.push({ slug, name: def ? def.name : text });
+      mounts.push({ slug, name: def ? def.name : flown ? flown.name : text });
     }
     patch.mounts = mounts;
   }
 
   if (Object.hasOwn(b, 'githubPublic') && ctx.hasGithubLogin) {
-    if (typeof b.githubPublic !== 'boolean') return { ok: false, error: ERR_JSON };
+    if (typeof b.githubPublic !== 'boolean') return { ok: false, error: ERR_GITHUB_SHAPE };
     patch.github_public = b.githubPublic ? 1 : 0;
   }
 

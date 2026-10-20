@@ -7,7 +7,7 @@ CREATE INDEX idx_published_mount ON published_logs(mount_slug);
 CREATE TABLE rider_mounts (                               -- rides: declared; never counted, never read by ranks.ts, never written from /start
   rider_id   TEXT NOT NULL REFERENCES riders(id),
   mount_slug TEXT NOT NULL,
-  mount      TEXT NOT NULL,                               -- catalogue name, or validated free text (≤40) as typed
+  mount      TEXT NOT NULL,                               -- catalogue name, a record spelling, or validated free text (≤40) as typed
   position   INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
   PRIMARY KEY (rider_id, mount_slug)

@@ -14,12 +14,14 @@ import {
 const withLogin = { hasGithubLogin: true };
 const noLogin = { hasGithubLogin: false };
 
-function ok(body: unknown, ctx = noLogin): ProfilePatch {
+type Ctx = Parameters<typeof validateProfileInput>[1];
+
+function ok(body: unknown, ctx: Ctx = noLogin): ProfilePatch {
   const r = validateProfileInput(body, ctx);
   if (!r.ok) assert.fail(`expected ok, got "${r.error}" for ${JSON.stringify(body)}`);
   return r.patch;
 }
-function err(body: unknown, ctx = noLogin): string {
+function err(body: unknown, ctx: Ctx = noLogin): string {
   const r = validateProfileInput(body, ctx);
   if (r.ok) assert.fail(`expected an error for ${JSON.stringify(body)}`);
   return r.error;
@@ -97,10 +99,51 @@ test('validateProfileInput: mounts cap at eight, and each must be a product name
   assert.equal(ok({ mounts: ['x'.repeat(40)] }).mounts?.[0].name, 'x'.repeat(40));
   assert.equal(err({ mounts: [42] }), 'A mount is a product name, not a link.');
   assert.equal(err({ mounts: [null] }), 'A mount is a product name, not a link.');
-  assert.equal(err({ mounts: 'Cursor' }), 'Send JSON.');
-  assert.equal(err({ mounts: { a: 1 } }), 'Send JSON.');
+  assert.equal(err({ mounts: 'Cursor' }), 'Send mounts as a list.');
+  assert.equal(err({ mounts: { a: 1 } }), 'Send mounts as a list.');
   // a bad entry anywhere in the list fails the whole save
   assert.equal(err({ mounts: ['Cursor', '@x'] }), 'A mount is a product name, not a link.');
+});
+
+test('validateProfileInput: a mount a published flight already names is accepted in the record spelling', () => {
+  // The picker offers record mounts as the flight spelled them, bounded only
+  // by the flight schema (80 chars, any characters) — so the validator takes
+  // them as it takes a catalogued name, and stores the record's own name.
+  const record = new Map([
+    ['claude-code-opus-4', { name: 'Claude Code: Opus 4' }],
+    ['x'.repeat(43), { name: 'x'.repeat(43) }],
+    ['max-s-custom-harness', { name: "Max's custom harness" }],
+    ['see-foo-io', { name: 'see foo.io' }],
+  ]);
+  const ctx = { hasGithubLogin: false, record };
+  assert.deepEqual(ok({ mounts: ['Claude Code: Opus 4', 'x'.repeat(43), "Max's custom harness"] }, ctx), {
+    mounts: [
+      { slug: 'claude-code-opus-4', name: 'Claude Code: Opus 4' },
+      { slug: 'x'.repeat(43), name: 'x'.repeat(43) },
+      { slug: 'max-s-custom-harness', name: "Max's custom harness" },
+    ],
+  });
+  // A typed spelling that slugs to a record mount stores the record's name.
+  assert.deepEqual(ok({ mounts: ['claude code opus 4'] }, ctx), { mounts: [{ slug: 'claude-code-opus-4', name: 'Claude Code: Opus 4' }] });
+  // A link-looking record name is accepted only through the record.
+  assert.deepEqual(ok({ mounts: ['see foo.io'] }, ctx), { mounts: [{ slug: 'see-foo-io', name: 'see foo.io' }] });
+  // The same text with no record behind it is free text and keeps the product-name rule.
+  for (const bad of ['Claude Code: Opus 4', 'x'.repeat(43), "Max's custom harness", 'see foo.io']) {
+    assert.equal(err({ mounts: [bad] }), 'A mount is a product name, not a link.', bad);
+    assert.equal(err({ mounts: [bad] }, { hasGithubLogin: false, record: new Map() }), 'A mount is a product name, not a link.', bad);
+  }
+  // Catalogue first: a record spelling of a catalogued mount still resolves to the catalogue.
+  assert.deepEqual(ok({ mounts: ['CLAUDE CODE'] }, { hasGithubLogin: false, record: new Map([['claude-code', { name: 'CLAUDE CODE' }]]) }), {
+    mounts: [{ slug: 'claude-code', name: 'Claude Code' }],
+  });
+  // An alias key in the record ('cc' on a flight) still canonicalises to the catalogue entry.
+  assert.deepEqual(ok({ mounts: ['cc'] }, { hasGithubLogin: false, record: new Map([['cc', { name: 'cc' }]]) }), {
+    mounts: [{ slug: 'claude-code', name: 'Claude Code' }],
+  });
+  // Empty text is refused whatever the record holds; the cap and dedupe are unchanged.
+  assert.equal(err({ mounts: [''] }, ctx), 'A mount is a product name, not a link.');
+  assert.equal(ok({ mounts: ['Claude Code: Opus 4', 'claude code opus 4'] }, ctx).mounts?.length, 1);
+  assert.equal(err({ mounts: Array(9).fill('Claude Code: Opus 4') }, ctx), 'Eight mounts is plenty.');
 });
 
 test('validateProfileInput: githubPublic maps to 1/0 with a login, is dropped without one', () => {
@@ -108,8 +151,8 @@ test('validateProfileInput: githubPublic maps to 1/0 with a login, is dropped wi
   assert.deepEqual(ok({ githubPublic: false }, withLogin), { github_public: 0 });
   assert.deepEqual(ok({ githubPublic: true }, noLogin), {});
   assert.deepEqual(ok({ githubPublic: false }, noLogin), {});
-  assert.equal(err({ githubPublic: 'yes' }, withLogin), 'Send JSON.');
-  assert.equal(err({ githubPublic: 1 }, withLogin), 'Send JSON.');
+  assert.equal(err({ githubPublic: 'yes' }, withLogin), 'Send githubPublic as true or false.');
+  assert.equal(err({ githubPublic: 1 }, withLogin), 'Send githubPublic as true or false.');
   // dropped means dropped — not even inspected
   assert.deepEqual(ok({ githubPublic: 'yes' }, noLogin), {});
 });

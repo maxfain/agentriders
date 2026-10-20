@@ -98,8 +98,9 @@ const error = errorKey ? (ERRORS[errorKey] ?? null) : null;
               <button class="btn btn--ember" type="submit">Claim it <Arrow /></button>
             </div>
             <p class="signup__fine join-next">Next: enable your agent (about 3 minutes of yours). After your next real session, it files the flight — you confirm, a reviewer approves.</p>
+            {/* The path is text, not a link: /me/profile/ sends a pending handle straight back here. */}
             {githubLogin && (
-              <p class="signup__fine join-hint">github.com/{githubLogin} will show on your profile as verified at sign-in. Turn it off any time on <a class="text-link" href="/me/profile/">/me/profile/</a>.</p>
+              <p class="signup__fine join-hint">github.com/{githubLogin} will show on your profile as verified at sign-in. Turn it off any time on /me/profile/.</p>
             )}
             <p class="signup__fine" id="claim-status" role="status">Lowercase letters, numbers and hyphens. Choose well — it sticks.</p>
           </form>

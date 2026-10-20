@@ -43,9 +43,12 @@ export const PUT: APIRoute = async ({ locals, request }) => {
 
   // githubPublic is only meaningful with a login to show; validation drops it
   // otherwise, so the column is never written for a rider who signed in by email.
-  const extras = await readProfileExtras(env.DB, rider.id);
+  // The counts (published flights only) are the record tier the validator
+  // accepts beside the catalogue — what the picker offers, the save takes —
+  // and they set each ride's `public` flag in the response below.
+  const [extras, counts] = await Promise.all([readProfileExtras(env.DB, rider.id), mountCounts(env.DB)]);
   const hasGithubLogin = !!extras.github_login;
-  const validation = validateProfileInput(body, { hasGithubLogin });
+  const validation = validateProfileInput(body, { hasGithubLogin, record: counts });
   if (!validation.ok) return json(400, { error: validation.error });
   const { patch } = validation;
 
@@ -60,7 +63,11 @@ export const PUT: APIRoute = async ({ locals, request }) => {
   if (sets.length) {
     statements.push(env.DB.prepare(`UPDATE riders SET ${sets.join(', ')} WHERE id = ?`).bind(...values, rider.id));
   }
-  if (patch.mounts) {
+  // Rides are replaced whole — unless there is nothing to replace and nothing
+  // to write, which is a no-op rather than a DELETE: on a database still on
+  // 0001 (where extras.rides is the catch default, []) a save with no chips
+  // pressed then goes through instead of failing the batch.
+  if (patch.mounts && (patch.mounts.length > 0 || extras.rides.length > 0)) {
     const now = new Date().toISOString();
     statements.push(env.DB.prepare('DELETE FROM rider_mounts WHERE rider_id = ?').bind(rider.id));
     patch.mounts.forEach((m, position) => {
@@ -85,7 +92,6 @@ export const PUT: APIRoute = async ({ locals, request }) => {
   // `public` says whether a ride renders on /riders/<handle>/: only when the
   // slug is catalogued or a published flight already names it (mergeMounts'
   // rule), so the editor can tell the rider which rides stay private for now.
-  const counts = await mountCounts(env.DB);
   const rides = patch.mounts ?? extras.rides;
   return json(200, {
     ok: true,

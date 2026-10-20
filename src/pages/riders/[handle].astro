@@ -66,10 +66,13 @@ const flights = (
 // flight's meta line. A declared ride shows only when its slug is catalogued
 // or already named on someone's published flight, so free text nobody flew
 // never reaches an indexable page.
-const { flown, mountByLog } = await riderFlown(env.DB, rider.id);
-const extras = await readProfileExtras(env.DB, rider.id);
-const counts = await mountCounts(env.DB);
-const publicSlugs = new Set([...MOUNTS.map((m) => m.slug), ...counts.keys()]);
+const [{ flown, mountByLog }, extras] = await Promise.all([riderFlown(env.DB, rider.id), readProfileExtras(env.DB, rider.id)]);
+// The grouped count query runs only when a ride is outside the catalogue —
+// the one case where "named on someone's published flight" decides anything.
+const publicSlugs = new Set(MOUNTS.map((m) => m.slug));
+if (extras.rides.some((r) => !publicSlugs.has(r.slug))) {
+  for (const slug of (await mountCounts(env.DB)).keys()) publicSlugs.add(slug);
+}
 const mounts = mergeMounts(flown, extras.rides, publicSlugs);
 
 // The one outbound identity a profile carries is the GitHub login OAuth

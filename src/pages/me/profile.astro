@@ -63,8 +63,10 @@ const githubPublic = extras.github_public === 1;
 
   <section class="section section--bone">
     <div class="container profile-layout">
+      {/* method=post: with scripts off, Save re-renders this page and keeps the bio out of the URL. */}
       <form
         id="profile-form"
+        method="post"
         data-from={fromStart ? 'start' : 'profile'}
         data-rides={JSON.stringify(rides.map((r) => r.slug))}
         data-aliases={JSON.stringify(ALIASES)}
@@ -77,9 +79,14 @@ const githubPublic = extras.github_public === 1;
         </div>
 
         <div class="field">
-          <label class="field__label" for="p-bio">One line about you <span class="field__hint" id="p-bio-count" aria-live="polite">{bio.length}/{BIO_MAX}</span></label>
-          <textarea id="p-bio" name="bio" maxlength={BIO_MAX} rows="2" placeholder="Ships billing code with Claude Code. Runs a lead-triage agent on n8n.">{bio}</textarea>
-          <p class="field__fine">160 characters, no links. The first thing under your name on /riders/{handle}/.</p>
+          {/* The counter sits beside the label, not inside it: a live region in
+              a label would rename the field and announce every keystroke. */}
+          <div class="field__row">
+            <label class="field__label" for="p-bio">One line about you</label>
+            <span class="field__hint" id="p-bio-count">{bio.length}/{BIO_MAX}</span>
+          </div>
+          <textarea id="p-bio" name="bio" maxlength={BIO_MAX} rows="2" placeholder="Ships billing code with Claude Code. Runs a lead-triage agent on n8n." aria-describedby="p-bio-fine p-bio-count">{bio}</textarea>
+          <p class="field__fine" id="p-bio-fine">160 characters, no links. The first thing under your name on /riders/{handle}/.</p>
         </div>
 
         <fieldset class="mounts">
@@ -120,7 +127,7 @@ const githubPublic = extras.github_public === 1;
               </datalist>
               <button type="button" class="btn btn--ink mounts__add-btn" id="p-mount-add">Add</button>
             </div>
-            <p class="field__fine">{UNLISTED_NOTE}</p>
+            <p class="field__fine">A name from the picker shows as a ride right away; anything else shows once a flight names it.</p>
           </div>
         </fieldset>
 
@@ -154,7 +161,8 @@ const githubPublic = extras.github_public === 1;
   #profile-form { display: flex; flex-direction: column; gap: 26px; }
   .field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
   .field__label { font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ash); }
-  .field__hint { text-transform: none; letter-spacing: 0; opacity: 0.7; margin-left: 8px; }
+  .field__row { display: flex; align-items: baseline; gap: 8px; }
+  .field__hint { font-family: var(--mono); font-size: 12px; color: var(--ash); opacity: 0.7; }
   .field input[type='text'], .field textarea, .mounts__add-row input { font-family: inherit; font-size: 15px; padding: 11px 13px; border: 1px solid var(--bone-line); background: var(--bone-raised); color: var(--text-on-bone); border-radius: var(--radius); width: 100%; }
   .field textarea { resize: vertical; line-height: 1.55; }
   .field__fine { font-size: 13px; line-height: 1.55; color: var(--text-on-bone-soft); margin: 0; }
@@ -226,7 +234,9 @@ const githubPublic = extras.github_public === 1;
 
     // Rides in the order the rider declared them (position order from D1);
     // toggling on appends, so the order sent is the order they'll show in.
-    let selected = parse<string[]>(form.dataset.rides, []).filter((s) => !!chipBySlug(s));
+    // `initial` is what D1 holds, so a save knows whether the picker changed.
+    let initial = parse<string[]>(form.dataset.rides, []).filter((s) => !!chipBySlug(s));
+    let selected = [...initial];
     const atCap = () => selected.length >= max;
     const render = () => {
       for (const c of allChips()) c.setAttribute('aria-pressed', selected.includes(c.dataset.slug!) ? 'true' : 'false');
@@ -279,6 +289,9 @@ const githubPublic = extras.github_public === 1;
       if (!slug) { mountsStatus.textContent = 'A mount is a product name, not a link.'; return; }
       let chip = chipBySlug(slug);
       if (!chip) {
+        // At the cap, no new chip either: press() would decline it and leave
+        // an unpressed stray in the grid. The status line says why.
+        if (atCap()) { render(); return; }
         chip = makeChip(slug, text);
         chips.appendChild(chip);
       }
@@ -311,13 +324,27 @@ const githubPublic = extras.github_public === 1;
       }
     }
 
+    // After a save the pressed set mirrors what D1 holds, not what was
+    // pressed: a record chip whose slug is an alias ('cc') saves as the
+    // catalogue entry, and the response is the truth.
+    const syncSelected = (rides: { slug: string; name: string }[]) => {
+      for (const r of rides) if (!chipBySlug(r.slug)) chips.appendChild(makeChip(r.slug, r.name));
+      selected = rides.map((r) => r.slug);
+      initial = [...selected];
+      render();
+    };
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!form.reportValidity()) return;
-      // Names, not slugs: a record spelling ("n8n + Claude") or typed text
-      // must reach the server as the rider sees it, so the stored ride keeps it.
-      const mounts = selected.map((s) => chipBySlug(s)?.dataset.name ?? s);
-      const payload: Record<string, unknown> = { displayName: nameEl.value.trim(), bio: bioEl.value, mounts };
+      const payload: Record<string, unknown> = { displayName: nameEl.value.trim(), bio: bioEl.value };
+      // Rides go only when the picker changed, as names, not slugs: a record
+      // spelling ("n8n + Claude") or typed text must reach the server as the
+      // rider sees it, so the stored ride keeps it. A name-or-bio save is
+      // then a riders-only write, which works either side of migration 0002.
+      if (selected.join('\n') !== initial.join('\n')) {
+        payload.mounts = selected.map((s) => chipBySlug(s)?.dataset.name ?? s);
+      }
       // The checkbox exists only with a GitHub login; without one the key is
       // left out (the server would drop it anyway).
       if (github) payload.githubPublic = github.checked;
@@ -330,7 +357,8 @@ const githubPublic = extras.github_public === 1;
         });
         const body = await res.json().catch(() => ({}));
         if (!res.ok) { status.textContent = body.error || 'Something went wrong.'; return; }
-        const saved = { bio: !!body.bio, mounts: Array.isArray(body.mounts) ? body.mounts.length : mounts.length, from };
+        if (Array.isArray(body.mounts)) syncSelected(body.mounts);
+        const saved = { bio: !!body.bio, mounts: selected.length, from };
         if (from === 'start') {
           // Back to the spine; beacon transport survives the navigation.
           track('profile_saved', { ...beacon, ...saved });

@@ -128,7 +128,7 @@ const agentInstruction = [agentIntro, ...agentSteps.map((s, i) => `${i + 1}. ${s
               {byHand ? (
                 <p class="start-lead">Your flight went in by hand. Enable your agent so the next one carries a signed record.</p>
               ) : (
-                <p class="start-lead">Install the AgentRiders MCP server in the agent you already run, then pair this machine once. The server runs locally — your session log and device key never leave it.</p>
+                <p class="start-lead">Install the AgentRiders MCP server in the agent you already run, then pair this machine once.</p>
               )}
 
               <h3 class="start-h3 start-h3--tabs" id="mount-label">Which mount?</h3>
@@ -171,7 +171,8 @@ const agentInstruction = [agentIntro, ...agentSteps.map((s, i) => `${i + 1}. ${s
             <div class="start-card start-card--done" id="step-3">
               <p class="start-step"><span class="micro">STEP 3{byHand ? ' · BY HAND' : ''}</span><span class={`start-mark ${byHand ? 'start-mark--hand' : 'start-mark--done'}`} aria-hidden="true">{byHand ? '○' : '✓'}</span></p>
               <h2 class="start-h">You're flying.</h2>
-              <p class="start-lead">{flights} {flightWord} published{verified >= 1 ? ' · verified ✦' : ''}. Your agent can file the next one the same way — just ask it.</p>
+              {/* "The same way" only holds with an agent paired; by hand, the honest next step is step 2. */}
+              <p class="start-lead">{flights} {flightWord} published{verified >= 1 ? ' · verified ✦' : ''}. {byAgent ? 'Your agent can file the next one the same way — just ask it.' : <>Pair your agent (<a class="text-link" href="#step-2">step 2</a>) and it files the next one, signed.</>}</p>
               <p class="start-fine">Your profile is public: <a class="text-link" href={profileHref}>/riders/{handle}/</a>.</p>
               <p class="start-fine">Memberships are planned. Fees are waived for the first 1,000 riders — you're in the founding season.</p>
               <div class="start-actions">
@@ -288,7 +289,8 @@ const agentInstruction = [agentIntro, ...agentSteps.map((s, i) => `${i + 1}. ${s
     .start-layout { grid-template-columns: 1fr; gap: 0; }
     .start-layout > :global(.ob-rail) { display: none; }
     .container > :global(.ob-strip) { display: block; position: sticky; top: 0; z-index: 2; background: var(--bone); border-bottom: 1px solid var(--bone-line); padding: 10px 0; margin-bottom: 20px; }
-    .start-card { scroll-margin-top: 64px; }
+    /* Deep links (#step-n) must clear the sticky strip, which wraps to three rows at phone width (head, the by-hand sentence, bar: ~97px). */
+    .start-card { scroll-margin-top: 104px; }
   }
 </style>
 
@@ -349,7 +351,8 @@ const agentInstruction = [agentIntro, ...agentSteps.map((s, i) => `${i + 1}. ${s
   };
   if (tabs.length) {
     const stored = getLS(TAB_KEY);
-    const saved = stored && Object.hasOwn(LEGACY_TAB, stored) ? LEGACY_TAB[stored] : stored;
+    // hasOwnProperty.call, not Object.hasOwn (ES2022): nothing transpiles runtime APIs, and older Safari would abort the whole script here.
+    const saved = stored && Object.prototype.hasOwnProperty.call(LEGACY_TAB, stored) ? LEGACY_TAB[stored] : stored;
     const initial = saved && tabs.some((t) => t.dataset.tab === saved) ? saved : tabs[0].dataset.tab!;
     selectTab(initial);
     if (saved !== stored && saved) setLS(TAB_KEY, saved);
