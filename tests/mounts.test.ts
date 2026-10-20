@@ -33,8 +33,8 @@ test('catalogue: slugs are unique and computed from names with the facets slugif
 test('catalogue: the facets slugify keeps a dotted version apart; log-schema would not', () => {
   // /logs/mount/<slug>/ is keyed on facets.ts. log-schema.ts drops the dot,
   // so a mount written with it would link to a page that doesn't exist.
-  assert.equal(slugify('GPT-4.1'), 'gpt-4-1');
-  assert.equal(logSchemaSlugify('GPT-4.1'), 'gpt-41');
+  assert.equal(slugify('v4.1'), 'v4-1');
+  assert.equal(logSchemaSlugify('v4.1'), 'v41');
   assert.equal(slugify('Claude.ai'), 'claude-ai');
 });
 
