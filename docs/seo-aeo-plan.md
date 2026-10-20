@@ -380,7 +380,7 @@ Deferred: README badges (after the directory opens), newsletter cadence (monthly
 
 ## 7. Measurement and conversion
 
-**Goal action.** One account with a claimed handle and one published flight. Funnel events in GA4: `join_view` → `handle_claimed` → `log_started` → `log_submitted` → `log_published`; plus `newsletter_signup` and `cli_install_click`.
+**Goal action.** One account with a claimed handle and one published flight. Funnel events in GA4, agent path: `join_view` → `handle_claimed` → `start_viewed { step, current, minutes_left, flight }` → `mount_selected { mount, from: 'start' }` → `code_generated` → `agent_paired` → `first_submission_filed` → `log_published`; by-hand path: `setup_fork_manual { from: 'start' | 'me' }` → `log_started` → `log_submitted`. The optional profile step: `profile_saved { bio, mounts, from }` or `profile_skipped { from: 'start' }`, and `mount_selected { mount, from: 'profile', on }` on the picker. Plus `newsletter_signup` and `cli_install_click`.
 
 **Per-template CTA** (the "one next step" in §4.3): chapters → the lesson that practices it; lessons → `/logs/new/`; patterns → the burn-report worksheet; worksheets → the lesson; logs → `/riders/[handle]/` and `/logs/new/`; glossary → the chapter; case study → `/agents/`. A visitor landing on `/glossary/#reins` with no next step is wasted.
 

@@ -1,0 +1,96 @@
+---
+import type { Rail, RailStep } from '../lib/onboarding';
+
+// The /start stepper, in two cuts of the same Rail: the sticky left rail at
+// desktop widths and the one-line strip for narrow screens (and the /join
+// claim card, where it sits static above the form). Both render from the
+// server-derived Rail only — no script, no client state — so what the rider
+// sees is what D1 says. Items are anchors to the step cards on the one /start
+// page; there is no Back / Continue because steps 2 and 3 complete off-web.
+//
+// The strip's sticky/mobile placement is the page's call (start.astro owns
+// it); this file only draws the thing. Recipe follows .school-rail
+// (src/styles/training.css) in the bone palette.
+interface Props {
+  rail: Rail;
+  part: 'rail' | 'strip';
+}
+const { rail, part } = Astro.props;
+
+type State = 'done' | 'current' | 'hand' | 'plain';
+const stateOf = (s: RailStep): State =>
+  s.done === true ? 'done' : s.done === 'hand' ? 'hand' : s.id === rail.current ? 'current' : 'plain';
+// ✓ done · ▸ current · ○ by hand (a real flight, not a signed one) · nothing
+// yet. Decorative — the state also reads from the sr-only text and aria-current.
+const MARK: Record<State, string> = { done: '✓', current: '▸', hand: '○', plain: '' };
+const SR: Record<State, string> = { done: 'done', current: 'current step', hand: 'done by hand', plain: '' };
+
+const current = rail.steps.find((s) => s.id === rail.current);
+const stripHead = current ? `STEP ${current.n} OF 4 · ${current.name.toUpperCase()}` : '3 OF 3 DONE · YOUR PROFILE IS OPTIONAL';
+---
+
+{part === 'rail' ? (
+  <nav class="ob-rail" aria-label="Setup steps">
+    <p class="micro ob-rail__eyebrow">YOUR FIRST FLIGHT</p>
+    <ol class="ob-rail__steps">
+      {rail.steps.map((s) => {
+        const state = stateOf(s);
+        // The optional step's card is on /start only once a flight is filed,
+        // so until then its item is a placeholder (an <a> with no href), not
+        // a link to an anchor that isn't there.
+        const href = s.required || rail.flight !== false ? `#step-${s.n}` : undefined;
+        return (
+          <li class={`ob-rail__item ob-rail__item--${state}`}>
+            <a href={href} aria-current={state === 'current' ? 'step' : undefined}>
+              <span class={`ob-rail__mark ob-rail__mark--${state}`} aria-hidden="true">{MARK[state]}</span>
+              {SR[state] && <span class="sr-only">{SR[state]}: </span>}
+              <span class="ob-rail__n">{s.n}</span>
+              <span class="ob-rail__name">{s.name}{s.done === 'hand' ? ' · by hand' : ''}</span>
+              {!s.required && <span class="micro ob-rail__opt">optional</span>}
+            </a>
+          </li>
+        );
+      })}
+    </ol>
+    <p class="ob-rail__time">{rail.label}</p>
+    {rail.footnote && <p class="ob-rail__foot">{rail.footnote}</p>}
+  </nav>
+) : (
+  <div class="ob-strip" role="status">
+    <p class="ob-strip__line"><span class="micro ob-strip__head">{stripHead}</span><span class="ob-strip__time">{rail.label}</span></p>
+    <div class="ob-strip__bar" aria-hidden="true">
+      {rail.steps.map((s) => <span class={`ob-strip__seg ob-strip__seg--${stateOf(s)}`}></span>)}
+    </div>
+  </div>
+)}
+
+<style>
+  /* Rail — sticky beside the step cards; the grid's align-items:start makes the stick work. */
+  .ob-rail { position: sticky; top: 30px; max-height: calc(100vh - 60px); overflow: auto; padding-right: 5px; }
+  .ob-rail__eyebrow { font-size: 9px; color: var(--ash); }
+  .ob-rail__steps { list-style: none; padding: 0; margin: 15px 0 22px; }
+  .ob-rail__item a { display: flex; align-items: baseline; gap: 10px; padding: 13px 0; border-bottom: 1px solid var(--bone-line); text-decoration: none; color: var(--text-on-bone-soft); font-size: 14px; line-height: 1.4; }
+  .ob-rail__item a:hover { color: var(--ember-text); }
+  .ob-rail__item a[aria-current] { color: var(--ember-text); font-weight: 600; }
+  .ob-rail__item--plain a { color: var(--ash); }
+  .ob-rail__item a:not([href]):hover { color: var(--ash); cursor: default; }
+  .ob-rail__mark { flex-shrink: 0; width: 14px; font-family: var(--mono); font-size: 13px; line-height: 1; color: var(--ember-text); }
+  /* Hollow: a flight filed by hand counts, but it carries no signed record — so it does not get the ember check. */
+  .ob-rail__mark--hand, .ob-rail__mark--plain { color: var(--ash); }
+  .ob-rail__n { font-family: var(--mono); font-size: 11px; color: var(--ash); }
+  .ob-rail__name { min-width: 0; }
+  .ob-rail__opt { margin-left: auto; font-size: 8px; color: var(--ash); white-space: nowrap; }
+  .ob-rail__time { font-family: var(--mono); font-size: 12px; line-height: 1.5; color: var(--text-on-bone); margin: 0; }
+  .ob-rail__foot { font-size: 12px; line-height: 1.5; color: var(--ash); margin: 6px 0 0; }
+
+  /* Strip — a line (it wraps at phone width; start.astro's scroll margin allows for that) and a four-segment bar; block layout so a page can restyle it without fighting flex. */
+  .ob-strip__line { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 0 0 8px; }
+  .ob-strip__head { font-size: 9px; color: var(--ember-text); }
+  .ob-strip__time { font-family: var(--mono); font-size: 12px; color: var(--text-on-bone-soft); }
+  .ob-strip__bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .ob-strip__seg { height: 4px; border-radius: 2px; background: var(--bone-line); box-sizing: border-box; }
+  .ob-strip__seg--done { background: var(--ember); }
+  .ob-strip__seg--current { background: transparent; border: 1px solid var(--ember); }
+  /* Half-done, hatched: the by-hand flight. */
+  .ob-strip__seg--hand { background: repeating-linear-gradient(135deg, var(--ember) 0 2px, transparent 2px 5px); }
+</style>

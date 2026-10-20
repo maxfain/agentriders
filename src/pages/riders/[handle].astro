@@ -9,10 +9,15 @@ import { isAdmin } from '../../lib/admin';
 import type { RiderRow } from '../../lib/session';
 import { HANDLE_REGEX } from '../../lib/handles';
 import { breadcrumbs, profilePage } from '../../lib/seo';
+import { MOUNTS, mergeMounts, mountCounts, riderFlown } from '../../lib/mounts';
+import { githubLinkFresh, readProfileExtras } from '../../lib/profile';
 
 // Public rider profile: identity, rank + when it was earned, the flight
 // record, and vouches (received and given, each with a name on it). A
 // signed-in Rider sees a vouch form. Verified-flight stats arrive in M4.
+// Mounts (named on published flights, plus the rides a rider declares) and
+// the GitHub login proved at sign-in live in migration-0002 columns, read
+// best-effort: a database still on 0001 renders the profile without them.
 // Banned or unknown riders 404; the literal /riders/directory route wins.
 // Anonymous responses carry no Cache-Control of their own, so the
 // middleware's public rule applies and the profile renders in full signed out.
@@ -55,6 +60,30 @@ const flights = (
     .all<Flight>()
 ).results ?? [];
 
+// Mounts: a second, best-effort read of the same published rows (the flights
+// SELECT above is the one that must keep working on a 0001 database). flown
+// carries the counts for the MOUNTS block, mountByLog the name for each
+// flight's meta line. A declared ride shows only when its slug is catalogued
+// or already named on someone's published flight, so free text nobody flew
+// never reaches an indexable page.
+const [{ flown, mountByLog }, extras] = await Promise.all([riderFlown(env.DB, rider.id), readProfileExtras(env.DB, rider.id)]);
+// The grouped count query runs only when a ride is outside the catalogue —
+// the one case where "named on someone's published flight" decides anything.
+const publicSlugs = new Set(MOUNTS.map((m) => m.slug));
+if (extras.rides.some((r) => !publicSlugs.has(r.slug))) {
+  for (const slug of (await mountCounts(env.DB)).keys()) publicSlugs.add(slug);
+}
+const mounts = mergeMounts(flown, extras.rides, publicSlugs);
+
+// The one outbound identity a profile carries is the GitHub login OAuth
+// proved — never typed — shown opt-out and only while the last GitHub
+// sign-in is inside the freshness window. Stale or switched off: nothing,
+// and no sameAs in the JSON-LD either.
+const githubUrl =
+  extras.github_public === 1 && extras.github_login && githubLinkFresh(extras.github_login_at)
+    ? `https://github.com/${encodeURIComponent(extras.github_login)}`
+    : null;
+
 const received = await vouchesReceived(env.DB, rider.id);
 const given = await vouchesGiven(env.DB, rider.id);
 const earnedAt = rider.rank ? await rankEarnedAt(env.DB, rider.id, rider.rank) : null;
@@ -85,13 +114,17 @@ const jsonLd = [
   profilePage({
     name: rider.display_name, handle: rider.handle, path, description: rider.bio ?? undefined,
     dateCreated: day(rider.created_at), dateModified: flights[0]?.date,
+    sameAs: githubUrl ? [githubUrl] : undefined,
     flights: flights.length, vouches: received.length,
   }),
 ];
 ---
 
 <Base title={`${rider.display_name} (@${rider.handle}): ${flightsLabel}, ${rankLabel} — AgentRiders`} description={`${rider.display_name}'s flight record: ${flights.length} published ${flights.length === 1 ? 'flight' : 'flights'}, ${received.length} ${received.length === 1 ? 'vouch' : 'vouches'}.`} noindex={flights.length === 0} jsonLd={jsonLd}>
-  <PageHero eyebrow={`@${rider.handle}`} title={rider.display_name} description={rider.bio ?? undefined} art="ranks" id="rider-title" compact></PageHero>
+  <PageHero eyebrow={`@${rider.handle}`} title={rider.display_name} description={rider.bio ?? undefined} art="ranks" id="rider-title" compact>
+    {githubUrl && <p class="page-hero__meta"><a href={githubUrl} rel="me">GitHub ↗</a> · verified at sign-in</p>}
+    {isSelf && <p class="page-hero__meta"><a class="text-link" href="/me/profile/">Edit your profile →</a></p>}
+  </PageHero>
 
   <section class="section section--bone">
     <div class="container rider-profile">
@@ -105,6 +138,23 @@ const jsonLd = [
         <div><dt>Vouches</dt><dd>{received.length}</dd></div>
         <div><dt>Joined</dt><dd><time datetime={day(rider.created_at).slice(0, 7)}>{joined}</time></dd></div>
       </dl>
+
+      {mounts.length > 0 && (
+        <div class="rider-mounts">
+          <p class="micro">MOUNTS <span class="rider-mounts__hint">— named on published flights · rides: declared, no flight yet</span></p>
+          <ul class="rider-mounts__row">
+            {mounts.map((m) => (
+              <li>
+                {m.flights === null ? (
+                  <span class="rider-mounts__chip rider-mounts__chip--ride">{m.name} · rides</span>
+                ) : (
+                  <a class="rider-mounts__chip" href={`/logs/mount/${m.slug}/`}>{m.name} · {m.flights} {m.flights === 1 ? 'flight' : 'flights'}</a>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {(evalStats.verified > 0 || evalStats.evalRuns > 0) && (
         <div class="rider-evals">
@@ -129,7 +179,7 @@ const jsonLd = [
                 <li>
                   <a href={`/logs/${f.slug}/`}>
                     <span class="rider-flights__name">{f.title}</span>
-                    <span class="rider-flights__meta"><time datetime={f.date}>{f.date}</time> · {f.task} · {f.outcome}{f.burns_count > 0 ? ` · ${f.burns_count} ${f.burns_count === 1 ? 'burn' : 'burns'}` : ''}</span>
+                    <span class="rider-flights__meta"><time datetime={f.date}>{f.date}</time> · {f.task} · {f.outcome}{f.burns_count > 0 ? ` · ${f.burns_count} ${f.burns_count === 1 ? 'burn' : 'burns'}` : ''}{mountByLog.has(f.slug) ? ` · ${mountByLog.get(f.slug)}` : ''}</span>
                   </a>
                 </li>
               ))}
@@ -230,6 +280,18 @@ const jsonLd = [
   .rider-evals__row { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 10px; font-size: 14px; color: var(--text-on-bone-soft); }
   .rider-evals__row strong { font-family: var(--display); font-size: 18px; color: var(--text-on-bone); }
   .rider-evals__fw { font-family: var(--mono); font-size: 12px; }
+  .rider-mounts { border: 1px solid var(--bone-line); border-left: 3px solid var(--ember); background: var(--bone-raised); padding: 16px 18px; }
+  .rider-mounts .micro { color: var(--ash); font-size: 9px; }
+  .rider-mounts__hint { font-family: var(--body); font-size: 11px; text-transform: none; letter-spacing: 0; color: var(--text-on-bone-soft); }
+  .rider-mounts__row { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  /* The .vouch__rank chip, sized for a link target and without the uppercase:
+     a mount is a product name, and "VS Code" or "Claude.ai" should read as
+     the catalogue spells it. A ride is declared, not flown, so it sits in
+     ash with a dashed edge and no link — no facet page exists for a mount
+     nobody has flown. */
+  .rider-mounts__chip { display: inline-block; font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em; border: 1px solid var(--bone-line); padding: 4px 9px; border-radius: 3px; text-decoration: none; color: var(--text-on-bone); }
+  a.rider-mounts__chip:hover { border-color: var(--ink); }
+  .rider-mounts__chip--ride { color: var(--ash); border-style: dashed; }
   .rider-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; }
   .rider-h2 { font-family: var(--display); font-size: 22px; margin-bottom: 14px; }
   .rider-h2__hint { font-family: var(--body); font-size: 13px; font-weight: 400; color: var(--text-on-bone-soft); }

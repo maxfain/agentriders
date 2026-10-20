@@ -8,8 +8,8 @@ export const HANDLE_REGEX = /^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$/;
 export const RESERVED_HANDLES = new Set([
   // existing + planned routes
   'about', 'admin', 'api', 'directory', 'flight-log', 'guild', 'join',
-  'logs', 'manual', 'me', 'missions', 'privacy', 'riders', 'start', 'terms',
-  'training', 'wings', 'roost', 'logout', 'login', 'signup', 'signin',
+  'logs', 'manual', 'me', 'missions', 'privacy', 'profile', 'riders', 'start',
+  'terms', 'training', 'wings', 'roost', 'logout', 'login', 'signup', 'signin',
   'auth', 'oauth', 'settings', 'account', 'accounts', 'new', 'edit',
   'search', 'assets', 'static', 'public', 'cdn', 'img', 'images',
   // docs/seo-aeo-plan.md §4.2: hubs and feeds this quarter adds

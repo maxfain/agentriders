@@ -1,8 +1,10 @@
 import type { APIRoute } from 'astro';
 import { logFrontmatterSchema } from '../../../../../lib/log-schema.ts';
+import { slugify } from '../../../../../lib/facets.ts';
 import { serializeLog } from '../../../../../lib/frontmatter.ts';
 import { commitLogFile } from '../../../../../lib/github.ts';
 import { cascadeRank } from '../../../../../lib/ranks.ts';
+import { cleanMount } from '../../../../../lib/mounts.ts';
 import type { SubmissionRow } from '../../../../../lib/submissions.ts';
 
 export const prerender = false;
@@ -73,6 +75,23 @@ export const POST: APIRoute = async ({ locals, params }) => {
       frontmatter.outcome, frontmatter.burns.length, row.id, now,
     ),
   ]);
+
+  // The mount lives in columns migration 0002 adds, so it rides its own
+  // best-effort UPDATE rather than the upsert above: on a database still on
+  // 0001 the mirror row lands and only the mount waits for the first
+  // reconcile after the migration. The slug is facets.ts's — the key of
+  // /logs/mount/<slug>/ — never log-schema.ts's, which drops dots ("v4.1"
+  // → v41 there, v4-1 here). A mount that cleans or slugs to nothing binds NULL for
+  // both, so the counts' `mount_slug IS NOT NULL` never meets an empty key.
+  try {
+    const mount = cleanMount(frontmatter.mount);
+    const mountSlug = slugify(mount);
+    await env.DB.prepare('UPDATE published_logs SET mount = ?, mount_slug = ? WHERE slug = ?')
+      .bind(mountSlug ? mount : null, mountSlug || null, row.slug)
+      .run();
+  } catch {
+    /* pre-0002: the mount fills in on the first reconcile after the migration */
+  }
 
   // The optimistic mirror write just changed this rider's flight count, so
   // recompute their rank now (first flight → Fledgling, without waiting for

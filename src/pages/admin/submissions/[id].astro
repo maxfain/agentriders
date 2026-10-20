@@ -69,7 +69,7 @@ const d = frontmatter;
           <div class="review__grid">
             <dl class="review__facts">
               <div><dt>Date</dt><dd>{d.date}</dd></div>
-              <div><dt>Mount</dt><dd>{d.mount}</dd></div>
+              <div><dt>Mount</dt><dd>{d.mount} <span class="review__hint">rider-asserted; the MCP defaults this to Claude Code — check it against the body</span></dd></div>
               {d.model && <div><dt>Model</dt><dd>{d.model}</dd></div>}
               {d.harness && <div><dt>Harness</dt><dd>{d.harness}</dd></div>}
               <div><dt>Task</dt><dd>{d.task}</dd></div>
@@ -142,6 +142,9 @@ const d = frontmatter;
   .review__facts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; margin: 0; }
   .review__facts dt { font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ash); }
   .review__facts dd { margin: 0; font-size: 15px; }
+  /* Nothing checks a flight's mount (the signed payload carries models only),
+     so the reviewer is the check — say so beside the value. */
+  .review__hint { font-size: 11px; color: var(--text-on-bone-soft); }
   .review__reins { border: 1px solid var(--bone-line); padding: 16px; background: var(--bone-raised); }
   .review__reins p { font-size: 14px; margin: 4px 0; }
   .review__reins .micro, .review__block .micro, .review__notes .micro { color: var(--ash); font-size: 9px; margin-bottom: 8px; }

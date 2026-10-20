@@ -7,6 +7,7 @@ Phase 2 turns the static publication into a product (accounts, logging, vouches,
 - [ ] D1 database `agentriders` exists; its id is in `wrangler.jsonc` (`DB` binding).
 - [ ] KV namespace exists; its id is in `wrangler.jsonc` (`RATE` binding).
 - [ ] Migrations applied to production: `npx wrangler d1 migrations apply agentriders --remote`.
+- [ ] Migration `0002_profile_mounts.sql` is among them (same command): `PRAGMA table_info(published_logs)` shows `mount` and `mount_slug`. Until it is, profiles render without mounts and a `/me/profile` save that changes rides answers "Profile storage is being upgraded." (name and bio saves go through, from the editor too) — code first is safe, nothing crashes.
 - [ ] Pages project `agentriders` builds `main`; `agentriders.com` + `www` attached; `www` 301s to apex (zone Redirect Rule).
 
 ## 2. Secrets (dashboard or `wrangler pages secret put`)
@@ -43,6 +44,7 @@ Phase 2 turns the static publication into a product (accounts, logging, vouches,
 - [ ] Drive one account to Rider (20 flights + 2 Rider vouches) and watch `rank_events` record the promotion (the end-to-end ladder proof).
 - [ ] `agentriders log --log <slug>` → after a rebuild the **Verified flight** badge shows on the static log page.
 - [ ] `/riders/directory` shows the live `N / 20` and opens at 20.
+- [ ] After 0002: force one reconcile (`/admin` → **Resync mirror**, or `POST /api/admin/reconcile`) so every published flight carries `mount`/`mount_slug`; then a profile with a published flight shows **MOUNTS** ("Claude Code · 1 flight"), `/me/profile` saves rides, and `/riders/directory` shows the "MOUNTS IN THE RECORD" strip.
 
 ## 7. Guardrails
 

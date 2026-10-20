@@ -59,3 +59,79 @@ export function onboardingStep(c: OnboardingCounts): OnboardingStep {
   if (c.devices >= 1) return 'paired-no-flight';
   return 'not-paired';
 }
+
+// The rail: the same counts, re-read as four numbered steps for the /start
+// rail and the narrow strip. Only the rider's hands are on the clock —
+// handle 1 · agent 3 · first flight 1 — and the flight joins it only once a
+// device is paired, because it needs a real session the agent flies. The
+// profile step is optional: never current, never on the clock, so it can't
+// hold "You're flying." hostage. A by-hand flight (filed with no device) is a
+// real flight but not a signed one: step 3 shows hollow, step 2 stays current,
+// and the time line turns into a sentence instead of a number.
+
+export type FlightDone = 'agent' | 'hand' | false;
+export type RailStepId = 'handle' | 'agent' | 'flight' | 'profile';
+export type RailStep = {
+  id: RailStepId;
+  n: 1 | 2 | 3 | 4;
+  name: string;
+  minutes: number;
+  required: boolean;
+  done: boolean | 'hand';
+};
+export type Rail = {
+  steps: RailStep[];
+  current: Exclude<RailStepId, 'profile'> | null;
+  flight: FlightDone;
+  requiredDone: boolean;
+  minutesLeft: number;
+  label: string;
+  footnote: string | null;
+};
+export type RailInput = {
+  handleClaimed: boolean;
+  devices: number;
+  pending: number;
+  flights: number;
+  profileDone: boolean;
+};
+
+export const ONBOARDING_STEPS: Omit<RailStep, 'done'>[] = [
+  { id: 'handle', n: 1, name: 'Claim your handle', minutes: 1, required: true },
+  { id: 'agent', n: 2, name: 'Enable your agent', minutes: 3, required: true },
+  { id: 'flight', n: 3, name: 'First flight', minutes: 1, required: true },
+  { id: 'profile', n: 4, name: 'Your profile', minutes: 1, required: false },
+];
+
+export const RAIL_BY_HAND_LABEL = 'Flying by hand — pair your agent and the next flight is signed.';
+export const RAIL_DONE_LABEL = 'Done.';
+export const RAIL_FOOTNOTE = "Your agent's part isn't on the clock.";
+
+export function onboardingRail(i: RailInput): Rail {
+  const agentDone = i.devices >= 1;
+  const flight: FlightDone = i.pending >= 1 || i.flights >= 1 ? (agentDone ? 'agent' : 'hand') : false;
+  const done: Record<RailStepId, boolean | 'hand'> = {
+    handle: i.handleClaimed,
+    agent: agentDone,
+    flight: flight === 'agent' ? true : flight === 'hand' ? 'hand' : false,
+    profile: i.profileDone,
+  };
+  const steps: RailStep[] = ONBOARDING_STEPS.map((s) => ({ ...s, done: done[s.id] }));
+
+  const requiredDone = i.handleClaimed && agentDone && flight !== false;
+  // First required step not done; 'hand' is not false, so a by-hand flight
+  // never makes step 3 current — step 2 is, until a device is paired.
+  const next = steps.find((s) => s.required && s.done === false);
+  const current = next && next.id !== 'profile' ? next.id : null;
+
+  const minutesLeft = steps.reduce((m, s) => {
+    if (!s.required || s.done !== false) return m;
+    if (s.id === 'flight' && !agentDone) return m; // needs a paired agent before it needs the rider
+    return m + s.minutes;
+  }, 0);
+
+  const byHand = flight === 'hand';
+  const label = byHand ? RAIL_BY_HAND_LABEL : requiredDone ? RAIL_DONE_LABEL : `about ${minutesLeft} min of yours`;
+  const footnote = byHand || requiredDone ? null : RAIL_FOOTNOTE;
+  return { steps, current, flight, requiredDone, minutesLeft, label, footnote };
+}

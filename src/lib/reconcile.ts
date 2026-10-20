@@ -9,6 +9,8 @@
 // live in git regardless of the mirror's freshness.
 
 import { cascadeRank } from './ranks.ts';
+import { slugify } from './facets.ts';
+import { cleanMount } from './mounts.ts';
 
 type Env = { DB: D1Database; RATE: KVNamespace };
 
@@ -17,6 +19,7 @@ type LogsJsonEntry = {
   title: string;
   date: string;
   rider: string;
+  mount?: string;
   task: string;
   outcome: string;
   burns: unknown[];
@@ -24,6 +27,9 @@ type LogsJsonEntry = {
 
 const THROTTLE_KEY = 'reconcile:last';
 const THROTTLE_SECONDS = 60;
+// An approved edit's rebuild takes ~2 minutes to land in /logs.json; inside
+// this window the mount backfill below leaves the edit's fresh mount alone.
+const RECENT_EDIT_MS = 5 * 60_000;
 
 function slugFromUrl(url: string): string | null {
   const m = /\/logs\/([^/?#]+)/.exec(url);
@@ -142,6 +148,48 @@ export async function reconcile(
     }
 
     if (statements.length) await env.DB.batch(statements);
+
+    // Mounts live in columns migration 0002 adds, so they ride a second batch
+    // once the mirror has landed: the same UPDATE approve runs, for every log
+    // /logs.json names a mount on. That makes it the backfill too — the first
+    // reconcile after the migration stamps every log already in the record.
+    // On a 0001 database the batch fails as a unit and the mirror above is
+    // untouched. Edits being flipped this pass skip, for the reason the
+    // mirror skips them: /logs.json still carries the old mount — and so do
+    // edits published inside RECENT_EDIT_MS, which the next reconcile would
+    // otherwise meet with the same stale /logs.json and put the old mount
+    // back over the fresh one approve wrote. Slug from facets.ts, the
+    // /logs/mount/<slug>/ key.
+    const recentEdits = new Set<string>();
+    try {
+      const since = new Date(Date.now() - RECENT_EDIT_MS).toISOString();
+      const rows = await env.DB.prepare(
+        "SELECT slug FROM submissions WHERE kind = 'edit' AND status = 'published' AND published_at > ?",
+      )
+        .bind(since)
+        .all<{ slug: string }>();
+      for (const r of rows.results ?? []) recentEdits.add(r.slug);
+    } catch {
+      /* the guard narrows a window; it never gates the backfill */
+    }
+    const mountUpdates: D1PreparedStatement[] = [];
+    for (const log of logs) {
+      const slug = slugFromUrl(log.url);
+      if (!slug || slugToSubmission.get(slug)?.kind === 'edit' || recentEdits.has(slug)) continue;
+      const mount = cleanMount(log.mount);
+      const mountSlug = slugify(mount);
+      if (!mountSlug) continue;
+      mountUpdates.push(
+        env.DB.prepare('UPDATE published_logs SET mount = ?, mount_slug = ? WHERE slug = ?').bind(mount, mountSlug, slug),
+      );
+    }
+    if (mountUpdates.length) {
+      try {
+        await env.DB.batch(mountUpdates);
+      } catch {
+        /* pre-0002: the first reconcile after the migration backfills */
+      }
+    }
 
     // Published flight counts just changed — recompute affected riders'
     // ranks (first flight → Fledgling, 20th → Rider if vouched), rippling to

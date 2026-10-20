@@ -1,0 +1,385 @@
+---
+export const prerender = false;
+import Base from '../../layouts/Base.astro';
+import PageHero from '../../components/PageHero.astro';
+import Arrow from '../../components/Arrow.astro';
+import { isPendingHandle } from '../../lib/handles';
+import { ALIASES, mountCounts, pickerList } from '../../lib/mounts';
+import { readProfileExtras, githubLinkFresh, DISPLAY_NAME_MAX, BIO_MAX, MOUNT_MAX, MOUNTS_MAX } from '../../lib/profile';
+
+// The durable profile editor: the one place a rider types about themselves.
+// Nothing here is evidence — a bio is a claim, a ride is a declared mount —
+// so every field says where it shows, and the mount picker keeps the two
+// tiers apart: a chip's count comes from published flights only, and a ride
+// nobody has flown shows on the profile only once a flight names it. Private
+// by the /me/ prefix (middleware: no-store, noindex). State is read from D1
+// on every load; both reads are best-effort, so a database still on 0001
+// renders the catalogue with no counts and no rides rather than a 500.
+const rider = Astro.locals.rider;
+if (!rider) return Astro.redirect('/join/');
+if (isPendingHandle(rider.handle)) return Astro.redirect('/join/');
+
+const { env } = Astro.locals.runtime;
+// /start/#step-4 links here with ?from=start: save then returns there, and
+// the tab the rider read on /start may become a suggestion (never a pre-check).
+const fromStart = Astro.url.searchParams.get('from') === 'start';
+const [counts, extras] = await Promise.all([mountCounts(env.DB), readProfileExtras(env.DB, rider.id)]);
+
+const handle = rider.handle;
+const profileHref = `/riders/${handle}/`;
+const bio = rider.bio ?? '';
+const rides = extras.rides;
+const rideSlugs = new Set(rides.map((r) => r.slug));
+// The picker is the catalogue plus every mount the record has named, in
+// chip order (counts decide; at zero, the seed). Rides outside it are free
+// text nobody has flown: they render pressed, with the unlisted note.
+const picker = pickerList(counts);
+const pickerSlugs = new Set(picker.map((p) => p.slug));
+const unlisted = rides.filter((r) => !pickerSlugs.has(r.slug));
+const subLine = (flights: number, riders: number) =>
+  flights > 0
+    ? `named on ${flights} published ${flights === 1 ? 'flight' : 'flights'} · ${riders} ${riders === 1 ? 'rider' : 'riders'}`
+    : 'not yet named on a published flight';
+const UNLISTED_NOTE = 'Shows publicly once a flight names it.';
+
+const githubLogin = extras.github_login;
+const githubFresh = githubLinkFresh(extras.github_login_at);
+const githubPublic = extras.github_public === 1;
+---
+
+<Base
+  title="Your profile — AgentRiders"
+  description="Edit what riders see first: your display name, a line about you, and the mounts you ride."
+  noindex
+>
+  <PageHero
+    eyebrow={`@${handle}`}
+    title="Your profile"
+    description="What riders see first. The record does the rest."
+    art="ranks"
+    id="profile-title"
+    compact
+  ></PageHero>
+
+  <section class="section section--bone">
+    <div class="container profile-layout">
+      {/* method=post: with scripts off, Save re-renders this page and keeps the bio out of the URL. */}
+      <form
+        id="profile-form"
+        method="post"
+        data-from={fromStart ? 'start' : 'profile'}
+        data-rides={JSON.stringify(rides.map((r) => r.slug))}
+        data-aliases={JSON.stringify(ALIASES)}
+        data-max={MOUNTS_MAX}
+      >
+        <div class="field">
+          <label class="field__label" for="p-name">Display name</label>
+          <input id="p-name" name="displayName" type="text" maxlength={DISPLAY_NAME_MAX} required autocomplete="name" value={rider.display_name} />
+          <p class="field__fine">Shown on your profile, your flights and your vouches.</p>
+        </div>
+
+        <div class="field">
+          {/* The counter sits beside the label, not inside it: a live region in
+              a label would rename the field and announce every keystroke. */}
+          <div class="field__row">
+            <label class="field__label" for="p-bio">One line about you</label>
+            <span class="field__hint" id="p-bio-count">{bio.length}/{BIO_MAX}</span>
+          </div>
+          <textarea id="p-bio" name="bio" maxlength={BIO_MAX} rows="2" placeholder="Ships billing code with Claude Code. Runs a lead-triage agent on n8n." aria-describedby="p-bio-fine p-bio-count">{bio}</textarea>
+          <p class="field__fine" id="p-bio-fine">160 characters, no links. The first thing under your name on /riders/{handle}/.</p>
+        </div>
+
+        <fieldset class="mounts">
+          <legend class="field__label">Mounts you ride</legend>
+          <p class="field__fine">The agents you run. They show on your profile as rides — declared — until a published flight names one, when it shows with the count.</p>
+
+          {/* Only a rider with no rides, arriving from /start, gets the nudge; the
+              script shows it only when ar_start_client names a catalogued chip. */}
+          {fromStart && rides.length === 0 && (
+            <p class="mounts__suggest" id="mount-suggest" hidden>
+              You read the <strong id="mount-suggest-name"></strong> note on /start — ride it?
+              <button type="button" class="mounts__suggest-add" id="mount-suggest-add">+ Add</button>
+            </p>
+          )}
+
+          <div class="chips" id="chips">
+            {picker.map((p) => (
+              <button type="button" class="chip" data-slug={p.slug} data-name={p.name} data-catalogued={p.catalogued ? '1' : '0'} aria-pressed={rideSlugs.has(p.slug) ? 'true' : 'false'}>
+                <span class="chip__name">{p.name}</span>
+                <span class="chip__sub">{subLine(p.flights, p.riders)}</span>
+              </button>
+            ))}
+            {unlisted.map((r) => (
+              <button type="button" class="chip" data-slug={r.slug} data-name={r.name} data-catalogued="0" aria-pressed="true">
+                <span class="chip__name">{r.name}</span>
+                <span class="chip__sub">{UNLISTED_NOTE}</span>
+              </button>
+            ))}
+          </div>
+          <p class="field__fine mounts__status" id="mounts-status" role="status"></p>
+
+          <div class="mounts__add">
+            <label class="field__label" for="p-mount">Another mount</label>
+            <div class="mounts__add-row">
+              <input id="p-mount" type="text" maxlength={MOUNT_MAX} list="mount-names" autocomplete="off" spellcheck="false" placeholder="Name it as the product does" />
+              <datalist id="mount-names">
+                {picker.map((p) => <option value={p.name}></option>)}
+              </datalist>
+              <button type="button" class="btn btn--ink mounts__add-btn" id="p-mount-add">Add</button>
+            </div>
+            <p class="field__fine">A name from the picker shows as a ride right away; anything else shows once a flight names it.</p>
+          </div>
+        </fieldset>
+
+        {githubLogin ? (
+          <div class="field">
+            <label class="check" for="p-github">
+              <input id="p-github" name="githubPublic" type="checkbox" checked={githubPublic} />
+              <span>Show github.com/{githubLogin} on my profile</span>
+            </label>
+            <p class="field__fine">Verified at your last GitHub sign-in, never typed. Hidden after 180 days without a GitHub sign-in.</p>
+            {!githubFresh && <p class="field__fine field__fine--stale">Sign in with GitHub again to refresh this link.</p>}
+          </div>
+        ) : (
+          <p class="field__fine">Sign in with GitHub to show a verified GitHub link here.</p>
+        )}
+
+        <div class="profile__actions">
+          <button type="submit" class="btn btn--ember" id="p-save">Save</button>
+          <a class="text-link" href="/me/">Back to your ledger</a>
+          <a class="text-link" href={profileHref}>See it live <Arrow /></a>
+        </div>
+        <p class="profile__status" id="profile-status" role="status"></p>
+        <noscript><p class="field__fine">Saving needs JavaScript; reading the site does not.</p></noscript>
+      </form>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .profile-layout { max-width: 760px; }
+  #profile-form { display: flex; flex-direction: column; gap: 26px; }
+  .field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+  .field__label { font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ash); }
+  .field__row { display: flex; align-items: baseline; gap: 8px; }
+  .field__hint { font-family: var(--mono); font-size: 12px; color: var(--ash); opacity: 0.7; }
+  .field input[type='text'], .field textarea, .mounts__add-row input { font-family: inherit; font-size: 15px; padding: 11px 13px; border: 1px solid var(--bone-line); background: var(--bone-raised); color: var(--text-on-bone); border-radius: var(--radius); width: 100%; }
+  .field textarea { resize: vertical; line-height: 1.55; }
+  .field__fine { font-size: 13px; line-height: 1.55; color: var(--text-on-bone-soft); margin: 0; }
+  .field__fine--stale { color: var(--ember-text); }
+  .mounts { border: 1px solid var(--bone-line); padding: 18px; display: flex; flex-direction: column; gap: 14px; border-radius: var(--radius); }
+  .mounts legend { padding: 0 6px; }
+  .mounts__suggest { font-size: 14px; line-height: 1.5; color: var(--text-on-bone); margin: 0; padding: 12px 16px; border: 1px dashed var(--bone-line); border-left: 3px solid var(--ember); background: var(--bone-raised); }
+  .mounts__suggest-add { margin-left: 8px; background: none; border: none; color: var(--ember-text); cursor: pointer; font-family: var(--mono); font-size: 12px; text-decoration: underline; text-underline-offset: 3px; padding: 0 2px; }
+  .chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+  /* Chips typed into "Another mount" are created in JS, which Astro's scoped
+     styles don't reach — so the chip rules are :global (as the burn rows on
+     /logs/new/ are). Recipe from .vouch__rank: mono, bone-line, 3px radius. */
+  :global(.chip) { display: flex; flex-direction: column; gap: 3px; text-align: left; padding: 10px 12px; border: 1px solid var(--bone-line); background: var(--bone); color: var(--text-on-bone); border-radius: 3px; cursor: pointer; font-family: inherit; min-width: 0; }
+  :global(.chip:hover) { border-color: var(--ink); }
+  :global(.chip[aria-pressed='true']) { border-color: var(--ember); background: var(--bone-raised); }
+  :global(.chip__name) { font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; }
+  :global(.chip[aria-pressed='true'] .chip__name) { color: var(--ember-text); }
+  :global(.chip[aria-pressed='true'] .chip__name::before) { content: '✓ '; }
+  :global(.chip__sub) { font-size: 11px; line-height: 1.4; color: var(--text-on-bone-soft); }
+  .mounts__status { min-height: 1.2em; }
+  .mounts__add { display: flex; flex-direction: column; gap: 7px; padding-top: 8px; border-top: 1px solid var(--bone-line); }
+  .mounts__add-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .mounts__add-row input { flex: 1 1 220px; width: auto; }
+  .mounts__add-btn { min-height: 44px; font-size: 11px; }
+  .check { display: flex; align-items: flex-start; gap: 10px; font-size: 15px; line-height: 1.5; color: var(--text-on-bone); cursor: pointer; }
+  .check input { margin-top: 5px; accent-color: var(--ember); }
+  .profile__actions { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+  .profile__status { font-size: 14px; color: var(--text-on-bone-soft); min-height: 1.4em; margin: 0; }
+</style>
+
+<script>
+  import { track, beacon } from '../../scripts/track';
+
+  const form = document.getElementById('profile-form') as HTMLFormElement | null;
+  if (form) {
+    // localStorage can throw (private windows, blocked storage) — wrap every access.
+    const getLS = (k: string): string | null => {
+      try { return localStorage.getItem(k); } catch { return null; }
+    };
+
+    const from = form.dataset.from === 'start' ? 'start' : 'profile';
+    const max = Number(form.dataset.max) || 8;
+    const parse = <T,>(raw: string | undefined, fallback: T): T => {
+      try { return raw ? (JSON.parse(raw) as T) : fallback; } catch { return fallback; }
+    };
+    const aliases = parse<Record<string, string>>(form.dataset.aliases, {});
+
+    const status = document.getElementById('profile-status')!;
+    const nameEl = document.getElementById('p-name') as HTMLInputElement;
+    const bioEl = document.getElementById('p-bio') as HTMLTextAreaElement;
+    const bioCount = document.getElementById('p-bio-count')!;
+    const github = document.getElementById('p-github') as HTMLInputElement | null;
+    const chips = document.getElementById('chips')!;
+    const mountsStatus = document.getElementById('mounts-status')!;
+    const addInput = document.getElementById('p-mount') as HTMLInputElement;
+
+    const updateCount = () => { bioCount.textContent = `${bioEl.value.length}/${bioEl.maxLength}`; };
+    bioEl.addEventListener('input', updateCount);
+    updateCount();
+
+    // Same slug rule as src/lib/facets.ts and the same alias map as
+    // src/lib/mounts.ts (passed in data-aliases), so a typed "cc" or "Claude
+    // code" presses the Claude Code chip instead of growing a duplicate.
+    // The server re-derives both; this only decides which chip to press.
+    const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const canonical = (slug: string) => (Object.prototype.hasOwnProperty.call(aliases, slug) ? aliases[slug] : slug);
+    const allChips = () => Array.from(chips.querySelectorAll<HTMLButtonElement>('.chip'));
+    const chipBySlug = (slug: string) => allChips().find((c) => c.dataset.slug === slug);
+
+    // Rides in the order the rider declared them (position order from D1);
+    // toggling on appends, so the order sent is the order they'll show in.
+    // `initial` is what D1 holds, so a save knows whether the picker changed.
+    let initial = parse<string[]>(form.dataset.rides, []).filter((s) => !!chipBySlug(s));
+    let selected = [...initial];
+    const atCap = () => selected.length >= max;
+    const render = () => {
+      for (const c of allChips()) c.setAttribute('aria-pressed', selected.includes(c.dataset.slug!) ? 'true' : 'false');
+      mountsStatus.textContent = atCap() ? 'Eight is plenty. Drop one to add another.' : '';
+    };
+    const press = (chip: HTMLButtonElement, on: boolean) => {
+      const slug = chip.dataset.slug!;
+      if (on) {
+        if (selected.includes(slug)) return;
+        if (atCap()) { render(); return; }
+        selected.push(slug);
+      } else {
+        selected = selected.filter((s) => s !== slug);
+      }
+      render();
+      track('mount_selected', { mount: slug, from: 'profile', on });
+    };
+    render();
+
+    chips.addEventListener('click', (e) => {
+      const chip = (e.target as HTMLElement).closest<HTMLButtonElement>('.chip');
+      if (!chip) return;
+      press(chip, chip.getAttribute('aria-pressed') !== 'true');
+    });
+
+    // "Another mount": a typed name that resolves to an existing chip presses
+    // it; anything else becomes a new, pressed chip with the unlisted note.
+    // The server validates for real (length, shape, no links) on save.
+    const makeChip = (slug: string, name: string) => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip';
+      chip.dataset.slug = slug;
+      chip.dataset.name = name;
+      chip.dataset.catalogued = '0';
+      chip.setAttribute('aria-pressed', 'false');
+      const n = document.createElement('span');
+      n.className = 'chip__name';
+      n.textContent = name;
+      const s = document.createElement('span');
+      s.className = 'chip__sub';
+      s.textContent = 'Shows publicly once a flight names it.';
+      chip.append(n, s);
+      return chip;
+    };
+    // Mirrors MOUNT_RE and LINKISH in src/lib/profile.ts. The server is the
+    // judge; this only keeps a link-looking name from becoming a pressed chip
+    // that fails the whole save and drops the bio typed alongside it. A name
+    // that resolves to an existing chip (the catalogued "Claude.ai") skips the
+    // link test, as the server does.
+    const MOUNT_RE = /^[A-Za-z0-9][A-Za-z0-9 .+/()&_-]*$/;
+    const LINKISH = /(:\/\/|\bwww\.|\b[a-z0-9-]+\.(com|net|org|io|ai|dev|app|co|me|xyz|sh|so|gg|tv|info|biz|us|uk|de|fr|es|it|nl|ca|au|in|br|jp|eu)\b)/i;
+    const addTyped = () => {
+      const text = addInput.value.replace(/\s+/g, ' ').trim();
+      if (!text) return;
+      const slug = canonical(slugify(text));
+      let chip = chipBySlug(slug);
+      if (!slug || !MOUNT_RE.test(text) || (!chip && LINKISH.test(text))) {
+        mountsStatus.textContent = 'A mount is a product name, not a link.';
+        return;
+      }
+      if (!chip) {
+        // At the cap, no new chip either: press() would decline it and leave
+        // an unpressed stray in the grid. The status line says why.
+        if (atCap()) { render(); return; }
+        chip = makeChip(slug, text);
+        chips.appendChild(chip);
+      }
+      press(chip, true);
+      if (selected.includes(slug)) addInput.value = '';
+    };
+    document.getElementById('p-mount-add')!.addEventListener('click', addTyped);
+    addInput.addEventListener('keydown', (e) => {
+      // Enter in this box adds a mount; it must not submit the form.
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      addTyped();
+    });
+
+    // The /start nudge: only when the tab the rider read there names a
+    // catalogued chip ('cc' is the old tab id for Claude Code; 'stdio' and
+    // 'other' name no catalogue entry). Add presses the chip — never pre-checked.
+    const suggest = document.getElementById('mount-suggest');
+    if (suggest && selected.length === 0) {
+      const saved = getLS('ar_start_client');
+      const chip = saved ? chipBySlug(canonical(saved)) : undefined;
+      if (chip && chip.dataset.catalogued === '1') {
+        document.getElementById('mount-suggest-name')!.textContent = chip.dataset.name!;
+        suggest.hidden = false;
+        document.getElementById('mount-suggest-add')!.addEventListener('click', () => {
+          press(chip, true);
+          suggest.hidden = true;
+          chip.focus();
+        });
+      }
+    }
+
+    // After a save the pressed set mirrors what D1 holds, not what was
+    // pressed: a record chip whose slug is an alias ('cc') saves as the
+    // catalogue entry, and the response is the truth.
+    const syncSelected = (rides: { slug: string; name: string }[]) => {
+      for (const r of rides) if (!chipBySlug(r.slug)) chips.appendChild(makeChip(r.slug, r.name));
+      selected = rides.map((r) => r.slug);
+      initial = [...selected];
+      render();
+    };
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!form.reportValidity()) return;
+      const payload: Record<string, unknown> = { displayName: nameEl.value.trim(), bio: bioEl.value };
+      // Rides go only when the picker changed, as names, not slugs: a record
+      // spelling ("n8n + Claude") or typed text must reach the server as the
+      // rider sees it, so the stored ride keeps it. A name-or-bio save is
+      // then a riders-only write, which works either side of migration 0002.
+      if (selected.join('\n') !== initial.join('\n')) {
+        payload.mounts = selected.map((s) => chipBySlug(s)?.dataset.name ?? s);
+      }
+      // The checkbox exists only with a GitHub login; without one the key is
+      // left out (the server would drop it anyway).
+      if (github) payload.githubPublic = github.checked;
+      status.textContent = 'Saving…';
+      try {
+        const res = await fetch('/api/me/profile', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) { status.textContent = body.error || 'Something went wrong.'; return; }
+        if (Array.isArray(body.mounts)) syncSelected(body.mounts);
+        const saved = { bio: !!body.bio, mounts: selected.length, from };
+        if (from === 'start') {
+          // Back to the spine; beacon transport survives the navigation.
+          track('profile_saved', { ...beacon, ...saved });
+          window.location.assign('/start/');
+          return;
+        }
+        track('profile_saved', saved);
+        status.textContent = 'Saved.';
+      } catch {
+        status.textContent = 'Network error.';
+      }
+    });
+  }
+</script>
