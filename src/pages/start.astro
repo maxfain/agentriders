@@ -3,8 +3,11 @@ export const prerender = false;
 import Base from '../layouts/Base.astro';
 import PageHero from '../components/PageHero.astro';
 import Arrow from '../components/Arrow.astro';
+import OnboardingRail from '../components/OnboardingRail.astro';
 import { isPendingHandle } from '../lib/handles';
-import { onboardingCounts, onboardingStep } from '../lib/onboarding';
+import { onboardingCounts, onboardingStep, onboardingRail } from '../lib/onboarding';
+import { startMounts, GENERIC_STDIO_NOTE } from '../lib/mounts';
+import { readProfileExtras } from '../lib/profile';
 
 // The agent-first onboarding spine. A signed-in rider lands here after claiming
 // a handle: enable the agent (install the MCP + pair this machine), then ask
@@ -12,6 +15,10 @@ import { onboardingCounts, onboardingStep } from '../lib/onboarding';
 // (onboardingCounts), so the page is always correct — no browser round-trip
 // from the MCP is needed. noindex + per-rider, so brand voice throughout (the
 // bilingual SEO rule is for indexable pages only).
+//
+// It is one page, not a wizard: steps 2 and 3 complete in the agent's harness,
+// so the rail and the strip are re-derived here on each load instead of
+// carrying state through sub-routes. "Check again" is a reload.
 const rider = Astro.locals.rider;
 if (!rider) return Astro.redirect('/join/');
 if (isPendingHandle(rider.handle)) return Astro.redirect('/join/');
@@ -30,6 +37,20 @@ const flightWord = flights === 1 ? 'flight' : 'flights';
 // flight while step 2 is still showing the active "enable your agent" card.
 const byAgent = devices >= 1;
 const profileHref = `/riders/${handle}/`;
+
+// The optional fourth step is done once the rider wrote a line or declared a
+// ride. The rides read is best-effort (empty on a database still on 0001) and
+// skipped entirely when the bio already settles it.
+const profileDone = !!rider.bio?.trim() || (await readProfileExtras(env.DB, rider.id)).rides.length > 0;
+// Handle is claimed by construction here — the pending check above redirects.
+const rail = onboardingRail({ handleClaimed: true, devices, pending, flights, profileDone });
+// A by-hand flight is in review (or published) with no device paired: step 3
+// shows hollow and step 2 stays the current one.
+const byHand = rail.flight === 'hand';
+// The tabs: every catalogue entry that carries a config note, in seed order,
+// plus the fixed "Other MCP client" tab. No count sits on this step — the
+// pick only chooses the note below and never writes D1.
+const mounts = startMounts();
 
 // One canonical MCP config — only the file it lives in differs per client
 // (the tabs below). Matches mcp/README.md and agents.astro verbatim.
@@ -64,7 +85,7 @@ const agentInstruction = [agentIntro, ...agentSteps.map((s, i) => `${i + 1}. ${s
   <PageHero
     eyebrow={`@${handle}`}
     title="Your agent flies. You hold the reins."
-    description="On AgentRiders your agent files its own flight log — signed from a real session, metadata only, through your review. Two steps: enable your agent, then ask it to file its first flight."
+    description="Three steps, one optional. Your agent does the last one: it files the flight from a real session, metadata only, through your review."
     art="ledger"
     id="start-title"
     compact
@@ -76,129 +97,199 @@ const agentInstruction = [agentIntro, ...agentSteps.map((s, i) => `${i + 1}. ${s
     data-ob-step={step}
     data-ob-devices={devices}
     data-ob-pending={pending}
+    data-ob-current={rail.current ?? 'done'}
+    data-ob-minutes={rail.minutesLeft}
+    data-ob-flight={rail.flight || 'none'}
   >
-    <div class="container start-col">
-      {/* STEP 1 — handle, always done on this page */}
-      <div class="start-card start-card--done">
-        <p class="start-step"><span class="micro">STEP 1</span><span class="start-mark start-mark--done" aria-hidden="true">✓</span></p>
-        <h2 class="start-h">Claim your handle</h2>
-        <p class="start-fine">@{handle} — yours for good. It goes on every flight your agent files.</p>
-      </div>
-
-      {/* STEP 2 — enable the agent */}
-      {devices >= 1 ? (
-        <div class="start-card start-card--done">
-          <p class="start-step"><span class="micro">STEP 2</span><span class="start-mark start-mark--done" aria-hidden="true">✓</span></p>
-          <h2 class="start-h">Agent paired</h2>
-          <p class="start-fine">{devices} {deviceWord} linked. <a class="text-link" href="/me/devices/">Manage your devices <Arrow /></a></p>
-        </div>
-      ) : (
-        <div class="start-card">
-          <p class="start-step"><span class="micro">STEP 2</span><span class="start-mark start-mark--active" aria-hidden="true">▸</span></p>
-          <h2 class="start-h">Enable your agent</h2>
-          <p class="start-lead">Install the AgentRiders MCP server in the agent you already run, then pair this machine once. The server runs locally — your session log and device key never leave it.</p>
-
-          <div class="start-tabs" role="tablist" aria-label="MCP client">
-            <button class="start-tab" role="tab" id="tab-cc" data-tab="cc" aria-selected="true" aria-controls="panel-cc" type="button">Claude Code</button>
-            <button class="start-tab" role="tab" id="tab-cursor" data-tab="cursor" aria-selected="false" aria-controls="panel-cursor" tabindex="-1" type="button">Cursor</button>
-            <button class="start-tab" role="tab" id="tab-stdio" data-tab="stdio" aria-selected="false" aria-controls="panel-stdio" tabindex="-1" type="button">Generic stdio</button>
+    <div class="container">
+      {/* The strip replaces the rail under 860px; it sits outside the grid so it can stick to the top. */}
+      <OnboardingRail rail={rail} part="strip" />
+      <div class="start-layout">
+        <OnboardingRail rail={rail} part="rail" />
+        <div class="start-col">
+          {/* STEP 1 — handle, always done on this page */}
+          <div class="start-card start-card--done" id="step-1">
+            <p class="start-step"><span class="micro">STEP 1</span><span class="start-mark start-mark--done" aria-hidden="true">✓</span></p>
+            <h2 class="start-h">Claim your handle</h2>
+            <p class="start-fine">@{handle} — yours for good. It goes on every flight your agent files.</p>
           </div>
-          <pre class="start-code" id="mcp-config"><code>{mcpConfig}</code></pre>
-          <button class="btn btn--ink start-copy" type="button" data-copy-target="#mcp-config">Copy config</button>
-          <p class="start-note" id="panel-cc" role="tabpanel" aria-labelledby="tab-cc">Project file <code>.mcp.json</code> at the repo root (or run <code>claude mcp add</code>). The same <code>mcpServers</code> block.</p>
-          <p class="start-note" id="panel-cursor" role="tabpanel" aria-labelledby="tab-cursor" hidden>Project <code>.cursor/mcp.json</code> or global <code>~/.cursor/mcp.json</code>. Cursor accepts an optional <code>"type": "stdio"</code> on the <code>agentriders</code> entry.</p>
-          <p class="start-note" id="panel-stdio" role="tabpanel" aria-labelledby="tab-stdio" hidden>Any MCP client that launches a local stdio server by command — Claude Desktop, Codex, VS Code, the Grok terminal CLI — takes the same block; Claude Desktop uses <code>claude_desktop_config.json → "mcpServers"</code>.</p>
-          <p class="start-fine start-truth">The server runs locally — that's the only place your session log and device key exist.</p>
 
-          <div class="start-pair">
-            <h3 class="start-h3">Pair this machine</h3>
-            <p class="start-fine">Generate a one-time code and give it to your agent. It expires in 10 minutes and works once.</p>
-            <div class="start-code-row">
-              <button class="btn btn--ember" id="gen-code" type="button">Generate pairing code</button>
-              <code class="start-code-out" id="code-out" aria-live="polite"></code>
+          {/* STEP 2 — enable the agent */}
+          {devices >= 1 ? (
+            <div class="start-card start-card--done" id="step-2">
+              <p class="start-step"><span class="micro">STEP 2</span><span class="start-mark start-mark--done" aria-hidden="true">✓</span></p>
+              <h2 class="start-h">Agent paired</h2>
+              <p class="start-fine">{devices} {deviceWord} linked. <a class="text-link" href="/me/devices/">Manage your devices <Arrow /></a></p>
             </div>
-            <p class="start-fine" id="code-note"></p>
-            <p class="start-fine">Your agent calls <code>agentriders_link_device</code> with this code (or run <code>npx agentriders login</code>). The same code pairs the CLI.</p>
-          </div>
-        </div>
-      )}
+          ) : (
+            <div class="start-card" id="step-2">
+              <p class="start-step"><span class="micro">STEP 2</span><span class="start-mark start-mark--active" aria-hidden="true">▸</span></p>
+              <h2 class="start-h">Enable your agent</h2>
+              {byHand ? (
+                <p class="start-lead">Your flight went in by hand. Enable your agent so the next one carries a signed record.</p>
+              ) : (
+                <p class="start-lead">Install the AgentRiders MCP server in the agent you already run, then pair this machine once. The server runs locally — your session log and device key never leave it.</p>
+              )}
 
-      {/* STEP 3 — the agent files the first flight */}
-      {step === 'published' ? (
-        <div class="start-card start-card--done">
-          <p class="start-step"><span class="start-mark start-mark--done" aria-hidden="true">✓</span></p>
-          <h2 class="start-h">You're flying.</h2>
-          <p class="start-lead">{flights} {flightWord} published{verified >= 1 ? ' · verified ✦' : ''}. Your agent can file the next one the same way — just ask it.</p>
-          <div class="start-actions">
-            <a class="btn btn--ember" href="/me/">Your ledger <Arrow /></a>
-            <a class="btn btn--ink" href={profileHref}>Your profile <Arrow /></a>
-          </div>
-        </div>
-      ) : step === 'flight-in-review' ? (
-        <div class="start-card start-card--done">
-          <p class="start-step"><span class="micro">STEP 3</span><span class="start-mark start-mark--done" aria-hidden="true">✓</span></p>
-          <h2 class="start-h">First flight in review</h2>
-          <p class="start-lead">{byAgent ? 'Your agent filed a flight.' : 'Your flight is filed.'} It's in the review queue now — nothing is public until a reviewer approves it.</p>
-          <p class="start-fine">What happens next: review → publish → you're a Fledgling, with a public track record.</p>
-          <div class="start-actions">
-            <a class="btn btn--ember" href="/me/">See your ledger <Arrow /></a>
-            <a class="text-link" href={profileHref}>Track it on your profile <Arrow /></a>
-          </div>
-        </div>
-      ) : step === 'paired-no-flight' ? (
-        <div class="start-card">
-          <p class="start-step"><span class="micro">STEP 3</span><span class="start-mark start-mark--active" aria-hidden="true">▸</span></p>
-          <h2 class="start-h">Ask your agent to file its first flight</h2>
-          <p class="start-lead">Point your agent at a real session it just flew and ask it to file the flight. It drafts from the session telemetry, shows you the exact metadata before anything sends, and files into review once you confirm.</p>
-          <pre class="start-prompt" id="agent-instruction">{agentInstruction}</pre>
-          <button class="btn btn--ink start-copy" type="button" data-copy-target="#agent-instruction">Copy instruction</button>
-        </div>
-      ) : (
-        <div class="start-card start-card--ghost">
-          <p class="start-step"><span class="micro">STEP 3</span></p>
-          <h2 class="start-h">Ask your agent to file its first flight</h2>
-          <p class="start-fine">Pair your agent first (step 2) — then it can file.</p>
-        </div>
-      )}
+              <h3 class="start-h3 start-h3--tabs" id="mount-label">Which mount?</h3>
+              <p class="start-fine start-fine--tight">Pick the agent you run. It only chooses the config note below — your flights name their own mount.</p>
+              <div class="start-tabs" role="tablist" aria-labelledby="mount-label">
+                {mounts.map((m, i) => (
+                  <button class="start-tab" role="tab" id={`tab-${m.slug}`} data-tab={m.slug} aria-selected={i === 0 ? 'true' : 'false'} aria-controls={`panel-${m.slug}`} tabindex={i === 0 ? undefined : -1} type="button">{m.name}</button>
+                ))}
+                <button class="start-tab" role="tab" id="tab-other" data-tab="other" aria-selected="false" aria-controls="panel-other" tabindex="-1" type="button">Other MCP client</button>
+              </div>
+              <pre class="start-code" id="mcp-config"><code>{mcpConfig}</code></pre>
+              <button class="btn btn--ink start-copy" type="button" data-copy-target="#mcp-config">Copy config</button>
+              {mounts.map((m, i) => (
+                <p class="start-note" id={`panel-${m.slug}`} role="tabpanel" aria-labelledby={`tab-${m.slug}`} hidden={i !== 0} set:html={m.note} />
+              ))}
+              <div class="start-note" id="panel-other" role="tabpanel" aria-labelledby="tab-other" hidden>
+                <p>{GENERIC_STDIO_NOTE}</p>
+                <p>Not an MCP client? Compose by hand below — same queue, same record.</p>
+              </div>
+              <p class="start-fine start-truth">ChatGPT and grok.com can't run a local server — compose by hand below.</p>
+              <p class="start-fine start-truth">The server runs locally — that's the only place your session log and device key exist.</p>
 
-      {/* The by-hand fork: always visible, secondary (text-link, never a button) */}
-      <div class="start-fork">
-        <p class="start-fork__lead">No agent set up yet? You can compose a flight by hand — same review queue, same result.</p>
-        <a class="text-link" href="/logs/new/">Compose a flight by hand <Arrow /></a>
+              <div class="start-pair">
+                <h3 class="start-h3">Pair this machine</h3>
+                <p class="start-fine">Generate a one-time code and give it to your agent. It expires in 10 minutes and works once.</p>
+                <div class="start-code-row">
+                  <button class="btn btn--ember" id="gen-code" type="button">Generate pairing code</button>
+                  <code class="start-code-out" id="code-out" aria-live="polite"></code>
+                  <button class="btn btn--ink start-check" type="button" data-check-again>Check again</button>
+                </div>
+                <p class="start-fine" id="code-note"></p>
+                <p class="start-fine">Your agent calls <code>agentriders_link_device</code> with this code (or run <code>npx agentriders login</code>). The same code pairs the CLI.</p>
+              </div>
+              <p class="start-fine start-earns">What it earns: from here on your agent files its own flights, signed from the real session, and they can carry the Verified ✦ mark. By-hand flights file without a signed record, so they show no mark unless you later pair a device and link a record on <a class="text-link" href="/me/devices/">/me/devices/</a>.</p>
+            </div>
+          )}
+
+          {/* STEP 3 — the agent files the first flight */}
+          {step === 'published' ? (
+            <div class="start-card start-card--done" id="step-3">
+              <p class="start-step"><span class="micro">STEP 3{byHand ? ' · BY HAND' : ''}</span><span class={`start-mark ${byHand ? 'start-mark--hand' : 'start-mark--done'}`} aria-hidden="true">{byHand ? '○' : '✓'}</span></p>
+              <h2 class="start-h">You're flying.</h2>
+              <p class="start-lead">{flights} {flightWord} published{verified >= 1 ? ' · verified ✦' : ''}. Your agent can file the next one the same way — just ask it.</p>
+              <p class="start-fine">Your profile is public: <a class="text-link" href={profileHref}>/riders/{handle}/</a>.</p>
+              <p class="start-fine">Memberships are planned. Fees are waived for the first 1,000 riders — you're in the founding season.</p>
+              <div class="start-actions">
+                <a class="btn btn--ember" href="/me/">Your ledger <Arrow /></a>
+                <a class="btn btn--ink" href={profileHref}>Your profile <Arrow /></a>
+              </div>
+            </div>
+          ) : step === 'flight-in-review' ? (
+            <div class="start-card start-card--done" id="step-3">
+              <p class="start-step"><span class="micro">STEP 3{byHand ? ' · BY HAND' : ''}</span><span class={`start-mark ${byHand ? 'start-mark--hand' : 'start-mark--done'}`} aria-hidden="true">{byHand ? '○' : '✓'}</span></p>
+              <h2 class="start-h">First flight in review</h2>
+              <p class="start-lead">{byAgent ? 'Your agent filed a flight.' : 'Your flight is filed.'} It's in the review queue now — nothing is public until a reviewer approves it.</p>
+              <p class="start-fine">What happens next: review → publish → you're a Fledgling, with a public track record.</p>
+              <p class="start-fine">Your profile is public from your first published flight: <a class="text-link" href={profileHref}>/riders/{handle}/</a>. A profile with no flights is a claim, not a record.</p>
+              <div class="start-actions">
+                <a class="btn btn--ember" href="/me/">See your ledger <Arrow /></a>
+                <a class="text-link" href={profileHref}>Track it on your profile <Arrow /></a>
+              </div>
+            </div>
+          ) : step === 'paired-no-flight' ? (
+            <div class="start-card" id="step-3">
+              <p class="start-step"><span class="micro">STEP 3</span><span class="start-mark start-mark--active" aria-hidden="true">▸</span></p>
+              <h2 class="start-h">Ask your agent to file its first flight</h2>
+              <p class="start-lead">Point your agent at a real session it just flew and ask it to file the flight. It drafts from the session telemetry, shows you the exact metadata before anything sends, and files into review once you confirm.</p>
+              <p class="start-fine">After a real session: copy this, paste it to your agent, confirm the draft.</p>
+              <pre class="start-prompt" id="agent-instruction">{agentInstruction}</pre>
+              <div class="start-actions start-actions--tight">
+                <button class="btn btn--ink start-copy" type="button" data-copy-target="#agent-instruction">Copy instruction</button>
+                <button class="btn btn--ink start-check" type="button" data-check-again>Check again</button>
+              </div>
+              <p class="start-fine start-earns">What it earns: your first published flight makes you a Fledgling and makes <a class="text-link" href={profileHref}>/riders/{handle}/</a> indexable. Nothing is public until a reviewer approves it.</p>
+            </div>
+          ) : (
+            <div class="start-card start-card--ghost" id="step-3">
+              <p class="start-step"><span class="micro">STEP 3</span></p>
+              <h2 class="start-h">Ask your agent to file its first flight</h2>
+              <p class="start-fine">Pair your agent first (step 2) — then it can file.</p>
+            </div>
+          )}
+
+          {/* STEP 4 — optional, and only once a flight is filed: the profile is never a form in front of the agent */}
+          {rail.flight !== false && (profileDone ? (
+            <div class="start-card start-card--done" id="step-4">
+              <p class="start-step"><span class="micro">STEP 4 · OPTIONAL</span><span class="start-mark start-mark--done" aria-hidden="true">✓</span></p>
+              <h2 class="start-h">Your profile</h2>
+              <p class="start-fine">Set. Change it any time on <a class="text-link" href="/me/profile/">/me/profile/</a>.</p>
+            </div>
+          ) : (
+            <div class="start-card start-card--optional" id="step-4">
+              <p class="start-step"><span class="micro">STEP 4 · OPTIONAL</span></p>
+              <h2 class="start-h">Your profile</h2>
+              <p class="start-lead">A line about you under your name, and the mounts you ride. Both show on <a class="text-link" href={profileHref}>/riders/{handle}/</a>. About a minute, whenever you like.</p>
+              <div class="start-actions">
+                <a class="btn btn--ink" href="/me/profile/?from=start">Add a line about yourself <Arrow /></a>
+                <a class="text-link" href="/me/" id="profile-skip">Skip for now</a>
+              </div>
+            </div>
+          ))}
+
+          {/* The by-hand fork: always visible, secondary (text-link, never a button) */}
+          <div class="start-fork">
+            <p class="start-fork__lead">No agent yet? Same review, same record — and when you fly one, it files these itself.</p>
+            <a class="text-link" href="/logs/new/" data-fork>Compose a flight by hand <Arrow /></a>
+          </div>
+        </div>
       </div>
     </div>
   </section>
 </Base>
 
 <style>
-  .start-col { max-width: 760px; display: flex; flex-direction: column; gap: 20px; }
-  .start-card { padding: 24px; border: 1px solid var(--bone-line); border-left: 3px solid var(--ember); background: var(--bone-raised); }
+  /* Rail in column 1, cards in column 2. align-items:start keeps the rail short enough to stick. */
+  .start-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 56px; align-items: start; }
+  .start-col { max-width: 760px; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+  /* The strip is the narrow-screen rail; hidden while the real rail is on. */
+  .container > :global(.ob-strip) { display: none; }
+  .start-card { padding: 24px; border: 1px solid var(--bone-line); border-left: 3px solid var(--ember); background: var(--bone-raised); scroll-margin-top: 24px; }
   .start-card--ghost { border-left-color: var(--bone-line); opacity: 0.85; }
+  .start-card--optional { border-left-color: var(--bone-line); }
   .start-step { display: flex; align-items: center; gap: 10px; }
   .start-step .micro { color: var(--ash); font-size: 9px; }
   .start-mark { font-family: var(--mono); font-size: 13px; line-height: 1; }
   .start-mark--done, .start-mark--active { color: var(--ember-text); }
+  .start-mark--hand { color: var(--ash); }
   .start-h { font-family: var(--display); font-size: 22px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.15; margin: 8px 0 0; }
   .start-h3 { font-family: var(--display); font-size: 17px; font-weight: 600; margin: 0 0 4px; }
+  .start-h3--tabs { margin-top: 22px; }
   .start-lead { font-size: 15px; line-height: 1.6; color: var(--text-on-bone); margin: 12px 0 0; max-width: 60ch; }
   .start-fine { font-size: 13px; line-height: 1.55; color: var(--text-on-bone-soft); margin: 10px 0 0; }
+  .start-fine--tight { margin-top: 0; }
   .start-fine code, .start-note code { font-family: var(--mono); font-size: 0.9em; }
   .start-truth { color: var(--text-on-bone-soft); }
-  .start-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin: 18px 0 0; }
+  .start-earns { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--bone-line); }
+  .start-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin: 12px 0 0; }
   .start-tab { font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em; padding: 8px 12px; border: 1px solid var(--bone-line); background: var(--bone); color: var(--text-on-bone-soft); cursor: pointer; border-radius: 3px; }
   .start-tab[aria-selected='true'] { border-color: var(--ember); color: var(--ember-text); background: var(--bone-raised); }
   .start-code, .start-prompt { margin: 12px 0; padding: 14px 16px; background: var(--ink); color: var(--bone); border-radius: var(--radius); overflow-x: auto; font-family: var(--mono); font-size: 13px; line-height: 1.6; }
   .start-prompt { white-space: pre-wrap; overflow-wrap: anywhere; }
   .start-note { font-size: 13px; line-height: 1.55; color: var(--text-on-bone-soft); margin: 10px 0 0; }
-  .start-copy { min-height: 40px; font-size: 10px; }
+  .start-note p { margin: 0; }
+  .start-note p + p { margin-top: 6px; }
+  .start-copy, .start-check { min-height: 40px; font-size: 10px; }
   .start-pair { margin-top: 22px; padding: 18px; border: 1px solid var(--bone-line); background: var(--bone); }
   .start-code-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 12px; }
   .start-code-out { font-family: var(--mono); font-size: 20px; letter-spacing: 0.12em; padding: 6px 12px; border: 1px dashed var(--ember); border-radius: 3px; min-width: 120px; min-height: 1.4em; color: var(--ember-text); }
   .start-code-out:empty { border-style: dashed; opacity: 0.5; }
   .start-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 18px; }
+  .start-actions--tight { margin-top: 0; }
   .start-fork { padding: 18px 24px; border: 1px dashed var(--bone-line); background: transparent; }
   .start-fork__lead { font-size: 13px; line-height: 1.55; color: var(--text-on-bone-soft); margin: 0; }
   .start-fork .text-link { margin-top: 6px; color: var(--ember-text); }
+  /* Header breakpoint: one column, the rail gives way to the sticky strip (the header stacks above it at z-index 20). */
+  @media (max-width: 860px) {
+    .start-layout { grid-template-columns: 1fr; gap: 0; }
+    .start-layout > :global(.ob-rail) { display: none; }
+    .container > :global(.ob-strip) { display: block; position: sticky; top: 0; z-index: 2; background: var(--bone); border-bottom: 1px solid var(--bone-line); padding: 10px 0; margin-bottom: 20px; }
+    .start-card { scroll-margin-top: 64px; }
+  }
 </style>
 
 <script>
@@ -216,9 +307,12 @@ const agentInstruction = [agentIntro, ...agentSteps.map((s, i) => `${i + 1}. ${s
   const step = root?.dataset.obStep ?? '';
   const devices = Number(root?.dataset.obDevices ?? '0');
   const pending = Number(root?.dataset.obPending ?? '0');
+  const current = root?.dataset.obCurrent ?? '';
+  const minutesLeft = Number(root?.dataset.obMinutes ?? '0');
+  const flight = root?.dataset.obFlight ?? '';
 
-  // start_viewed on every load, carrying the server-derived step.
-  track('start_viewed', { step });
+  // start_viewed on every load, carrying the server-derived step and rail state.
+  track('start_viewed', { step, current, minutes_left: minutesLeft, flight });
 
   // agent_paired / first_submission_filed: both milestones happen in the
   // agent's harness, off-web — the browser can't observe the link_device or
@@ -232,8 +326,12 @@ const agentInstruction = [agentIntro, ...agentSteps.map((s, i) => `${i + 1}. ${s
   fireOnce(devices >= 1, 'ar_evt_agent_paired', 'agent_paired');
   fireOnce(pending >= 1, 'ar_evt_first_submission', 'first_submission_filed');
 
-  // Client tabs for the per-client config note. Remembered in ar_start_client.
+  // Client tabs for the per-client config note. Remembered in ar_start_client
+  // under the catalogue slug; the two values the first version stored map to
+  // their slugs so a returning rider lands on the same note. Client-side
+  // only — the pick never reaches D1.
   const TAB_KEY = 'ar_start_client';
+  const LEGACY_TAB: Record<string, string> = { cc: 'claude-code', stdio: 'other' };
   const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-tab]'));
   const panels = Array.from(document.querySelectorAll<HTMLElement>('[data-panel], [role="tabpanel"]'));
   const panelFor = (id: string) =>
@@ -250,22 +348,23 @@ const agentInstruction = [agentIntro, ...agentSteps.map((s, i) => `${i + 1}. ${s
     if (panel) panel.hidden = false;
   };
   if (tabs.length) {
-    const saved = getLS(TAB_KEY);
+    const stored = getLS(TAB_KEY);
+    const saved = stored && Object.hasOwn(LEGACY_TAB, stored) ? LEGACY_TAB[stored] : stored;
     const initial = saved && tabs.some((t) => t.dataset.tab === saved) ? saved : tabs[0].dataset.tab!;
     selectTab(initial);
+    if (saved !== stored && saved) setLS(TAB_KEY, saved);
+    const choose = (id: string, focus = false) => {
+      selectTab(id, focus);
+      setLS(TAB_KEY, id);
+      track('mount_selected', { mount: id, from: 'start' });
+    };
     tabs.forEach((t, i) => {
-      t.addEventListener('click', () => {
-        const id = t.dataset.tab!;
-        selectTab(id);
-        setLS(TAB_KEY, id);
-      });
+      t.addEventListener('click', () => choose(t.dataset.tab!));
       t.addEventListener('keydown', (e) => {
         if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
         e.preventDefault();
         const next = e.key === 'ArrowRight' ? (i + 1) % tabs.length : (i - 1 + tabs.length) % tabs.length;
-        const id = tabs[next].dataset.tab!;
-        selectTab(id, true);
-        setLS(TAB_KEY, id);
+        choose(tabs[next].dataset.tab!, true);
       });
     });
   }
@@ -296,6 +395,21 @@ const agentInstruction = [agentIntro, ...agentSteps.map((s, i) => `${i + 1}. ${s
       }
     });
   }
+
+  // "Check again" — the pairing and the filing happen off-web, so the only
+  // honest refresh is a reload that re-derives the page from D1.
+  for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-check-again]')) {
+    btn.addEventListener('click', () => { window.location.reload(); });
+  }
+
+  // The two ways out of the spine that aren't the agent: the by-hand fork and
+  // skipping the optional profile step. Beacon transport — both navigate.
+  for (const a of document.querySelectorAll<HTMLAnchorElement>('[data-fork]')) {
+    a.addEventListener('click', () => track('setup_fork_manual', { ...beacon, from: 'start' }));
+  }
+  document.getElementById('profile-skip')?.addEventListener('click', () => {
+    track('profile_skipped', { ...beacon, from: 'start' });
+  });
 
   // Pairing code — same endpoint and render as /me/devices/, plus code_generated.
   const genBtn = document.getElementById('gen-code') as HTMLButtonElement | null;
