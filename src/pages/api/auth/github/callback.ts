@@ -63,6 +63,20 @@ export const GET: APIRoute = async (context) => {
       email: email?.toLowerCase() ?? null,
       displayName: user.name || user.login,
     });
+
+    // Stamp the login the profile may show (opt-out, 180-day window) — the
+    // one identity we display because OAuth proved it. Re-stamped on every
+    // GitHub sign-in so the freshness clock restarts. Its own try/catch: the
+    // columns arrive with migration 0002, and a sign-in has to complete on a
+    // database that doesn't have them yet; auth.ts stays as it is.
+    try {
+      await env.DB.prepare('UPDATE riders SET github_login = ?, github_login_at = ? WHERE id = ?')
+        .bind(user.login, new Date().toISOString(), rider.id)
+        .run();
+    } catch {
+      /* pre-0002: no login to show until the migration lands */
+    }
+
     const dest = await completeSignIn(context, env.DB, env.SESSION_PEPPER, rider);
     return redirect(dest, 302);
   } catch {
