@@ -5,6 +5,7 @@ import PageHero from '../../components/PageHero.astro';
 import Arrow from '../../components/Arrow.astro';
 import { RIDER_FLIGHT_GATE } from '../../lib/ranks';
 import { breadcrumbs } from '../../lib/seo';
+import { directoryFlown, mountCounts } from '../../lib/mounts';
 
 // The directory opens when 20 flights are logged — the launch-defining
 // number, counted live from published_logs. Below the gate, the page shows
@@ -17,7 +18,7 @@ const total =
 const open = total >= RIDER_FLIGHT_GATE;
 
 type Dir = {
-  handle: string; display_name: string; rank: string | null;
+  id: string; handle: string; display_name: string; rank: string | null;
   flights: number; verified: number;
 };
 // Always fetch the riders who have logged a flight: above the gate this is
@@ -26,7 +27,7 @@ type Dir = {
 // flight count. Verified count fills in with the CLI (M4).
 const riders: Dir[] = (
   await env.DB.prepare(
-    `SELECT r.handle, r.display_name, r.rank,
+    `SELECT r.id, r.handle, r.display_name, r.rank,
             COUNT(p.slug) AS flights,
             (SELECT COUNT(*) FROM flight_records fr WHERE fr.rider_id = r.id AND fr.matched_log_slug IS NOT NULL) AS verified
      FROM riders r JOIN published_logs p ON p.rider_id = r.id
@@ -37,6 +38,15 @@ const riders: Dir[] = (
      LIMIT 500`,
   ).all<Dir>()
 ).results ?? [];
+
+// Mounts, from published flights only, in two best-effort reads: the strip's
+// counts (the Map already iterates in chip order — flights desc — so a click
+// on a picker can't promote a mount) and one grouped query for every rider's
+// row chips, never one per row. Both come back empty on a database still on
+// 0001, so the page renders without mounts rather than 500. Nothing here
+// reads Astro.locals.rider: anonymous responses stay cacheable.
+const counts = await mountCounts(env.DB);
+const flownByRider = await directoryFlown(env.DB);
 const remaining = Math.max(0, RIDER_FLIGHT_GATE - total);
 ---
 
@@ -64,19 +74,41 @@ const remaining = Math.max(0, RIDER_FLIGHT_GATE - total);
           <a class="btn btn--ember" href="/logs/new/">Log a flight <Arrow /></a>
         </div>
       )}
+      {counts.size > 0 && (
+        <div class="dir-mounts-strip">
+          <p class="micro dir-mounts-strip__label">MOUNTS IN THE RECORD <span class="dir-mounts-strip__hint">— as named on published flights</span></p>
+          <ul class="dir-mounts-strip__list">
+            {[...counts].map(([slug, c]) => (
+              <li><a class="dir-chip" href={`/logs/mount/${slug}/`}>{c.name} · {c.flights} {c.flights === 1 ? 'flight' : 'flights'} · {c.riders} {c.riders === 1 ? 'rider' : 'riders'}</a></li>
+            ))}
+          </ul>
+        </div>
+      )}
       {riders.length > 0 && (
         <div class="dir-roster">
           {!open && <p class="micro dir-roster__label">The founding riders — flying before the directory opens.</p>}
           <ul class="dir-list">
-            {riders.map((r) => (
-              <li class="dir-row">
-                <a href={`/riders/${r.handle}/`}>
-                  <span class="dir-rank">{r.rank ?? 'unranked'}</span>
-                  <span class="dir-name">{r.display_name} <span class="dir-handle">@{r.handle}</span></span>
-                  <span class="dir-meta">{r.flights} {r.flights === 1 ? 'flight' : 'flights'}{r.verified > 0 ? ` · ${r.verified} verified` : ''}</span>
-                </a>
-              </li>
-            ))}
+            {riders.map((r) => {
+              // directoryFlown lists are flights desc, so the top three is a
+              // slice; the rest fold into "+N" to keep the row to one line.
+              const flown = flownByRider.get(r.id) ?? [];
+              const top = flown.slice(0, 3);
+              const more = flown.length - top.length;
+              return (
+                <li class="dir-row">
+                  <a href={`/riders/${r.handle}/`}>
+                    <span class="dir-rank">{r.rank ?? 'unranked'}</span>
+                    <span class="dir-name">
+                      {r.display_name} <span class="dir-handle">@{r.handle}</span>
+                      {top.length > 0 && (
+                        <span class="dir-mounts">{top.map((m) => `${m.name} ×${m.flights}`).join(' · ')}{more > 0 ? ` · +${more}` : ''}</span>
+                      )}
+                    </span>
+                    <span class="dir-meta">{r.flights} {r.flights === 1 ? 'flight' : 'flights'}{r.verified > 0 ? ` · ${r.verified} verified` : ''}</span>
+                  </a>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
@@ -102,5 +134,14 @@ const remaining = Math.max(0, RIDER_FLIGHT_GATE - total);
   .dir-name { font-family: var(--display); font-size: 18px; font-weight: 600; }
   .dir-handle { font-family: var(--mono); font-size: 12px; color: var(--text-on-bone-soft); font-weight: 400; }
   .dir-meta { font-size: 13px; color: var(--text-on-bone-soft); white-space: nowrap; }
+  /* The mounts line sits inside the name cell so the grid keeps its three
+     columns; it resets the display face the cell inherits. */
+  .dir-mounts { display: block; margin-top: 3px; font-family: var(--body); font-size: 12px; font-weight: 400; color: var(--text-on-bone-soft); }
+  .dir-gate + .dir-mounts-strip { margin-top: 36px; }
+  .dir-mounts-strip__label { color: var(--ash); }
+  .dir-mounts-strip__hint { font-family: var(--body); font-size: 11px; text-transform: none; letter-spacing: 0; color: var(--text-on-bone-soft); }
+  .dir-mounts-strip__list { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .dir-chip { display: inline-block; font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em; padding: 5px 10px; border: 1px solid var(--bone-line); background: var(--bone-raised); border-radius: 3px; text-decoration: none; color: var(--text-on-bone); }
+  .dir-chip:hover { border-color: var(--ink); }
   @media (max-width: 560px) { .dir-row a { grid-template-columns: 1fr; gap: 4px; } }
 </style>

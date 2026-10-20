@@ -9,6 +9,8 @@
 // live in git regardless of the mirror's freshness.
 
 import { cascadeRank } from './ranks.ts';
+import { slugify } from './facets.ts';
+import { cleanMount } from './mounts.ts';
 
 type Env = { DB: D1Database; RATE: KVNamespace };
 
@@ -17,6 +19,7 @@ type LogsJsonEntry = {
   title: string;
   date: string;
   rider: string;
+  mount?: string;
   task: string;
   outcome: string;
   burns: unknown[];
@@ -142,6 +145,33 @@ export async function reconcile(
     }
 
     if (statements.length) await env.DB.batch(statements);
+
+    // Mounts live in columns migration 0002 adds, so they ride a second batch
+    // once the mirror has landed: the same UPDATE approve runs, for every log
+    // /logs.json names a mount on. That makes it the backfill too — the first
+    // reconcile after the migration stamps every log already in the record.
+    // On a 0001 database the batch fails as a unit and the mirror above is
+    // untouched. Edits being flipped this pass skip, for the reason the
+    // mirror skips them: /logs.json still carries the old mount. Slug from
+    // facets.ts, the /logs/mount/<slug>/ key.
+    const mountUpdates: D1PreparedStatement[] = [];
+    for (const log of logs) {
+      const slug = slugFromUrl(log.url);
+      if (!slug || slugToSubmission.get(slug)?.kind === 'edit') continue;
+      const mount = cleanMount(log.mount);
+      const mountSlug = slugify(mount);
+      if (!mountSlug) continue;
+      mountUpdates.push(
+        env.DB.prepare('UPDATE published_logs SET mount = ?, mount_slug = ? WHERE slug = ?').bind(mount, mountSlug, slug),
+      );
+    }
+    if (mountUpdates.length) {
+      try {
+        await env.DB.batch(mountUpdates);
+      } catch {
+        /* pre-0002: the first reconcile after the migration backfills */
+      }
+    }
 
     // Published flight counts just changed — recompute affected riders'
     // ranks (first flight → Fledgling, 20th → Rider if vouched), rippling to
