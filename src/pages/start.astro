@@ -172,7 +172,7 @@ const agentInstruction = [agentIntro, ...agentSteps.map((s, i) => `${i + 1}. ${s
               <p class="start-step"><span class="micro">STEP 3{byHand ? ' · BY HAND' : ''}</span><span class={`start-mark ${byHand ? 'start-mark--hand' : 'start-mark--done'}`} aria-hidden="true">{byHand ? '○' : '✓'}</span></p>
               <h2 class="start-h">You're flying.</h2>
               {/* "The same way" only holds with an agent paired; by hand, the honest next step is step 2. */}
-              <p class="start-lead">{flights} {flightWord} published{verified >= 1 ? ' · verified ✦' : ''}. {byAgent ? 'Your agent can file the next one the same way — just ask it.' : <>Pair your agent (<a class="text-link" href="#step-2">step 2</a>) and it files the next one, signed.</>}</p>
+              <p class="start-lead">{flights} {flightWord} published{verified >= 1 ? ' · verified ✦' : ''}. {byAgent ? 'Your agent can file the next one the same way — just ask it.' : <>Pair your agent <a class="text-link" href="#step-2">(step 2)</a> and it files the next one, signed.</>}</p>
               <p class="start-fine">Your profile is public: <a class="text-link" href={profileHref}>/riders/{handle}/</a>.</p>
               <p class="start-fine">Memberships are planned. Fees are waived for the first 1,000 riders — you're in the founding season.</p>
               <div class="start-actions">
@@ -232,9 +232,11 @@ const agentInstruction = [agentIntro, ...agentSteps.map((s, i) => `${i + 1}. ${s
             </div>
           ))}
 
-          {/* The by-hand fork: always visible, secondary (text-link, never a button) */}
+          {/* The by-hand fork: always visible, secondary (text-link, never a button).
+               Once an agent is paired, "No agent yet?" would be false, so the lead
+               changes to what a by-hand flight costs: the signed record. */}
           <div class="start-fork">
-            <p class="start-fork__lead">No agent yet? Same review, same record — and when you fly one, it files these itself.</p>
+            <p class="start-fork__lead">{devices >= 1 ? 'Filing by hand this time? Same review, same record — just no signed session, so no Verified mark.' : 'No agent yet? Same review, same record — and when you fly one, it files these itself.'}</p>
             <a class="text-link" href="/logs/new/" data-fork>Compose a flight by hand <Arrow /></a>
           </div>
         </div>

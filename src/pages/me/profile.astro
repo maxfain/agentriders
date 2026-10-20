@@ -282,12 +282,22 @@ const githubPublic = extras.github_public === 1;
       chip.append(n, s);
       return chip;
     };
+    // Mirrors MOUNT_RE and LINKISH in src/lib/profile.ts. The server is the
+    // judge; this only keeps a link-looking name from becoming a pressed chip
+    // that fails the whole save and drops the bio typed alongside it. A name
+    // that resolves to an existing chip (the catalogued "Claude.ai") skips the
+    // link test, as the server does.
+    const MOUNT_RE = /^[A-Za-z0-9][A-Za-z0-9 .+/()&_-]*$/;
+    const LINKISH = /(:\/\/|\bwww\.|\b[a-z0-9-]+\.(com|net|org|io|ai|dev|app|co|me|xyz|sh|so|gg|tv|info|biz|us|uk|de|fr|es|it|nl|ca|au|in|br|jp|eu)\b)/i;
     const addTyped = () => {
       const text = addInput.value.replace(/\s+/g, ' ').trim();
       if (!text) return;
       const slug = canonical(slugify(text));
-      if (!slug) { mountsStatus.textContent = 'A mount is a product name, not a link.'; return; }
       let chip = chipBySlug(slug);
+      if (!slug || !MOUNT_RE.test(text) || (!chip && LINKISH.test(text))) {
+        mountsStatus.textContent = 'A mount is a product name, not a link.';
+        return;
+      }
       if (!chip) {
         // At the cap, no new chip either: press() would decline it and leave
         // an unpressed stray in the grid. The status line says why.
