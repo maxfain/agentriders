@@ -191,6 +191,11 @@ const githubPublic = extras.github_public === 1;
   .check input { margin-top: 5px; accent-color: var(--ember); }
   .profile__actions { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
   .profile__status { font-size: 14px; color: var(--text-on-bone-soft); min-height: 1.4em; margin: 0; }
+  /* The outcome has to read at a glance: ember for a save that landed,
+     ink for one that didn't; the soft grey stays for "Saving…". */
+  .profile__status[data-state='saved'] { color: var(--ember-text); font-weight: 600; }
+  .profile__status[data-state='error'] { color: var(--text-on-bone); font-weight: 600; }
+  .profile__actions .btn[disabled] { opacity: 0.75; cursor: progress; transform: none; }
 </style>
 
 <script>
@@ -211,6 +216,13 @@ const githubPublic = extras.github_public === 1;
     const aliases = parse<Record<string, string>>(form.dataset.aliases, {});
 
     const status = document.getElementById('profile-status')!;
+    const saveBtn = document.getElementById('p-save') as HTMLButtonElement;
+    const SAVE_LABEL = saveBtn.textContent ?? 'Save';
+    const setStatus = (text: string, state: 'saving' | 'saved' | 'error' | '') => {
+      status.textContent = text;
+      status.dataset.state = state;
+    };
+    const resetSave = () => { saveBtn.disabled = false; saveBtn.textContent = SAVE_LABEL; };
     const nameEl = document.getElementById('p-name') as HTMLInputElement;
     const bioEl = document.getElementById('p-bio') as HTMLTextAreaElement;
     const bioCount = document.getElementById('p-bio-count')!;
@@ -358,7 +370,14 @@ const githubPublic = extras.github_public === 1;
       // The checkbox exists only with a GitHub login; without one the key is
       // left out (the server would drop it anyway).
       if (github) payload.githubPublic = github.checked;
-      status.textContent = 'Saving…';
+      // The button is the feedback: it goes quiet while the save is in
+      // flight and says so when it lands. A save normally returns in well
+      // under 100ms — too fast to read as a press — so the in-flight state is
+      // held for at least 400ms before the outcome replaces it.
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving…';
+      setStatus('Saving…', 'saving');
+      const started = Date.now();
       try {
         const res = await fetch('/api/me/profile', {
           method: 'PUT',
@@ -366,9 +385,11 @@ const githubPublic = extras.github_public === 1;
           body: JSON.stringify(payload),
         });
         const body = await res.json().catch(() => ({}));
-        if (!res.ok) { status.textContent = body.error || 'Something went wrong.'; return; }
+        await new Promise((r) => window.setTimeout(r, Math.max(0, 400 - (Date.now() - started))));
+        if (!res.ok) { setStatus(body.error || 'Something went wrong.', 'error'); resetSave(); return; }
         if (Array.isArray(body.mounts)) syncSelected(body.mounts);
         const saved = { bio: !!body.bio, mounts: selected.length, from };
+        saveBtn.textContent = 'Saved ✓';
         if (from === 'start') {
           // Back to the spine; beacon transport survives the navigation.
           track('profile_saved', { ...beacon, ...saved });
@@ -376,9 +397,12 @@ const githubPublic = extras.github_public === 1;
           return;
         }
         track('profile_saved', saved);
-        status.textContent = 'Saved.';
+        setStatus('Saved.', 'saved');
+        saveBtn.disabled = false;
+        window.setTimeout(() => { if (saveBtn.textContent === 'Saved ✓') saveBtn.textContent = SAVE_LABEL; }, 1600);
       } catch {
-        status.textContent = 'Network error.';
+        setStatus('Network error.', 'error');
+        resetSave();
       }
     });
   }
