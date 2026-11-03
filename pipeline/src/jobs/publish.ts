@@ -39,7 +39,9 @@ export async function publish(db: Db, opts: { skipOg?: boolean; ogLimit?: number
     await db.query('select refresh_corpus_views()');
 
     let ogRendered = 0;
-    if (!opts.skipOg) ogRendered = await renderOgCards(db, opts.ogLimit ?? 2000);
+    // Render every pending card by default — a backfill publish must not stop
+    // 2k cards in and leave the rest without og:image. Pass ogLimit to cap it.
+    if (!opts.skipOg) ogRendered = await renderOgCards(db, opts.ogLimit ?? 1_000_000);
 
     await finishRun(db, run, {
       ok: failures.length === 0,

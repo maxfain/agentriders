@@ -39,6 +39,7 @@ const { positionals, values } = parseArgs({
     'skip-core': { type: 'boolean', default: false },
     'skip-pop': { type: 'boolean', default: false },
     limit: { type: 'string' },
+    concurrency: { type: 'string' },
     'dry-run': { type: 'boolean', default: false },
   },
 });
@@ -107,6 +108,7 @@ try {
       const { debriefJob } = await import('./jobs/debrief.ts');
       await debriefJob(db, {
         limit: values.limit ? Number(values.limit) : undefined,
+        concurrency: values.concurrency ? Number(values.concurrency) : undefined,
         dryRun: values['dry-run'],
       });
       break;
