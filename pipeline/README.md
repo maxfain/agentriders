@@ -64,6 +64,12 @@ claimed-flights mirror).
 
 ## Backfill run order (brief: hours of loading, no API, then one hour of GraphQL)
 
+Easiest: **Actions → `flightlog-backfill` → Run workflow** — it performs the
+exact sequence below on a runner (set `FLIGHTLOG_DATABASE_URL` first; steps
+whose secrets are missing are skipped, so a load-only pass works before the
+GitHub/Anthropic/Supabase keys exist, and a `sample` input does a smoke run).
+Re-running is safe — the database is the checkpoint. By hand:
+
 ```sh
 node src/run.ts download-aidev --dir data/aidev --revision v3   # ~1 GB
 node --max-old-space-size=6144 src/run.ts load-aidev --dir data/aidev
