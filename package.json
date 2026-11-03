@@ -9,7 +9,7 @@
     "preview": "astro preview",
     "og": "node scripts/generate-og.mjs",
     "link-report": "node scripts/link-report.mjs",
-    "test": "node --test cli/*.test.js tests/*.test.ts"
+    "test": "node --test --import ./tests/support/astro-stubs.mjs cli/*.test.js tests/*.test.ts"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^12.6.13",
