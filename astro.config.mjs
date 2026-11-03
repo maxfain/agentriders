@@ -128,7 +128,9 @@ export default defineConfig({
   integrations: [
     sitemap({
       filter: (url) => !EXCLUDED.test(new URL(url).pathname),
-      customPages: profiles.map((p) => p.url),
+      // /logs/ is now an on-demand (SSR) hub, so the integration no longer
+      // discovers it from the static output — list it explicitly.
+      customPages: [`${SITE}/logs/`, ...profiles.map((p) => p.url)],
       serialize(item) {
         const date = lastmod.get(new URL(item.url).pathname) ?? profileLastmod.get(item.url);
         return date ? { ...item, lastmod: date } : item;

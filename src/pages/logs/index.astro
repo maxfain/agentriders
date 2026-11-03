@@ -7,6 +7,39 @@ import Icon from '../../components/Icon.astro';
 import LogCard from '../../components/LogCard.astro';
 import { slugify } from '../../lib/facets';
 import { breadcrumbs, dataset } from '../../lib/seo';
+import {
+  AGENT_LABELS, fmtInt, fmtRate, flightlogConfigured, isAgentSlug, rpc,
+} from '../../lib/flightlog';
+
+// SSR so the live corpus (Supabase) renders into the hub for crawlers and
+// readers; the editorial logs below are still read from the content collection
+// at request time. The corpus changes at most daily, so a short edge cache
+// keeps this page cheap. Anonymous and crawler hits are shared-cacheable —
+// the server HTML carries no per-rider state (the header's sign-in swap is
+// client-side), so no Vary: Cookie is needed.
+export const prerender = false;
+
+const { env } = Astro.locals.runtime;
+Astro.response.headers.set('Cache-Control', 'public, max-age=300, s-maxage=900');
+
+type CorpusAgent = { agent: string; flights: number; merge_rate: number | null; burn_rate: number | null; repos: number };
+type CorpusRepo = { full_name: string; stars: number | null; primary_language: string | null; flights: number; indexed_flights: number };
+
+// The corpus doorway. A failure here must never take down the logs hub, so the
+// section simply hides if the database is unreachable or not configured.
+let corpusAgents: CorpusAgent[] = [];
+let corpusRepos: CorpusRepo[] = [];
+if (flightlogConfigured(env)) {
+  try {
+    corpusAgents = ((await rpc<CorpusAgent[]>(env, 'corpus_agents', {})) ?? []).filter((a) =>
+      isAgentSlug(a.agent),
+    );
+    corpusRepos = (await rpc<CorpusRepo[]>(env, 'corpus_repos', { p_limit: 15 })) ?? [];
+  } catch {
+    /* corpus section degrades to hidden */
+  }
+}
+const corpusTotal = corpusAgents.reduce((sum, a) => sum + Number(a.flights || 0), 0);
 
 const logs = (await getCollection('logs', ({ data }) => !data.draft)).sort(
   (a, b) => b.data.date.valueOf() - a.data.date.valueOf(),
@@ -59,10 +92,64 @@ const burned = logs.filter((l) => l.data.burns.length > 0);
 >
   <PageHero eyebrow="The Flight Logs" title="Real flights. Numbers left in." description="Every log is one agent, one task, one outcome, written by the rider who held the reins." art="ledger" id="logs-title"><div class="page-hero__actions"><a class="btn btn--ember" href="/logs/template/">Log a flight ↗</a><a class="text-link" href="/data/schema/">The log schema, field by field ↗</a></div></PageHero>
 
+  {corpusAgents.length > 0 && (
+    <section class="section" aria-label="The flight corpus">
+      <div class="container">
+        <div class="corpus-intro">
+          <p class="micro">THE CORPUS</p>
+          <h2>Every public flight, logged.</h2>
+          <p>{fmtInt(corpusTotal)} pull requests opened by coding agents across public GitHub repositories — classified by outcome, with merge and burn rates for each agent. Browse by agent, or by repository.</p>
+        </div>
+
+        <table class="browse-table">
+          <thead><tr><th>Agent</th><th>Flights</th><th>Merge rate</th><th>Burn rate</th><th>Repos</th></tr></thead>
+          <tbody>
+            {corpusAgents.map((a) => (
+              <tr>
+                <td><a href={`/logs/agent/${a.agent}/`}>{AGENT_LABELS[a.agent] ?? a.agent}</a></td>
+                <td>{fmtInt(a.flights)}</td>
+                <td>{fmtRate(a.merge_rate)}</td>
+                <td class:list={['burn-cell', Number(a.burn_rate) >= 0.2 && 'burn']}>{fmtRate(a.burn_rate)}</td>
+                <td>{fmtInt(a.repos)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {corpusRepos.length > 0 && (
+          <div class="corpus-repos">
+            <h3>Most-logged repositories</h3>
+            <ul class="repo-list">
+              {corpusRepos.map((r) => (
+                <li>
+                  <a href={`/logs/${r.full_name}/`}>{r.full_name}</a>
+                  <span class="repo-meta">
+                    {r.stars !== null && <>★ {fmtInt(r.stars)} · </>}
+                    {r.primary_language && <>{r.primary_language} · </>}
+                    {fmtInt(r.flights)} {Number(r.flights) === 1 ? 'flight' : 'flights'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <p class="corpus-links">
+          Machine-readable: <a href="/logs/agents.json">all agents (JSON)</a> · <a href="/logs/repos.json">all repositories (JSON)</a>
+        </p>
+      </div>
+    </section>
+  )}
+
   <section class="section section--bone" aria-label="Published flights">
     <div class="container stack">
       {logs.length > 0 ? (
         <>
+          <div class="corpus-intro">
+            <p class="micro">RIDER-WRITTEN LOGS</p>
+            <h2>Flights flown by the Guild.</h2>
+            <p>Hand-written logs from riders who held the reins — the task, the numbers, the burns, and the lesson.</p>
+          </div>
           <nav class="facets" aria-label="Filter flights">
             {[
               ['task', tasks],
@@ -100,3 +187,23 @@ const burned = logs.filter((l) => l.data.burns.length > 0);
   </section>
   <PageCoda />
 </Base>
+
+<style>
+  .corpus-intro { max-width: var(--measure); }
+  .corpus-intro .micro { color: var(--ash); }
+  .corpus-intro h2 { font-size: clamp(26px, 3vw, 34px); margin: 8px 0 14px; }
+  .browse-table { width: 100%; border-collapse: collapse; font-size: 15px; margin-top: 26px; }
+  .browse-table th { text-align: left; font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ash); padding: 8px 14px 8px 0; border-bottom: 1px solid var(--text-on-bone); }
+  .browse-table td { padding: 11px 14px 11px 0; border-bottom: 1px solid var(--bone-line); white-space: nowrap; }
+  .browse-table td:first-child { white-space: normal; }
+  .browse-table td:first-child a { font-weight: 600; }
+  .browse-table .burn { color: var(--ember-text); }
+  .corpus-repos { margin-top: 40px; }
+  .corpus-repos h3 { font-size: 20px; margin: 0 0 14px; }
+  .repo-list { list-style: none; margin: 0; padding: 0; }
+  .repo-list li { padding: 9px 0; border-bottom: 1px solid var(--bone-line); break-inside: avoid; }
+  .repo-list a { font-family: var(--mono); font-size: 14.5px; word-break: break-word; }
+  .repo-meta { display: block; margin-top: 3px; font-size: 12.5px; color: var(--ash); }
+  .corpus-links { margin-top: 30px; font-family: var(--mono); font-size: 14px; color: var(--ash); }
+  @media (min-width: 720px) { .repo-list { columns: 2; column-gap: 48px; } }
+</style>
