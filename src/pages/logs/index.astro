@@ -30,13 +30,28 @@ type CorpusRepo = { full_name: string; stars: number | null; primary_language: s
 let corpusAgents: CorpusAgent[] = [];
 let corpusRepos: CorpusRepo[] = [];
 if (flightlogConfigured(env)) {
+  // A slow (not merely failing) database must not hold up the hub: the whole
+  // page awaits these before anything renders, the rider-written logs below
+  // included. Race both calls against a short deadline and fall back to a
+  // hidden corpus section if they do not beat it.
+  function deadline<T>(p: Promise<T>, ms = 2500): Promise<T> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const limit = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error('corpus timeout')), ms);
+    });
+    return Promise.race([p, limit]).finally(() => clearTimeout(timer));
+  }
   try {
-    corpusAgents = ((await rpc<CorpusAgent[]>(env, 'corpus_agents', {})) ?? []).filter((a) =>
-      isAgentSlug(a.agent),
+    const [agents, repos] = await deadline(
+      Promise.all([
+        rpc<CorpusAgent[]>(env, 'corpus_agents', {}),
+        rpc<CorpusRepo[]>(env, 'corpus_repos', { p_limit: 15 }),
+      ]),
     );
-    corpusRepos = (await rpc<CorpusRepo[]>(env, 'corpus_repos', { p_limit: 15 })) ?? [];
+    corpusAgents = (agents ?? []).filter((a) => isAgentSlug(a.agent));
+    corpusRepos = repos ?? [];
   } catch {
-    /* corpus section degrades to hidden */
+    /* corpus hidden on timeout, transport, or SQL error */
   }
 }
 const corpusTotal = corpusAgents.reduce((sum, a) => sum + Number(a.flights || 0), 0);
@@ -93,7 +108,7 @@ const burned = logs.filter((l) => l.data.burns.length > 0);
   <PageHero eyebrow="The Flight Logs" title="Real flights. Numbers left in." description="Every log is one agent, one task, one outcome, written by the rider who held the reins." art="ledger" id="logs-title"><div class="page-hero__actions"><a class="btn btn--ember" href="/logs/template/">Log a flight ↗</a><a class="text-link" href="/data/schema/">The log schema, field by field ↗</a></div></PageHero>
 
   {corpusAgents.length > 0 && (
-    <section class="section" aria-label="The flight corpus">
+    <section class="section section--bone" aria-label="The flight corpus">
       <div class="container">
         <div class="corpus-intro">
           <p class="micro">THE CORPUS</p>
@@ -101,6 +116,7 @@ const burned = logs.filter((l) => l.data.burns.length > 0);
           <p>{fmtInt(corpusTotal)} pull requests opened by coding agents across public GitHub repositories — classified by outcome, with merge and burn rates for each agent. Browse by agent, or by repository.</p>
         </div>
 
+        <div class="table-scroll">
         <table class="browse-table">
           <thead><tr><th>Agent</th><th>Flights</th><th>Merge rate</th><th>Burn rate</th><th>Repos</th></tr></thead>
           <tbody>
@@ -115,6 +131,7 @@ const burned = logs.filter((l) => l.data.burns.length > 0);
             ))}
           </tbody>
         </table>
+        </div>
 
         {corpusRepos.length > 0 && (
           <div class="corpus-repos">
@@ -141,7 +158,7 @@ const burned = logs.filter((l) => l.data.burns.length > 0);
     </section>
   )}
 
-  <section class="section section--bone" aria-label="Published flights">
+  <section class="section section--bone logs-seam" aria-label="Published flights">
     <div class="container stack">
       {logs.length > 0 ? (
         <>
@@ -192,7 +209,7 @@ const burned = logs.filter((l) => l.data.burns.length > 0);
   .corpus-intro { max-width: var(--measure); }
   .corpus-intro .micro { color: var(--ash); }
   .corpus-intro h2 { font-size: clamp(26px, 3vw, 34px); margin: 8px 0 14px; }
-  .browse-table { width: 100%; border-collapse: collapse; font-size: 15px; margin-top: 26px; }
+  .browse-table { width: 100%; min-width: 32rem; border-collapse: collapse; font-size: 15px; margin-top: 26px; }
   .browse-table th { text-align: left; font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ash); padding: 8px 14px 8px 0; border-bottom: 1px solid var(--text-on-bone); }
   .browse-table td { padding: 11px 14px 11px 0; border-bottom: 1px solid var(--bone-line); white-space: nowrap; }
   .browse-table td:first-child { white-space: normal; }
@@ -205,5 +222,6 @@ const burned = logs.filter((l) => l.data.burns.length > 0);
   .repo-list a { font-family: var(--mono); font-size: 14.5px; word-break: break-word; }
   .repo-meta { display: block; margin-top: 3px; font-size: 12.5px; color: var(--ash); }
   .corpus-links { margin-top: 30px; font-family: var(--mono); font-size: 14px; color: var(--ash); }
+  .logs-seam { border-top: 1px solid var(--bone-line); }
   @media (min-width: 720px) { .repo-list { columns: 2; column-gap: 48px; } }
 </style>
