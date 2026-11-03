@@ -9,6 +9,7 @@
 // requiring a cookie session).
 
 import { verifySignature, sha256Hex } from './verify.ts';
+import { declaredBodyTooLarge, readTextCapped } from './http.ts';
 import type { RiderRow } from './session';
 
 const MAX_SKEW_SECONDS = 300;
@@ -40,9 +41,12 @@ export async function resolveDeviceAuth(
   const tsNum = Number(ts);
   if (!Number.isInteger(tsNum) || Math.abs(Date.now() / 1000 - tsNum) > MAX_SKEW_SECONDS) return null;
 
-  // Cap the body we'll buffer before verifying (device-auth payloads are small).
-  const contentLength = Number(request.headers.get('Content-Length') ?? '0');
-  if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) return null;
+  // Cap the body we'll buffer before verifying (device-auth payloads are
+  // small). A declared Content-Length over the cap is refused here; the clone
+  // below is read with the same byte budget, so a chunked body, or one whose
+  // header lies, stops at the cap too (readTextCapped throws, the catch below
+  // answers null). The route handler's own capped read is unaffected.
+  if (declaredBodyTooLarge(request.headers, MAX_BODY_BYTES)) return null;
 
   try {
     // Device must exist and be active (needed for the public key to verify).
@@ -61,7 +65,7 @@ export async function resolveDeviceAuth(
     // given; this rebuilds url.pathname + url.search. They must match exactly —
     // today all callers use plain query-less paths, so a future query string or
     // percent-encoding would simply fail closed (reject), never forge.
-    const bodyText = await request.clone().text();
+    const bodyText = await readTextCapped(request.clone(), MAX_BODY_BYTES);
     const canonical = [
       'AR-Device-v1',
       request.method.toUpperCase(),

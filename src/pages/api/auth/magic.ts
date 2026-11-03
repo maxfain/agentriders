@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { randomToken, sha256Hex } from '../../../lib/crypto';
 import { rateLimit } from '../../../lib/ratelimit';
 import { sendMagicLinkEmail } from '../../../lib/email';
+import { readJsonCapped, BodyTooLargeError } from '../../../lib/http';
 
 export const prerender = false;
 
@@ -24,9 +25,10 @@ export const POST: APIRoute = async ({ locals, request, url }) => {
 
   let email = '';
   try {
-    const body = (await request.json()) as { email?: string };
+    const body = (await readJsonCapped(request)) as { email?: string };
     email = (body.email ?? '').trim().toLowerCase();
-  } catch {
+  } catch (error) {
+    if (error instanceof BodyTooLargeError) return json(413, { error: 'Request body too large.' });
     return json(400, { error: 'Send JSON: { "email": "you@example.com" }' });
   }
   if (!EMAIL_SHAPE.test(email) || email.length > 254) {

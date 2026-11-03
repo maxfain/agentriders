@@ -20,7 +20,7 @@ So: new infrastructure, one coordinated code change, a domain cutover with a rol
 | `@astrojs/cloudflare` | 12.6.13 | 14.4.x (peer `astro ^7.4`, `wrangler ^4.125`) |
 | `vite` (transitive) | 6.4.5 | 8 |
 | `wrangler` | 4.156.2 | unchanged (≥ 4.125 satisfies the adapter) |
-| Node | 22.23.4 (`.nvmrc`) | ≥ 22.23.4 is what Astro 7.4 requires — already pinned |
+| Node | 22.23.4 (`.node-version`) | ≥ 22.23.4 is what Astro 7.4 requires — already pinned |
 | `@astrojs/rss`, `@astrojs/sitemap` | 4.0.19, 3.7.4 | whatever their `astro ^7` peer ranges say at execution |
 | `satori`, `@resvg/resvg-js` | 0.18.4, 2.6.2 | independent of Astro; see §2 |
 
@@ -32,7 +32,7 @@ Reachability is the honest column. None of this is reachable from a request toda
 
 | package (site lock) | finding | reachable here? | cleared by |
 |---|---|---|---|
-| `astro` 5.18.2 — 12 advisories | critical AVIF RCE in the image service; high Host-header SSRF in the error-page fetch, reflected XSS via slot name; moderate/low XSS through `define:vars`, spread attribute names, view transitions, JSX/MDX script content, `base` stripping; server-island replay | **No.** No `define:vars`, server islands, view transitions, `base`, JSX/MDX or dynamic slot/attribute names; the one spread (`riders.astro`) spreads a code-controlled object; the image service is `'compile'` at build time on our own images; a foreign `Host` never reaches the worker behind Cloudflare routing | Astro 7.4.x |
+| `astro` 5.18.2 — 11 advisories | critical AVIF RCE in the image service; high Host-header SSRF in the error-page fetch, reflected XSS via slot name; moderate/low XSS through `define:vars`, spread attribute names, view transitions, JSX/MDX script content, `base` stripping; server-island replay | **No.** No `define:vars`, server islands, view transitions, `base`, JSX/MDX or dynamic slot/attribute names; the one spread (`riders.astro`) spreads a code-controlled object; the image service is `'compile'` at build time on our own images; a foreign `Host` never reaches the worker behind Cloudflare routing | Astro 7.4.x |
 | `sharp` 0.34.5 (astro's) | high: libvips / libheif / librsvg | build-time only (`imageService: 'compile'`, our own images) | Astro 7 |
 | `esbuild` 0.27.7 (astro's) | low | build-time | Astro 7 |
 | `zod` 3.25.76 nested under `astro` and under the adapter's `miniflare`; `zod-to-ts` ≤ 1.2.0 | high: memory exhaustion validating oversized constrained collections | build/dev-time only. The copy that validates rider input at request time is the root `zod` 4 (`src/lib/log-schema.ts`, `src/lib/submissions.ts`, the submissions API), behind the body cap | Astro 7 (`zod ^4.6.6`), adapter 14 |
@@ -45,7 +45,7 @@ Reachability is the honest column. None of this is reachable from a request toda
 
 - [ ] Create the Worker for this repo: Workers Builds on GitHub, or `wrangler deploy` from CI.
 - [ ] Same D1 (`98530674-…`, binding `DB`) and KV (`aac75f75…`, binding `RATE`) bindings on the Worker.
-- [ ] Re-set every secret on the Worker: `SESSION_PEPPER`, `GITHUB_OAUTH_CLIENT_ID` / `GITHUB_OAUTH_CLIENT_SECRET`, `RESEND_API_KEY`, `GITHUB_BOT_TOKEN`. `PAGES_DEPLOY_HOOK` (the admin **Rebuild site** button) becomes its Workers Builds equivalent.
+- [ ] Re-set every secret on the Worker: `SESSION_PEPPER`, `GITHUB_OAUTH_CLIENT_ID` / `GITHUB_OAUTH_CLIENT_SECRET`, `RESEND_API_KEY`, `GITHUB_BOT_TOKEN`, and `GITHUB_REPO` / `GITHUB_BRANCH` if they are set on the Pages project. `PAGES_DEPLOY_HOOK` (the admin **Rebuild site** button) becomes its Workers Builds equivalent.
 - [ ] Verify on the `*.workers.dev` URL first (`scripts/smoke-prod.sh <url>`, then the e2e set in §5).
 - [ ] Move `agentriders.com` from the Pages project to the Worker **last**, and keep the Pages project until the Worker is verified in production. Rollback is pointing the domain back.
 
@@ -63,7 +63,7 @@ Unchanged by design: the OAuth callback URL is domain-based; `public/_headers` a
 
 **Rust compiler (v7).** Stricter HTML: fix whatever unclosed or invalid nesting the build reports. CSS serialization differences are cosmetic.
 
-**Zod 4 (v6).** Already on `zod@4` at the root after the patch PR. `src/content.config.ts` builds the `logs` collection with that `zod` (a zod 3 object cannot hold zod 4 fields) behind a type-only cast for Astro 5's `defineCollection`; in Astro 7 the cast goes, and the other collections switch their `z` from `astro:content` (deprecated in 6) to `zod` too.
+**Zod 4 (v6).** Already on `zod@4` at the root after the patch PR. `src/content.config.ts` builds the `logs` collection with that `zod` (a zod 3 object cannot hold zod 4 fields) behind a type-only cast for Astro 5's `defineCollection`, plus a one-method wrapper that hands Astro 5 the zod 3 `.errors` alias it formats a failed parse with (the editor JSON schema for log frontmatter is empty meanwhile); in Astro 7 the cast and the wrapper go, and the other collections switch their `z` from `astro:content` (deprecated in 6) to `zod` too.
 
 **v6 removals and changes to confirm clean.**
 - No `Astro.glob`, no `<ViewTransitions />`, no legacy collections (glob loaders already).

@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { isPendingHandle, validateHandle } from '../../../lib/handles';
 import { rateLimit } from '../../../lib/ratelimit';
+import { readJsonCapped, BodyTooLargeError } from '../../../lib/http';
 
 export const prerender = false;
 
@@ -25,10 +26,11 @@ export const POST: APIRoute = async ({ locals, request }) => {
   let handle = '';
   let displayName: string | null = null;
   try {
-    const body = (await request.json()) as { handle?: string; displayName?: string };
+    const body = (await readJsonCapped(request)) as { handle?: string; displayName?: string };
     handle = (body.handle ?? '').trim().toLowerCase();
     displayName = body.displayName?.trim().slice(0, 60) || null;
-  } catch {
+  } catch (error) {
+    if (error instanceof BodyTooLargeError) return json(413, { error: 'Request body too large.' });
     return json(400, { error: 'Send JSON: { "handle": "your-handle" }' });
   }
 

@@ -38,7 +38,8 @@ export const reinsSchema = z.object({
 });
 
 // Shared field shape. ISO date string; everything bounded so a submission
-// can't bloat a commit. draft defaults false (published logs are live).
+// can't bloat a commit (zod counts string length in code points, so a limit
+// of n is at most 4n bytes). draft defaults false (published logs are live).
 export const logFrontmatterShape = {
   title: z.string().min(1).max(140),
   date: z

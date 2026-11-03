@@ -9,7 +9,7 @@ Phase 2 turns the static publication into a product (accounts, logging, vouches,
 - [ ] Migrations applied to production: `npx wrangler d1 migrations apply agentriders --remote`.
 - [ ] Migration `0002_profile_mounts.sql` is among them (same command): `PRAGMA table_info(published_logs)` shows `mount` and `mount_slug`. Until it is, profiles render without mounts and a `/me/profile` save that changes rides answers "Profile storage is being upgraded." (name and bio saves go through, from the editor too) — code first is safe, nothing crashes.
 - [ ] Pages project `agentriders` builds `main`; `agentriders.com` + `www` attached; `www` 301s to apex (zone Redirect Rule).
-- [ ] Node is pinned by `.nvmrc` (22.23.4) and the Pages build log shows it; bump the pin on each Node security release. What `npm audit` still reports is Astro 5 / adapter 12 build-time residue, tracked in `docs/astro7-workers-migration.md`.
+- [ ] Node is pinned by `.node-version` (22.23.4) and the Pages build log shows it; bump the pin on each Node security release. What `npm audit` still reports is Astro 5 / adapter 12 build-time residue plus the satori OG-generator note, all tracked in `docs/astro7-workers-migration.md` §2.
 
 ## 2. Secrets (dashboard or `wrangler pages secret put`)
 

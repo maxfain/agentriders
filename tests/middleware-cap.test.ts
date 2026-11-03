@@ -5,10 +5,14 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import {
   MAX_API_BODY_BYTES,
   declaredBodyTooLarge,
+  readTextCapped,
   readJsonCapped,
   BodyTooLargeError,
 } from '../src/lib/http.ts';
@@ -107,4 +111,24 @@ test('readJsonCapped: malformed or absent JSON is a SyntaxError, not a size erro
 test('readJsonCapped: honours a custom budget', async () => {
   await assert.rejects(readJsonCapped(jsonRequest('{"a":"bcdef"}'), 8), BodyTooLargeError);
   assert.deepEqual(await readJsonCapped(jsonRequest('{"a":1}'), 8), { a: 1 });
+});
+
+test('readTextCapped: the body as text, empty without one, refused past the budget', async () => {
+  assert.equal(await readTextCapped(jsonRequest('{"a":1}')), '{"a":1}');
+  assert.equal(await readTextCapped(new Request('https://x.test/api/me')), '');
+  assert.equal(await readTextCapped(jsonRequest('12345678'), 8), '12345678');
+  await assert.rejects(readTextCapped(jsonRequest('123456789'), 8), BodyTooLargeError);
+});
+
+// The chunked half of the cap only holds while every handler under /api reads
+// its JSON body through the capped helper: a bare request.json() would reopen
+// the path the middleware's Content-Length check cannot judge.
+test('every API handler reads its JSON body through readJsonCapped', () => {
+  const apiDir = fileURLToPath(new URL('../src/pages/api/', import.meta.url));
+  const handlers = readdirSync(apiDir, { recursive: true })
+    .map(String)
+    .filter((f) => f.endsWith('.ts'));
+  assert.ok(handlers.length > 10, `found ${handlers.length} handlers`);
+  const bare = handlers.filter((f) => readFileSync(join(apiDir, f), 'utf8').includes('request.json('));
+  assert.deepEqual(bare, []);
 });

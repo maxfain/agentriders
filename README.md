@@ -28,7 +28,7 @@ The live deployment is the Cloudflare **Pages** project `agentriders`, building 
 1. **Workers & Pages → Create → Pages → Import an existing Git repository**, pick this repo.
 2. Production branch `main`, framework preset **Astro**, build command `npm run build`, build output directory `dist`.
 3. Custom domains → add `agentriders.com` and `www.agentriders.com` (the zone must be on Cloudflare). Every page's canonical URL points at the apex, so the duplicate hostname is harmless; to make `www` 301 to the apex, add a zone-level Redirect Rule (**Rules → Redirect from WWW to root**) — Pages' `_redirects` cannot do domain-level redirects.
-4. `PUBLIC_NEWSLETTER_ENDPOINT` goes in the project's **Settings → Variables and Secrets** (see § Newsletter). Node comes from `.node-version` (22).
+4. `PUBLIC_NEWSLETTER_ENDPOINT` goes in the project's **Settings → Variables and Secrets** (see § Newsletter). Node comes from `.node-version` (22.23.4; bumped on each Node security release).
 
 **Bindings and resources.** The bindings in `wrangler.jsonc` must exist in the account: a D1 database named `agentriders` (binding `DB`) and a KV namespace (binding `RATE`). Create them once with `npx wrangler d1 create agentriders` / `npx wrangler kv namespace create RATE` and put the returned ids in `wrangler.jsonc`.
 

@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { readJsonCapped, BodyTooLargeError } from '../../../../../lib/http.ts';
 import type { SubmissionRow } from '../../../../../lib/submissions.ts';
 
 export const prerender = false;
@@ -14,8 +15,9 @@ export const POST: APIRoute = async ({ locals, params, request }) => {
 
   let body: { action?: string; notes?: string };
   try {
-    body = (await request.json()) as { action?: string; notes?: string };
-  } catch {
+    body = (await readJsonCapped(request)) as { action?: string; notes?: string };
+  } catch (error) {
+    if (error instanceof BodyTooLargeError) return json(413, { error: 'Request body too large.' });
     return json(400, { error: 'Send a JSON body.' });
   }
   const action = body.action;

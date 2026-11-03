@@ -100,7 +100,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
     // Body cap for every API write, cookie- or device-authed alike, before a
     // handler reads a byte: a declared Content-Length over the limit is a
     // 413 here; a body that arrives without one (chunked) is stopped by the
-    // handlers' readJsonCapped (lib/http.ts) at the same limit. The reply is
+    // handlers' readJsonCapped (lib/http.ts) at the same limit, and earlier
+    // by device auth's own smaller budget (device-auth.ts). The reply is
     // shaped like the handlers' own JSON errors; a write's error is never
     // cacheable, and the security headers travel as on any dynamic response.
     if (context.url.pathname.startsWith('/api/') && declaredBodyTooLarge(context.request.headers)) {
