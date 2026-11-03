@@ -2,6 +2,8 @@
 // rateLimit read on every response (sleep to resetAt under 200 points), and a
 // 15-minute pause after three consecutive 5xx responses (brief, Rate limits).
 
+import { isBotLogin } from './agents.ts';
+
 export type PrRef = { owner: string; name: string; number: number };
 
 const PR_FRAGMENT = `
@@ -212,8 +214,11 @@ export type EnrichedPr = {
   raw: unknown;
 };
 
-const isBotAuthor = (a: AuthorNode) =>
-  !!a && (a.__typename === 'Bot' || a.login.endsWith('[bot]') || a.login.toLowerCase() === 'copilot');
+// GitHub's GraphQL __typename of Bot, plus the same machine-account heuristics
+// the AIDev loader uses (isBotLogin: [bot] suffix, -robot, k8s-ci-robot,
+// codecov, …) — otherwise a CI account GitHub types as User counts as a human
+// reviewer and can supply a burn's reviewer excerpt.
+const isBotAuthor = (a: AuthorNode) => !!a && (a.__typename === 'Bot' || isBotLogin(a.login));
 
 export function parsePrNode(node: unknown): EnrichedPr | null {
   const pr = (node as { pullRequest?: Record<string, unknown> } | null)?.pullRequest;

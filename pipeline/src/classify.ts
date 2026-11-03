@@ -76,7 +76,7 @@ export function pickReviewerExcerpt(
     (a.createdAt ?? '').localeCompare(b.createdAt ?? '');
 
   const changesRequested = withBody
-    .filter((c) => c.kind === 'review' && (c.state ?? '').toUpperCase() === 'CHANGES_REQUESTED')
+    .filter((c) => !c.authorIsBot && c.kind === 'review' && (c.state ?? '').toUpperCase() === 'CHANGES_REQUESTED')
     .sort(byTime);
   const humans = withBody.filter((c) => !c.authorIsBot).sort(byTime);
 

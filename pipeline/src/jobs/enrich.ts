@@ -50,16 +50,22 @@ export async function enrich(
         try {
           const parsed = parsePrNode(node);
           if (!parsed) {
-            // Deleted, private, or renamed away: stamp enriched_at so the row
-            // stops queueing, and record why in signals.
-            await db.query(
-              `update flights set enriched_at = now(),
-                 signals = (select array(select distinct unnest(signals || $2::text[])))
-               where id = $1`,
-              [batch[j].id, pgTextArray([`enrich:${pathErrors[0]?.type?.toLowerCase() ?? 'not_found'}`])],
-            );
+            // Only a confirmed permanent error (deleted / private / renamed
+            // away → NOT_FOUND) stamps enriched_at to stop the row queueing.
+            // A transient error (rate limit, 5xx, timeout mid-batch) leaves
+            // enriched_at untouched so the flight is retried next run, instead
+            // of being silently dropped from both scheduled queues forever.
+            const permanent = pathErrors.some((e) => e.type === 'NOT_FOUND');
+            if (permanent) {
+              await db.query(
+                `update flights set enriched_at = now(),
+                   signals = (select array(select distinct unnest(signals || $2::text[])))
+                 where id = $1`,
+                [batch[j].id, pgTextArray([`enrich:${pathErrors[0]?.type?.toLowerCase() ?? 'not_found'}`])],
+              );
+            }
             errors++;
-            errorSample ??= pathErrors[0]?.message;
+            errorSample ??= pathErrors[0]?.message ?? 'empty node';
             continue;
           }
           await applyEnrichment(db, batch[j].id, parsed);
@@ -188,6 +194,12 @@ async function applyEnrichment(db: Db, flightId: number, pr: EnrichedPr): Promis
        signals = (select array(select distinct unnest(signals || $26::text[]))),
        confidence = coalesce($27, confidence),
        raw = $28::jsonb,
+       -- Enrichment can change the numbers a debrief and card were built from
+       -- (e.g. AIDev commit-sums → GitHub's exact totals on claim). Force the
+       -- debrief to revalidate (regenerates only if it no longer matches) and
+       -- the card to re-render, so a page never shows stale figures.
+       debrief_prompt_version = case when debrief is not null then null else debrief_prompt_version end,
+       og_generated_at = null,
        enriched_at = now()
      where id = $1`,
     [

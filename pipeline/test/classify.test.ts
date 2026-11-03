@@ -65,6 +65,18 @@ test('reviewer excerpt: falls back to earliest non-author human; verbatim 25 wor
   assert.equal(pick?.excerpt, Array.from({ length: 25 }, (_, i) => `w${i}`).join(' '));
 });
 
+test('reviewer excerpt: a bot changes-requested review never wins over a human', () => {
+  const pick = pickReviewerExcerpt(
+    [
+      { kind: 'review', state: 'CHANGES_REQUESTED', authorLogin: 'ci-bot[bot]', authorIsBot: true, body: 'automated gate failed', createdAt: '2026-01-01T00:00:00Z', url: 'bot' },
+      { kind: 'comment', authorLogin: 'human', authorIsBot: false, body: 'This needs a real fix in the parser', createdAt: '2026-01-02T00:00:00Z', url: 'human' },
+    ],
+    'the-author',
+    firstWords,
+  );
+  assert.equal(pick?.url, 'human');
+});
+
 test('reviewer excerpt: nothing usable → null', () => {
   assert.equal(pickReviewerExcerpt([], 'a', firstWords), null);
   assert.equal(
