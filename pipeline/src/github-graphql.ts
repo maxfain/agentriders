@@ -186,6 +186,10 @@ export type EnrichedPr = {
   authorIsBot: boolean;
   commitMessages: string[];
   commitsTotal: number;
+  // Totals from GraphQL totalCount, so review/comment counts are correct even
+  // when the PR has more than the first page (50) we fetch the bodies for.
+  reviewsTotal: number;
+  commentsTotal: number;
   reviews: {
     state: string;
     submittedAt: string | null;
@@ -284,6 +288,8 @@ export function parsePrNode(node: unknown): EnrichedPr | null {
     authorIsBot: isBotAuthor(author),
     commitMessages: commitNodes.map((c) => c.commit.message),
     commitsTotal: Number(commits?.totalCount ?? commitNodes.length),
+    reviewsTotal: Number(reviews?.totalCount ?? (reviews?.nodes ?? []).length),
+    commentsTotal: Number(comments?.totalCount ?? (comments?.nodes ?? []).length),
     reviews: (reviews?.nodes ?? []).map((r) => ({
       state: r.state,
       submittedAt: r.submittedAt,
