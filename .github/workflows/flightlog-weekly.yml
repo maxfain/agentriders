@@ -1,0 +1,30 @@
+# Flight Log corpus — weekly (Sunday): repo stars/language/license/fork
+# refresh for repositories with indexed flights (brief, Schedule).
+name: flightlog-weekly
+on:
+  schedule:
+    - cron: '0 4 * * 0'
+  workflow_dispatch:
+
+concurrency: flightlog
+
+permissions:
+  contents: read
+
+jobs:
+  weekly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      DATABASE_URL: ${{ secrets.FLIGHTLOG_DATABASE_URL }}
+      FLIGHTLOG_GITHUB_TOKEN: ${{ secrets.FLIGHTLOG_GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: pipeline
+      - name: Refresh repo metadata
+        run: node src/run.ts refresh-repos
+        working-directory: pipeline

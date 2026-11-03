@@ -1,0 +1,54 @@
+# Flight Log corpus — the daily chain (brief, Schedule):
+#   06:00 UTC  GH Archive discovery for yesterday
+#   then       GraphQL enrichment of new candidates and state changes
+#   then       classification → debriefs → publish (gate, views, OG, spot check)
+# Each step is idempotent; a failed step fails the run and GitHub pages the
+# owner (watch the repo's Actions notifications).
+name: flightlog-daily
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'GH Archive day to discover (YYYYMMDD; default yesterday)'
+        required: false
+
+concurrency: flightlog
+
+permissions:
+  contents: read
+
+jobs:
+  daily:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      DATABASE_URL: ${{ secrets.FLIGHTLOG_DATABASE_URL }}
+      BQ_SERVICE_ACCOUNT_JSON: ${{ secrets.FLIGHTLOG_BQ_SERVICE_ACCOUNT_JSON }}
+      FLIGHTLOG_GITHUB_TOKEN: ${{ secrets.FLIGHTLOG_GITHUB_TOKEN }}
+      ANTHROPIC_API_KEY: ${{ secrets.FLIGHTLOG_ANTHROPIC_API_KEY }}
+      SUPABASE_URL: ${{ secrets.FLIGHTLOG_SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.FLIGHTLOG_SUPABASE_SERVICE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: pipeline
+      - name: Discover (GH Archive, yesterday)
+        run: node src/run.ts discover ${{ inputs.date && format('--date {0}', inputs.date) || '' }}
+        working-directory: pipeline
+      - name: Enrich (GraphQL)
+        run: node src/run.ts enrich
+        working-directory: pipeline
+      - name: Classify outcomes
+        run: node src/run.ts classify
+        working-directory: pipeline
+      - name: Debriefs (gated flights)
+        run: node src/run.ts debrief
+        working-directory: pipeline
+      - name: Publish (gate, aggregates, OG cards, spot check)
+        run: node src/run.ts publish
+        working-directory: pipeline

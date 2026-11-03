@@ -1,0 +1,154 @@
+---
+// Agent page: /logs/agent/{agent}/ — totals across all repos, merge and burn
+// rates over time, top repos, typical task types, recent notable flights.
+// Always indexed (it aggregates, so it is unique by construction), and the
+// monthly line changes every month so crawlers come back.
+import Base from '../../../layouts/Base.astro';
+import PageHero from '../../../components/PageHero.astro';
+import {
+  AGENT_LABELS, OUTCOME_LABELS, fmtDate, fmtHours, fmtInt, fmtRate, flightlogConfigured,
+  isAgentSlug, outcomeTone, rpc, type AgentPage,
+} from '../../../lib/flightlog';
+import { breadcrumbs, clampDescription } from '../../../lib/seo';
+
+export const prerender = false;
+
+const { env } = Astro.locals.runtime;
+const agent = (Astro.params.agent ?? '').toLowerCase();
+
+const notFound = () =>
+  new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' } });
+
+if (!isAgentSlug(agent) || !flightlogConfigured(env)) return notFound();
+const data = await rpc<AgentPage>(env, 'agent_page', { p_agent: agent });
+if (!data) return notFound();
+
+const label = AGENT_LABELS[agent] ?? agent;
+const monthly = data.monthly.slice(-18);
+const description = clampDescription(
+  `${fmtInt(data.totals.flights)} public ${label} pull requests across ${fmtInt(data.totals.repos)} repositories: ` +
+  `${fmtRate(data.totals.merge_rate)} merged, ${fmtRate(data.totals.burn_rate)} burned.`,
+);
+---
+
+<Base
+  title={`${label} flight log`}
+  description={description}
+  alternates={[{ href: `/logs/agent/${agent}.json`, type: 'application/json', title: 'This agent’s record as JSON' }]}
+  jsonLd={breadcrumbs([
+    { name: 'Home', path: '/' },
+    { name: 'Flight Logs', path: '/logs/' },
+    { name: label, path: `/logs/agent/${agent}/` },
+  ])}
+>
+  <PageHero
+    eyebrow="Flight Log / agent"
+    title={label}
+    description={`${fmtInt(data.totals.flights)} flights · ${fmtInt(data.totals.repos)} repositories`}
+    art="ledger"
+    compact
+  >
+    <p class="page-hero__meta"><a href="/logs/">← All flight logs</a></p>
+  </PageHero>
+
+  <section class="section section--bone" aria-label="Agent record">
+    <div class="container corpus">
+      <dl class="stats">
+        <div><dt>Flights</dt><dd>{fmtInt(data.totals.flights)}</dd></div>
+        <div><dt>Merge rate</dt><dd>{fmtRate(data.totals.merge_rate)}</dd></div>
+        <div><dt>Burn rate</dt><dd class:list={[Number(data.totals.burn_rate) >= 0.2 && 'burn']}>{fmtRate(data.totals.burn_rate)}</dd></div>
+        <div><dt>Median to merge</dt><dd>{fmtHours(data.totals.median_hours_to_merge)}</dd></div>
+        <div><dt>Repositories</dt><dd>{fmtInt(data.totals.repos)}</dd></div>
+      </dl>
+      <p class="metrics-note">Rates are over decided flights (open ones not counted). Sources: the AIDev dataset and daily GH Archive discovery — see <a href="/data/methodology/">how the Guild counts</a>.</p>
+
+      {monthly.length > 1 && (
+        <>
+          <h2>Month by month</h2>
+          <table class="corpus-table">
+            <thead><tr><th>Month</th><th>Flights</th><th>Merge rate</th><th>Burn rate</th></tr></thead>
+            <tbody>
+              {monthly.map((m) => (
+                <tr>
+                  <td>{m.month}</td>
+                  <td>{fmtInt(m.flights)}</td>
+                  <td>{fmtRate(m.merge_rate)}</td>
+                  <td class:list={[Number(m.burn_rate) >= 0.2 && 'burn']}>{fmtRate(m.burn_rate)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+
+      {data.top_repos.length > 0 && (
+        <>
+          <h2>Top repositories by flights</h2>
+          <table class="corpus-table">
+            <thead><tr><th>Repository</th><th>Stars</th><th>Flights</th><th>Merge rate</th></tr></thead>
+            <tbody>
+              {data.top_repos.map((r) => (
+                <tr>
+                  <td><a href={`/logs/${r.full_name}/`}>{r.full_name}</a></td>
+                  <td>{r.stars === null ? '—' : `★ ${fmtInt(r.stars)}`}</td>
+                  <td>{fmtInt(r.flights)}</td>
+                  <td>{fmtRate(r.merge_rate)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+
+      {data.task_types.length > 0 && (
+        <>
+          <h2>Typical tasks</h2>
+          <p class="task-types">
+            {data.task_types.slice(0, 8).map((t, i) => (
+              <>{i > 0 && ' · '}<span>{t.type} <span class="count">({fmtInt(t.flights)})</span></span></>
+            ))}
+          </p>
+        </>
+      )}
+
+      {data.notable.length > 0 && (
+        <>
+          <h2>Recent notable flights</h2>
+          <ul class="notable">
+            {data.notable.map((fl) => (
+              <li>
+                <a href={`/logs/${fl.repo}/${fl.number}/`}>{fl.title}</a>
+                <span class="related-meta">
+                  {fl.repo}#{fl.number} · <span class:list={[`tone--${outcomeTone(fl.outcome)}`]}>{fl.outcome ? OUTCOME_LABELS[fl.outcome] : fl.state}</span> · {fmtDate(fl.opened_at)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      <div class="claim-box">
+        <p><strong>Fly {label} yourself?</strong> <a href="/logs/new/">Log your own flights</a> — or run the <a href="/agents/">agentriders CLI</a> for device-signed, verified records.</p>
+      </div>
+
+      <p class="disclaimer">Data from public GitHub activity; this page is not affiliated with GitHub or with the agent's maker.</p>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .corpus { max-width: 880px; }
+  .corpus h2 { font-size: 24px; margin: 44px 0 14px; }
+  .metrics-note { font-size: 13.5px; color: var(--ash); margin-top: 10px; }
+  .burn { color: var(--ember-text); }
+  .corpus-table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+  .corpus-table th { text-align: left; font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ash); padding: 8px 10px 8px 0; border-bottom: 1px solid var(--text-on-bone); }
+  .corpus-table td { padding: 8px 10px 8px 0; border-bottom: 1px solid var(--bone-line); }
+  .task-types .count { color: var(--ash); font-size: 13px; }
+  .notable { list-style: none; margin: 0; padding: 0; }
+  .notable li { padding: 10px 0; border-bottom: 1px solid var(--bone-line); }
+  .related-meta { display: block; margin-top: 3px; font-family: var(--mono); font-size: 12.5px; color: var(--ash); }
+  .tone--ok { color: #3E4A1F; } .tone--warn { color: #6B4A12; } .tone--burn { color: var(--ember-text); } .tone--quiet { color: var(--ash); }
+  .claim-box { margin-top: 40px; padding: 18px 20px; border: 1px solid var(--bone-line); border-radius: var(--radius); background: var(--bone-raised); }
+  .disclaimer { margin-top: 40px; font-size: 13px; color: var(--ash); }
+</style>

@@ -46,6 +46,20 @@ export async function loadRankStats(db: D1Database, riderId: string): Promise<Ra
     .prepare('SELECT COUNT(*) AS n FROM published_logs WHERE rider_id = ?')
     .bind(riderId)
     .first<{ n: number }>();
+  // Claimed GitHub flights (the corpus mirror, migration 0003) count toward
+  // the same thresholds — hidden claims included; hiding is presentation, not
+  // deletion. Own try/catch: rank recomputes must keep working on a database
+  // that doesn't have the mirror yet.
+  let claimed = 0;
+  try {
+    const mirror = await db
+      .prepare('SELECT claimed AS n FROM rider_claimed_flights WHERE rider_id = ?')
+      .bind(riderId)
+      .first<{ n: number }>();
+    claimed = mirror?.n ?? 0;
+  } catch {
+    /* pre-0003: published logs alone */
+  }
   const vouches = await db
     .prepare(
       `SELECT COUNT(*) AS n FROM vouches v
@@ -57,7 +71,7 @@ export async function loadRankStats(db: D1Database, riderId: string): Promise<Ra
     .bind(riderId)
     .first<{ n: number }>();
   return {
-    publishedFlights: flights?.n ?? 0,
+    publishedFlights: (flights?.n ?? 0) + claimed,
     qualifyingVouches: vouches?.n ?? 0,
   };
 }

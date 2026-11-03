@@ -1,0 +1,100 @@
+---
+// Author opt-out for the Flight Log corpus: sign in with GitHub, one button,
+// done (docs/flight-log-corpus.md, Consent). Works both ways — an opted-out
+// author can opt back in with the same proof.
+export const prerender = false;
+import Base from '../layouts/Base.astro';
+import PageHero from '../components/PageHero.astro';
+import { flightlogConfigured, githubIdentityOf, rpc } from '../lib/flightlog';
+
+const { env } = Astro.locals.runtime;
+const viewer = Astro.locals.rider;
+const configured = flightlogConfigured(env);
+
+let githubId: number | null = null;
+let optedOut = false;
+if (viewer && configured) {
+  githubId = await githubIdentityOf(env.DB, viewer.id);
+  if (githubId !== null) {
+    try {
+      const row = await rpc<{ opted_out?: boolean }>(env, 'author_status', { p_github_user_id: githubId });
+      optedOut = row?.opted_out === true;
+    } catch {
+      /* status unknown; the button still works */
+    }
+  }
+}
+
+Astro.response.headers.set('X-Robots-Tag', 'noindex');
+---
+
+<Base title="Opt out of the Flight Log" description="Remove every flight by your GitHub account from agentriders.com." noindex>
+  <PageHero eyebrow="Flight Log" title="Opt out" description="Your PRs are public on GitHub; findable here is a choice you get to make." art="ledger" compact />
+
+  <section class="section section--bone">
+    <div class="container optout">
+      <p>
+        The Flight Log lists public pull requests authored by coding agents, with the GitHub login that opened
+        each one. If you'd rather not appear here: sign in with GitHub, press the button, done. Every flight by
+        your account leaves the pages, the JSON, the sitemaps and the aggregates on the next publish, and its
+        pages answer <code>410 Gone</code>. We keep only your account id, flagged opted-out, so the pipeline
+        never re-adds you. You can opt back in the same way.
+      </p>
+
+      {!configured ? (
+        <p class="warn">The flight log is not live yet — nothing to opt out of.</p>
+      ) : !viewer ? (
+        <p><a class="btn btn--ink" href="/api/auth/github?next=%2Fopt-out%2F" rel="nofollow">Sign in with GitHub to opt out</a></p>
+      ) : githubId === null ? (
+        <p class="warn">Your rider account has no GitHub identity. Sign in with GitHub (not email) so the opt-out covers exactly your account — or email <a href="mailto:hello@agentriders.com">hello@agentriders.com</a>.</p>
+      ) : (
+        <>
+          <p class:list={['state', optedOut && 'state--out']}>
+            {optedOut ? 'You are opted out. Your flights are hidden.' : 'You are currently listed.'}
+          </p>
+          <button type="button" class="btn btn--ink" id="optout-btn" data-next={optedOut ? 'false' : 'true'}>
+            {optedOut ? 'Opt back in' : 'Opt out — hide every flight by my account'}
+          </button>
+          <span id="optout-status" role="status"></span>
+        </>
+      )}
+
+      <p class="fine">
+        Won't sign in? Email <a href="mailto:hello@agentriders.com">hello@agentriders.com</a> from any address,
+        add a one-line note to your GitHub profile bio so we can verify it's you, and we'll set the same flag by
+        hand. Repository owners can ask for their whole repo to be excluded the same way — answered within 48
+        hours, no questions asked.
+      </p>
+    </div>
+  </section>
+</Base>
+
+<script>
+  const button = document.getElementById('optout-btn') as HTMLButtonElement | null;
+  button?.addEventListener('click', async () => {
+    const status = document.getElementById('optout-status')!;
+    button.disabled = true;
+    status.textContent = 'Working…';
+    const res = await fetch('/api/flights/opt-out', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ optedOut: button.dataset.next === 'true' }),
+    });
+    if (res.ok) location.reload();
+    else {
+      const body = await res.json().catch(() => ({}));
+      status.textContent = (body as { error?: string }).error ?? 'Failed — email hello@agentriders.com.';
+      button.disabled = false;
+    }
+  });
+</script>
+
+<style>
+  .optout { max-width: 640px; }
+  .optout p { margin-bottom: 20px; max-width: var(--measure); }
+  .state { font-family: var(--mono); font-size: 15px; }
+  .state--out { color: var(--ember-text); }
+  .warn { color: var(--ember-text); }
+  .fine { margin-top: 36px; font-size: 13.5px; color: var(--ash); }
+  #optout-status { margin-left: 12px; font-size: 14px; color: var(--ash); }
+</style>

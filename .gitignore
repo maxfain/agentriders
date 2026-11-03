@@ -16,3 +16,6 @@ public/og.png
 mcp/dist/
 # npm pack output
 *.tgz
+
+# Flight Log pipeline: downloaded datasets
+pipeline/data/

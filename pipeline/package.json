@@ -1,0 +1,26 @@
+{
+  "name": "agentriders-pipeline",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Flight Log corpus pipeline: AIDev backfill, GH Archive discovery, GitHub enrichment, classification, debriefs, publish.",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.4.0",
+    "@fontsource/fraunces": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@resvg/resvg-js": "2.6.2",
+    "hyparquet": "^1.17.4",
+    "postgres": "^3.4.7",
+    "satori": "0.18.4"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.3.11",
+    "@types/node": "^22.10.0"
+  }
+}

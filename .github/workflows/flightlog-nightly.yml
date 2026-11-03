@@ -1,0 +1,50 @@
+# Flight Log corpus — nightly 02:00 UTC (brief, Schedule): re-enrich open
+# flights older than a day plus claimed-but-unenriched long-tail flights,
+# re-classify, render rider cards, and nudge the site to resync claimed-flight
+# mirrors and ranks.
+name: flightlog-nightly
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+concurrency: flightlog
+
+permissions:
+  contents: read
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      DATABASE_URL: ${{ secrets.FLIGHTLOG_DATABASE_URL }}
+      FLIGHTLOG_GITHUB_TOKEN: ${{ secrets.FLIGHTLOG_GITHUB_TOKEN }}
+      SUPABASE_URL: ${{ secrets.FLIGHTLOG_SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.FLIGHTLOG_SUPABASE_SERVICE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: pipeline
+      - name: Re-enrich open and claimed flights
+        run: node src/run.ts refresh-open
+        working-directory: pipeline
+      - name: Re-classify
+        run: node src/run.ts classify
+        working-directory: pipeline
+      - name: Rider cards
+        run: node src/run.ts rider-cards
+        working-directory: pipeline
+      - name: Resync claimed-flight mirrors and ranks on the site
+        run: |
+          # Content-Type matters: Astro's CSRF check blocks form-like POSTs
+          # without an Origin header; JSON passes.
+          curl -sS -X POST --fail-with-body \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "Content-Type: application/json" \
+            https://agentriders.com/api/cron/flightlog
+        env:
+          CRON_SECRET: ${{ secrets.FLIGHTLOG_CRON_SECRET }}

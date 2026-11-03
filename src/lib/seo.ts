@@ -214,6 +214,50 @@ export function breadcrumbs(items: { name: string; path: string }[]) {
   };
 }
 
+/**
+ * TechArticle for a corpus flight page (docs/flight-log-corpus.md): `about`
+ * is the repository as SoftwareSourceCode, the author is the GitHub login as
+ * a Person whose sameAs is their GitHub profile — exactly what the page
+ * shows, nothing more.
+ */
+export function flightArticle(f: {
+  headline: string;
+  description: string;
+  path: string;
+  datePublished?: Dateish;
+  dateModified?: Dateish;
+  authorLogin: string;
+  repoFullName: string;
+  prUrl: string;
+  keywords?: string[];
+}) {
+  const url = canonicalUrl(f.path);
+  return compact({
+    '@type': 'TechArticle',
+    '@id': `${url}#article`,
+    headline: f.headline,
+    description: f.description,
+    url,
+    mainEntityOfPage: url,
+    datePublished: isoDate(f.datePublished),
+    dateModified: isoDate(f.dateModified),
+    author: {
+      '@type': 'Person',
+      name: f.authorLogin,
+      sameAs: `https://github.com/${f.authorLogin}`,
+    },
+    about: {
+      '@type': 'SoftwareSourceCode',
+      name: f.repoFullName,
+      codeRepository: `https://github.com/${f.repoFullName}`,
+    },
+    isBasedOn: f.prUrl,
+    publisher: { '@id': ORG_ID },
+    keywords: f.keywords,
+    inLanguage: 'en',
+  });
+}
+
 /** TechArticle: Field Manual chapters and their siblings. */
 export function techArticle(a: {
   headline: string;

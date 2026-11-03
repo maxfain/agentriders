@@ -11,6 +11,10 @@ import { HANDLE_REGEX } from '../../lib/handles';
 import { breadcrumbs, profilePage } from '../../lib/seo';
 import { MOUNTS, mergeMounts, mountCounts, riderFlown } from '../../lib/mounts';
 import { githubLinkFresh, readProfileExtras } from '../../lib/profile';
+import {
+  AGENT_LABELS, OUTCOME_LABELS, flightlogConfigured, fmtDate as flFmtDate,
+  rpc as flRpc, type RiderFlights,
+} from '../../lib/flightlog';
 
 // Public rider profile: identity, rank + when it was earned, the flight
 // record, and vouches (received and given, each with a name on it). A
@@ -95,6 +99,21 @@ const myVouch = viewerCanVouch ? await existingVouch(env.DB, viewer!.id, rider.i
 const alreadyVouched = myVouch?.status === 'active';
 const vouchRemoved = myVouch?.status === 'removed';
 
+// Claimed corpus flights (docs/flight-log-corpus.md): public ones render
+// here; hidden ones stay off the page but keep counting toward rank. A dark
+// or failing corpus never breaks the profile.
+let githubFlights: RiderFlights['flights'] = [];
+let agentsFlown: string[] = [];
+if (flightlogConfigured(env)) {
+  try {
+    const mine = await flRpc<RiderFlights>(env, 'rider_flights', { p_rider_id: rider.id });
+    githubFlights = (mine?.flights ?? []).filter((f) => f.visibility === 'public');
+    agentsFlown = [...new Set(githubFlights.map((f) => AGENT_LABELS[f.agent] ?? f.agent))];
+  } catch {
+    /* profile renders without the corpus */
+  }
+}
+
 const fmt = (iso: string) =>
   new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 // Machine-readable forms for <time datetime>: the day, or the month for "Joined".
@@ -133,7 +152,7 @@ const jsonLd = [
       )}
       <dl class="rider-stats">
         <div><dt>Rank</dt><dd>{rankLabel}</dd>{earnedAt && <p class="rider-stats__fine">earned <time datetime={day(earnedAt)}>{fmt(earnedAt)}</time></p>}</div>
-        <div><dt>Flights</dt><dd>{flights.length}</dd>{evalStats.verified > 0 && <p class="rider-stats__fine">{evalStats.verified} verified ✦</p>}</div>
+        <div><dt>Flights</dt><dd>{flights.length + githubFlights.length}</dd>{evalStats.verified > 0 && <p class="rider-stats__fine">{evalStats.verified} verified ✦</p>}{githubFlights.length > 0 && <p class="rider-stats__fine">{githubFlights.length} claimed from GitHub</p>}</div>
         <div><dt>Landed</dt><dd>{landed}</dd></div>
         <div><dt>Vouches</dt><dd>{received.length}</dd></div>
         <div><dt>Joined</dt><dd><time datetime={day(rider.created_at).slice(0, 7)}>{joined}</time></dd></div>
@@ -184,6 +203,25 @@ const jsonLd = [
                 </li>
               ))}
             </ul>
+          )}
+
+          {githubFlights.length > 0 && (
+            <>
+              <h2 class="rider-h2">GitHub flights <span class="rider-h2__hint">— public agent PRs, claimed by GitHub sign-in</span></h2>
+              {agentsFlown.length > 0 && <p class="micro">FLIES {agentsFlown.join(' · ').toUpperCase()}</p>}
+              <ul class="rider-flights">
+                {githubFlights.slice(0, 30).map((f) => (
+                  <li>
+                    <a href={`/logs/${f.repo}/${f.number}/`}>
+                      <span class="rider-flights__name">{f.title}</span>
+                      <span class="rider-flights__meta">{f.repo}#{f.number} · {AGENT_LABELS[f.agent] ?? f.agent} · {f.outcome ? OUTCOME_LABELS[f.outcome] : f.state} · {flFmtDate(f.opened_at)}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+              {githubFlights.length > 30 && <p class="rider-empty">…and {githubFlights.length - 30} more.</p>}
+              {isSelf && <p class="rider-empty"><a href="/me/flights/">Manage your GitHub flights →</a></p>}
+            </>
           )}
         </div>
 

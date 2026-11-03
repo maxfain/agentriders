@@ -1,0 +1,40 @@
+# Flight Log corpus — monthly (1st): full gate re-run across everything,
+# since thresholds will move (brief, Schedule). Classification re-runs first
+# so open→stale transitions land, then debriefs for anything newly gated,
+# then the gate + aggregates + spot check.
+name: flightlog-monthly
+on:
+  schedule:
+    - cron: '30 5 1 * *'
+  workflow_dispatch:
+
+concurrency: flightlog
+
+permissions:
+  contents: read
+
+jobs:
+  monthly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      DATABASE_URL: ${{ secrets.FLIGHTLOG_DATABASE_URL }}
+      ANTHROPIC_API_KEY: ${{ secrets.FLIGHTLOG_ANTHROPIC_API_KEY }}
+      SUPABASE_URL: ${{ secrets.FLIGHTLOG_SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.FLIGHTLOG_SUPABASE_SERVICE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: pipeline
+      - name: Re-classify everything
+        run: node src/run.ts classify
+        working-directory: pipeline
+      - name: Debriefs for newly gated flights
+        run: node src/run.ts debrief
+        working-directory: pipeline
+      - name: Full gate re-run + publish
+        run: node src/run.ts publish
+        working-directory: pipeline

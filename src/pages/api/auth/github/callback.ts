@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { findOrCreateRider, completeSignIn } from '../../../../lib/auth';
-import { OAUTH_STATE_COOKIE } from '../github';
+import { OAUTH_NEXT_COOKIE, OAUTH_STATE_COOKIE, safeNextPath } from '../github';
 
 export const prerender = false;
 
@@ -78,7 +78,12 @@ export const GET: APIRoute = async (context) => {
     }
 
     const dest = await completeSignIn(context, env.DB, env.SESSION_PEPPER, rider);
-    return redirect(dest, 302);
+    // A sign-in that started on a flight page, /opt-out or /me/flights bounces
+    // back there — but only once the rider has a real handle; brand-new riders
+    // claim one at /join first.
+    const next = safeNextPath(context.cookies.get(OAUTH_NEXT_COOKIE)?.value ?? null);
+    context.cookies.delete(OAUTH_NEXT_COOKIE, { path: '/' });
+    return redirect(dest === '/me/' && next ? next : dest, 302);
   } catch {
     return redirect('/join/?error=oauth_failed', 302);
   }

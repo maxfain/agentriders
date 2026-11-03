@@ -4,6 +4,8 @@ import { randomToken } from '../../../lib/crypto';
 export const prerender = false;
 
 export const OAUTH_STATE_COOKIE = 'ar_oauth_state';
+import { OAUTH_NEXT_COOKIE, safeNextPath } from '../../../lib/next-path';
+export { OAUTH_NEXT_COOKIE, safeNextPath };
 
 // Kick off GitHub OAuth: random state in a short-lived cookie, then off to
 // the authorize screen. The callback route checks the state round-trip.
@@ -24,6 +26,16 @@ export const GET: APIRoute = async ({ locals, url, cookies, redirect }) => {
     path: '/',
     maxAge: 600,
   });
+  const next = safeNextPath(url.searchParams.get('next'));
+  if (next) {
+    cookies.set(OAUTH_NEXT_COOKIE, next, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: url.protocol === 'https:',
+      path: '/',
+      maxAge: 600,
+    });
+  }
 
   const authorize = new URL('https://github.com/login/oauth/authorize');
   authorize.searchParams.set('client_id', env.GITHUB_OAUTH_CLIENT_ID);

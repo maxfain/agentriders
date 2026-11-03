@@ -1,0 +1,166 @@
+---
+// The corpus status page (the brief's private "/status", behind the existing
+// admin gate): flights by source and confidence, index_ok count, claims,
+// debrief failure rate, last run per pipeline job, GraphQL points remaining —
+// plus the takedown and email-opt-out controls.
+export const prerender = false;
+import Base from '../../layouts/Base.astro';
+import PageHero from '../../components/PageHero.astro';
+import { flightlogConfigured, fmtInt, rpc } from '../../lib/flightlog';
+
+const { env } = Astro.locals.runtime;
+const configured = flightlogConfigured(env);
+
+type Snapshot = {
+  flights: Record<string, number> | null;
+  total: number;
+  index_ok: number;
+  outcomes: Record<string, number>;
+  claims_total: number;
+  claims_7d: number;
+  debriefs: number;
+  debrief_failed: number;
+  opted_out_authors: number;
+  excluded_repos: number;
+  last_runs: Record<string, { started_at: string; finished_at: string | null; ok: boolean | null; rows_in: number | null; rows_out: number | null; errors: number; meta: Record<string, unknown> | null }>;
+};
+
+let snap: Snapshot | null = null;
+let loadError = '';
+if (configured) {
+  try {
+    snap = await rpc<Snapshot>(env, 'status_snapshot', {});
+  } catch (error) {
+    loadError = String(error);
+  }
+}
+const failRate =
+  snap && snap.debriefs + snap.debrief_failed > 0
+    ? snap.debrief_failed / (snap.debriefs + snap.debrief_failed)
+    : 0;
+const graphqlRemaining = Object.values(snap?.last_runs ?? {})
+  .map((r) => r.meta?.graphqlRemaining)
+  .find((v) => typeof v === 'number');
+const fmtWhen = (iso: string | null) => (iso ? new Date(iso).toISOString().replace('T', ' ').slice(0, 16) : '—');
+---
+
+<Base title="Flight Log pipeline" description="Corpus pipeline status." noindex>
+  <PageHero eyebrow="Admin" title="Flight Log pipeline" description="The corpus: counts, runs, consent." art="ledger" compact>
+    <p class="page-hero__meta"><a href="/admin/">← Admin</a></p>
+  </PageHero>
+
+  <section class="section section--bone">
+    <div class="container corpus">
+      {!configured && <p class="warn">SUPABASE_URL / SUPABASE_SERVICE_KEY are not set — the corpus is dark.</p>}
+      {loadError && <p class="warn">Status query failed: {loadError}</p>}
+      {snap && (
+        <>
+          <dl class="stats">
+            <div><dt>Flights</dt><dd>{fmtInt(snap.total)}</dd></div>
+            <div><dt>Indexed</dt><dd>{fmtInt(snap.index_ok)}</dd></div>
+            <div><dt>Debriefs</dt><dd>{fmtInt(snap.debriefs)}</dd></div>
+            <div><dt>Debrief fail rate</dt><dd class:list={[failRate > 0.05 && 'burn']}>{(failRate * 100).toFixed(1)}%</dd></div>
+            <div><dt>Claims</dt><dd>{fmtInt(snap.claims_total)} <span class="soft">({fmtInt(snap.claims_7d)} / 7d)</span></dd></div>
+            <div><dt>Opt-outs</dt><dd>{fmtInt(snap.opted_out_authors)}</dd></div>
+            <div><dt>Excluded repos</dt><dd>{fmtInt(snap.excluded_repos)}</dd></div>
+            {typeof graphqlRemaining === 'number' && <div><dt>GraphQL points</dt><dd>{fmtInt(graphqlRemaining)}</dd></div>}
+          </dl>
+
+          <h2>By source / confidence</h2>
+          <table class="corpus-table">
+            <tbody>
+              {Object.entries(snap.flights ?? {}).sort().map(([k, v]) => (
+                <tr><td>{k}</td><td>{fmtInt(v)}</td></tr>
+              ))}
+            </tbody>
+          </table>
+
+          <h2>Outcomes</h2>
+          <table class="corpus-table">
+            <tbody>
+              {Object.entries(snap.outcomes ?? {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
+                <tr><td>{k}</td><td>{fmtInt(v)}</td></tr>
+              ))}
+            </tbody>
+          </table>
+
+          <h2>Last run per job</h2>
+          <table class="corpus-table">
+            <thead><tr><th>Job</th><th>Started</th><th>Finished</th><th>OK</th><th>In</th><th>Out</th><th>Errors</th></tr></thead>
+            <tbody>
+              {Object.entries(snap.last_runs ?? {}).sort().map(([job, r]) => (
+                <tr>
+                  <td>{job}</td>
+                  <td>{fmtWhen(r.started_at)}</td>
+                  <td>{fmtWhen(r.finished_at)}</td>
+                  <td class:list={[r.ok === false && 'burn']}>{r.ok === null ? 'running' : r.ok ? 'ok' : 'FAILED'}</td>
+                  <td>{fmtInt(r.rows_in)}</td>
+                  <td>{fmtInt(r.rows_out)}</td>
+                  <td class:list={[r.errors > 0 && 'burn']}>{fmtInt(r.errors)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+
+      <h2>Takedown & opt-out</h2>
+      <div class="controls">
+        <form id="exclude-form">
+          <label>owner/repo <input name="repo" placeholder="owner/name" required pattern="[^/]+/[^/]+" /></label>
+          <label><input type="checkbox" name="undo" /> un-exclude</label>
+          <button class="btn btn--ink" type="submit">Exclude repo</button>
+        </form>
+        <form id="optout-form">
+          <label>GitHub user id <input name="gid" type="number" min="1" required /></label>
+          <label><input type="checkbox" name="undo" /> un-opt-out</label>
+          <button class="btn btn--ink" type="submit">Opt author out</button>
+        </form>
+        <p class="soft">Email opt-outs: verify by asking the author to add a line to their GitHub profile bio, find their numeric id at api.github.com/users/&lt;login&gt;, then use the form. Repo takedowns are answered within 48 hours, no questions asked.</p>
+        <p id="flightlog-status" role="status"></p>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<script>
+  const status = document.getElementById('flightlog-status')!;
+  const post = async (payload: unknown) => {
+    status.textContent = 'Working…';
+    const res = await fetch('/api/admin/flightlog', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json().catch(() => ({}));
+    status.textContent = res.ok ? 'Done.' : (body as { error?: string }).error ?? 'Failed.';
+  };
+  document.getElementById('exclude-form')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
+    const [owner, repo] = (new FormData(form).get('repo') as string).split('/');
+    void post({ action: 'exclude-repo', owner, repo, excluded: !(form.elements.namedItem('undo') as HTMLInputElement).checked });
+  });
+  document.getElementById('optout-form')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
+    void post({
+      action: 'opt-out-author',
+      githubUserId: Number(new FormData(form).get('gid')),
+      optedOut: !(form.elements.namedItem('undo') as HTMLInputElement).checked,
+    });
+  });
+</script>
+
+<style>
+  .corpus { max-width: 880px; }
+  .corpus h2 { font-size: 22px; margin: 40px 0 12px; }
+  .warn { color: var(--ember-text); }
+  .burn { color: var(--ember-text); }
+  .soft { color: var(--ash); font-size: 13.5px; }
+  .corpus-table { border-collapse: collapse; font-size: 14px; min-width: 50%; }
+  .corpus-table th { text-align: left; font-family: var(--mono); font-size: 12px; text-transform: uppercase; color: var(--ash); padding: 6px 14px 6px 0; border-bottom: 1px solid var(--text-on-bone); }
+  .corpus-table td { padding: 6px 14px 6px 0; border-bottom: 1px solid var(--bone-line); font-family: var(--mono); font-size: 13px; }
+  .controls form { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+  .controls input[type="text"], .controls input:not([type]), .controls input[type="number"] { font: inherit; padding: 6px 8px; border: 1px solid var(--bone-line); border-radius: var(--radius); background: var(--bone-raised); }
+</style>
