@@ -1,0 +1,520 @@
+---
+// The Flight Log corpus routes (docs/flight-log-corpus.md):
+//   /logs/{owner}/{repo}/           repo page        (+ .json twin)
+//   /logs/{owner}/{repo}/{number}/  flight page      (+ .json twin)
+// A rest route so the prerendered content routes (/logs/[slug], the facet
+// pages, /logs/new, /logs/template) always win; anything unmatched lands
+// here. Opted-out authors and excluded repos answer 410 Gone; unknown paths
+// fall through to the branded 404.
+import Base from '../../layouts/Base.astro';
+import PageHero from '../../components/PageHero.astro';
+import {
+  AGENT_LABELS, CONFIDENCE_LABELS, OUTCOME_LABELS, fmtDate, fmtHours, fmtInt, fmtRate,
+  flightTitle, flightlogConfigured, outcomeTone, rpc, validOwner, validRepoName,
+  type FlightPage, type RepoPage,
+} from '../../lib/flightlog';
+import { breadcrumbs, clampDescription, flightArticle } from '../../lib/seo';
+
+export const prerender = false;
+
+const { env } = Astro.locals.runtime;
+const viewer = Astro.locals.rider;
+
+const notFound = () =>
+  new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' } });
+const goneResponse = () =>
+  new Response('410 Gone — removed at the request of its author or repository owner.', {
+    status: 410,
+    headers: { 'Content-Type': 'text/plain; charset=utf-8', 'X-Robots-Tag': 'noindex' },
+  });
+const json = (payload: unknown) =>
+  new Response(JSON.stringify(payload, null, 1), {
+    headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=60, s-maxage=300' },
+  });
+
+const segments = (Astro.params.corpus ?? '').split('/').filter(Boolean);
+if (segments.length < 2 || segments.length > 3) return notFound();
+if (!flightlogConfigured(env)) return notFound();
+
+const [owner, repoRaw] = segments;
+let wantJson = false;
+let repoName = repoRaw;
+let numberRaw = segments[2] ?? null;
+if (numberRaw === null && repoName.endsWith('.json')) {
+  wantJson = true;
+  repoName = repoName.slice(0, -5);
+}
+if (numberRaw?.endsWith('.json')) {
+  wantJson = true;
+  numberRaw = numberRaw.slice(0, -5);
+}
+if (!validOwner(owner) || !validRepoName(repoName)) return notFound();
+if (numberRaw !== null && !/^[1-9]\d{0,8}$/.test(numberRaw)) return notFound();
+
+type View =
+  | { kind: 'flight'; data: FlightPage }
+  | { kind: 'repo'; data: RepoPage & { riders?: string[] } };
+
+let view: View;
+if (numberRaw !== null) {
+  const data = await rpc<FlightPage>(env, 'flight_page', {
+    p_owner: owner, p_repo: repoName, p_number: Number(numberRaw),
+  });
+  if (!data) return notFound();
+  if (data.gone) return goneResponse();
+  if (wantJson) {
+    // Same record as the page, machine-readable (brief, Page templates).
+    const { flight, repo, author, claim, events, related } = data;
+    return json({
+      flight, repo,
+      author: { login: author.login, github_profile: `https://github.com/${author.login}` },
+      claim: claim && { rider_handle: claim.rider_handle, claimed_at: claim.claimed_at, note: claim.note },
+      events, related,
+      pr_url: `https://github.com/${repo.full_name}/pull/${flight.number}`,
+      page: `https://agentriders.com/logs/${repo.full_name}/${flight.number}/`,
+    });
+  }
+  view = { kind: 'flight', data };
+} else {
+  const data = await rpc<RepoPage & { riders?: string[] }>(env, 'repo_page', {
+    p_owner: owner, p_repo: repoName,
+  });
+  if (!data) return notFound();
+  if (data.gone) return goneResponse();
+  if (wantJson) return json({ ...data, page: `https://agentriders.com/logs/${data.repo.full_name}/` });
+  view = { kind: 'repo', data };
+}
+
+// --- shared bits -------------------------------------------------------------
+const cardsBase = env.SUPABASE_URL
+  ? `${env.SUPABASE_URL.replace(/\/$/, '')}/storage/v1/object/public/cards`
+  : null;
+
+// Signed-in viewer's proven GitHub account id (identities table, stamped at
+// OAuth) — the only thing a claim can be checked against.
+let viewerGithubId: number | null = null;
+if (viewer && view.kind === 'flight') {
+  try {
+    const row = await env.DB.prepare(
+      "SELECT provider_id FROM identities WHERE rider_id = ? AND provider = 'github'",
+    ).bind(viewer.id).first<{ provider_id: string }>();
+    viewerGithubId = row ? Number(row.provider_id) : null;
+  } catch { /* claim CTA degrades to signed-out */ }
+}
+
+// --- flight page data ----------------------------------------------------------
+const f = view.kind === 'flight' ? view.data : null;
+const prUrl = f ? `https://github.com/${f.repo.full_name}/pull/${f.flight.number}` : '';
+const fPath = f ? `/logs/${f.repo.full_name}/${f.flight.number}/` : '';
+const fTitle = f ? flightTitle(f.flight.title, f.flight.agent, f.repo.full_name) : '';
+const fDescription = f
+  ? clampDescription(f.flight.debrief ?? `${AGENT_LABELS[f.flight.agent]} pull request in ${f.repo.full_name}: ${f.flight.title}`)
+  : '';
+const showExcerpt = f?.flight.reviewer_excerpt
+  && (f.flight.outcome === 'burn' || f.flight.outcome === 'merged_after_rework');
+const truncated = !!f && (f.flight.body_chars ?? 0) > 300;
+const isAuthor = !!f && viewerGithubId !== null && viewerGithubId === f.author.github_user_id;
+const claimedByViewer = !!f && !!f.claim && !!viewer && f.claim.rider_handle === viewer.handle;
+const fOg = f && f.flight.og_generated_at && cardsBase
+  ? `${cardsBase}/flights/${f.repo.full_name}/${f.flight.number}.png`
+  : undefined;
+
+// --- repo page data -------------------------------------------------------------
+const r = view.kind === 'repo' ? view.data : null;
+const rMonthly = r ? r.monthly.slice(-12) : [];
+const rTitle = r ? `${r.repo.full_name} — agent flight log` : '';
+const rDescription = r
+  ? clampDescription(
+      `${r.total} coding-agent pull requests logged in ${r.repo.full_name}: ` +
+      r.agents.map((a) => `${AGENT_LABELS[a.agent] ?? a.agent} ${a.flights}`).join(', '),
+    )
+  : '';
+
+const disclaimer = 'Data from public GitHub activity; this page is not affiliated with GitHub or the repository.';
+---
+
+{f && (
+  <Base
+    title={fTitle}
+    description={fDescription}
+    noindex={!f.flight.index_ok}
+    ogType="article"
+    ogImage={fOg}
+    ogImageAlt={fOg ? `${AGENT_LABELS[f.flight.agent]} flight in ${f.repo.full_name}: ${f.flight.title}` : undefined}
+    publishedTime={f.flight.opened_at ?? undefined}
+    modifiedTime={f.flight.updated_at}
+    alternates={[{ href: `${fPath.slice(0, -1)}.json`, type: 'application/json', title: 'This flight as JSON' }]}
+    jsonLd={[
+      flightArticle({
+        headline: fTitle,
+        description: fDescription,
+        path: fPath,
+        datePublished: f.flight.opened_at ?? undefined,
+        dateModified: f.flight.updated_at,
+        authorLogin: f.author.login,
+        repoFullName: f.repo.full_name,
+        prUrl,
+        keywords: [AGENT_LABELS[f.flight.agent], 'AI coding agent', 'pull request', f.flight.task_type ?? ''].filter(Boolean),
+      }),
+      breadcrumbs([
+        { name: 'Home', path: '/' },
+        { name: 'Flight Logs', path: '/logs/' },
+        { name: f.repo.full_name, path: `/logs/${f.repo.full_name}/` },
+        { name: `#${f.flight.number}`, path: fPath },
+      ]),
+    ]}
+  >
+    <PageHero
+      eyebrow={`Flight Log / ${f.repo.full_name}`}
+      title={f.flight.title}
+      description={`A ${AGENT_LABELS[f.flight.agent] ?? f.flight.agent} flight, ${fmtDate(f.flight.opened_at)}`}
+      art="ledger"
+      compact
+    >
+      <p class="page-hero__meta">
+        <a href={`/logs/${f.repo.full_name}/`}>← All flights in {f.repo.full_name}</a>
+      </p>
+    </PageHero>
+
+    <section class="section section--bone" aria-label="Flight record">
+      <div class="container corpus">
+        <div class="flight-head">
+          <span class:list={['outcome-badge', `outcome--${outcomeTone(f.flight.outcome)}`]}>
+            {f.flight.outcome ? OUTCOME_LABELS[f.flight.outcome] : 'Not yet classified'}
+          </span>
+          <span class="flight-agent">{AGENT_LABELS[f.flight.agent] ?? f.flight.agent}</span>
+          <span class="flight-confidence" title={`Signals: ${f.flight.signals.join(', ') || 'none recorded'}`}>
+            attribution: {CONFIDENCE_LABELS[f.flight.confidence] ?? f.flight.confidence}
+          </span>
+        </div>
+
+        <p class="flight-author">
+          Flown by
+          {f.author.avatar_url && <img src={f.author.avatar_url} alt="" width="22" height="22" loading="lazy" />}
+          <a href={`https://github.com/${f.author.login}`} rel="nofollow noopener">{f.author.login}</a>
+          {f.claim
+            ? <>— claimed by <a href={`/riders/${f.claim.rider_handle}/`}>@{f.claim.rider_handle}</a></>
+            : <>— unclaimed</>}
+        </p>
+
+        <dl class="stats flight-stats">
+          <div><dt>Lines</dt><dd>{f.flight.additions === null ? '—' : `+${fmtInt(f.flight.additions)} −${fmtInt(f.flight.deletions)}`}</dd></div>
+          <div><dt>Files</dt><dd>{fmtInt(f.flight.files_changed)}</dd></div>
+          <div><dt>Commits</dt><dd>{fmtInt(f.flight.commits)}</dd></div>
+          <div><dt>Reviews</dt><dd>{fmtInt(f.flight.review_count)}{Number(f.flight.change_requests) > 0 && <span class="burn"> ({f.flight.change_requests} ✕)</span>}</dd></div>
+          <div><dt>To merge</dt><dd>{f.flight.state === 'merged' ? fmtHours(f.flight.hours_to_merge) : '—'}</dd></div>
+          {f.flight.task_type && <div><dt>Task</dt><dd>{f.flight.task_type}</dd></div>}
+        </dl>
+        {f.flight.metrics_source === 'aidev_commit_sum' && (
+          <p class="metrics-note">Line and file counts are summed per commit from the AIDev dataset; GitHub's net diff can be smaller.</p>
+        )}
+
+        {f.flight.debrief && <p class="debrief">{f.flight.debrief}</p>}
+
+        {showExcerpt && (
+          <blockquote class="reviewer-quote">
+            <p>“{f.flight.reviewer_excerpt}”</p>
+            <cite>
+              — from the review
+              {f.flight.reviewer_excerpt_url && <> (<a href={f.flight.reviewer_excerpt_url} rel="nofollow ugc noopener">source</a>)</>}
+            </cite>
+          </blockquote>
+        )}
+
+        {f.claim?.note && (
+          <blockquote class="rider-note">
+            <p>“{f.claim.note}”</p>
+            <cite>— what <a href={`/riders/${f.claim.rider_handle}/`}>@{f.claim.rider_handle}</a> would do differently</cite>
+          </blockquote>
+        )}
+
+        {f.flight.body_excerpt && (
+          <div class="body-excerpt">
+            <h2>From the pull request description</h2>
+            <p>{f.flight.body_excerpt}{truncated && '…'}</p>
+            {truncated && <p class="metrics-note">Excerpt (first 300 characters) — the full description is on GitHub.</p>}
+          </div>
+        )}
+
+        <p class="pr-link">
+          <a href={prUrl} rel="nofollow ugc noopener">View the pull request on GitHub →</a>
+        </p>
+
+        <div class="claim-box" id="claim">
+          {f.claim ? (
+            claimedByViewer ? (
+              <p>Your flight. <a href="/me/flights/">Manage visibility and your note →</a></p>
+            ) : (
+              <p>Claimed by <a href={`/riders/${f.claim.rider_handle}/`}>@{f.claim.rider_handle}</a> on {fmtDate(f.claim.claimed_at)}.</p>
+            )
+          ) : viewer ? (
+            isAuthor ? (
+              <>
+                <p><strong>This is your flight.</strong> Claiming adds it to your rider record — proven by your GitHub sign-in.</p>
+                <button type="button" class="btn-claim" data-owner={f.repo.owner} data-repo={f.repo.name} data-number={f.flight.number}>Claim this flight</button>
+                <span class="claim-status" role="status"></span>
+              </>
+            ) : (
+              <p>Not your flight — this PR was opened by <a href={`https://github.com/${f.author.login}`} rel="nofollow noopener">{f.author.login}</a>.</p>
+            )
+          ) : (
+            <p>
+              <strong>This is your flight?</strong>
+              <a href={`/api/auth/github?next=${encodeURIComponent(fPath)}`} rel="nofollow"> Claim it — sign in with GitHub</a>.
+              Ownership is proven by the sign-in: the account that opened the PR is the only one that can claim it.
+            </p>
+          )}
+        </div>
+
+        {f.events.length > 0 && (
+          <div class="timeline">
+            <h2>Flight timeline</h2>
+            <ol>
+              {f.events.map((e) => (
+                <li>
+                  <span class="timeline-when">{fmtDate(e.at)}</span>
+                  <span class:list={['timeline-kind', e.kind === 'changes_requested' && 'burn']}>{e.kind.replace(/_/g, ' ')}</span>
+                  {e.actor_login && <span class="timeline-actor">{e.actor_login}</span>}
+                  {e.url && <a href={e.url} rel="nofollow ugc noopener">↗</a>}
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+
+        {f.related.length > 0 && (
+          <div class="related">
+            <h2>More flights in {f.repo.full_name}</h2>
+            <ul>
+              {f.related.map((rel) => (
+                <li>
+                  <a href={`/logs/${f.repo.full_name}/${rel.number}/`}>#{rel.number} {rel.title}</a>
+                  <span class="related-meta">{AGENT_LABELS[rel.agent] ?? rel.agent} · {rel.outcome ? OUTCOME_LABELS[rel.outcome] : rel.state}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <p class="disclaimer">{disclaimer}</p>
+      </div>
+    </section>
+  </Base>
+)}
+
+{r && (
+  <Base
+    title={rTitle}
+    description={rDescription}
+    alternates={[{ href: `/logs/${r.repo.full_name}.json`, type: 'application/json', title: 'This repo’s flight log as JSON' }]}
+    jsonLd={breadcrumbs([
+      { name: 'Home', path: '/' },
+      { name: 'Flight Logs', path: '/logs/' },
+      { name: r.repo.full_name, path: `/logs/${r.repo.full_name}/` },
+    ])}
+  >
+    <PageHero
+      eyebrow="Flight Log / repository"
+      title={r.repo.full_name}
+      description={[
+        r.repo.stars !== null ? `★ ${fmtInt(r.repo.stars)}` : null,
+        r.repo.primary_language,
+        `${fmtInt(r.total)} agent ${r.total === 1 ? 'flight' : 'flights'} logged`,
+      ].filter(Boolean).join(' · ')}
+      art="ledger"
+      compact
+    >
+      <p class="page-hero__meta"><a href={`https://github.com/${r.repo.full_name}`} rel="nofollow noopener">Repository on GitHub ↗</a></p>
+    </PageHero>
+
+    <section class="section section--bone" aria-label="Flights by agent">
+      <div class="container corpus">
+        <h2>Flights by agent</h2>
+        <table class="corpus-table">
+          <thead><tr><th>Agent</th><th>Flights</th><th>Merge rate</th><th>Median to merge</th><th>Burn rate</th></tr></thead>
+          <tbody>
+            {r.agents.map((a) => (
+              <tr>
+                <td><a href={`/logs/agent/${a.agent}/`}>{AGENT_LABELS[a.agent] ?? a.agent}</a></td>
+                <td>{fmtInt(a.flights)}</td>
+                <td>{fmtRate(a.merge_rate)}</td>
+                <td>{fmtHours(a.median_hours_to_merge)}</td>
+                <td class:list={[Number(a.burn_rate) >= 0.2 && 'burn']}>{fmtRate(a.burn_rate)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {rMonthly.length > 1 && (
+          <>
+            <h2>By month</h2>
+            <table class="corpus-table corpus-table--monthly">
+              <thead><tr><th>Month</th><th>Flights</th><th>Merged</th><th>Burns</th></tr></thead>
+              <tbody>
+                {rMonthly.map((m) => (
+                  <tr><td>{m.month}</td><td>{fmtInt(m.flights)}</td><td>{fmtInt(m.merged)}</td><td class:list={[m.burns > 0 && 'burn']}>{fmtInt(m.burns)}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+
+        {r.burns.length > 0 && (
+          <div class="repo-burns">
+            <h2>Where agents burned here</h2>
+            <ul>
+              {r.burns.map((b) => (
+                <li>
+                  <a href={`/logs/${r.repo.full_name}/${b.number}/`}>#{b.number}</a>
+                  <span class="related-meta">{AGENT_LABELS[b.agent] ?? b.agent}</span>
+                  <q>{b.reviewer_excerpt}</q>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <h2>Last {r.flights.length} flights</h2>
+        <table class="corpus-table" id="repo-flights" data-sortable>
+          <thead>
+            <tr><th>PR</th><th>Title</th><th>Agent</th><th><button type="button" class="sort-outcome">Outcome ↕</button></th><th>Opened</th><th>Lines</th></tr>
+          </thead>
+          <tbody>
+            {r.flights.map((fl) => (
+              <tr data-outcome={fl.outcome ?? 'zz-unclassified'}>
+                <td><a href={`/logs/${r.repo.full_name}/${fl.number}/`}>#{fl.number}</a></td>
+                <td class="cell-title">{fl.title}</td>
+                <td>{AGENT_LABELS[fl.agent] ?? fl.agent}</td>
+                <td class:list={[`tone--${outcomeTone(fl.outcome)}`]}>{fl.outcome ? OUTCOME_LABELS[fl.outcome] : fl.state}</td>
+                <td>{fmtDate(fl.opened_at)}</td>
+                <td>{fl.additions === null ? '—' : `+${fmtInt(fl.additions)} −${fmtInt(fl.deletions)}`}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <div class="claim-box">
+          {(r.riders ?? []).length > 0 ? (
+            <p>Riders who fly here: {(r.riders ?? []).map((h, i) => (
+              <>{i > 0 && ', '}<a href={`/riders/${h}/`}>@{h}</a></>
+            ))}</p>
+          ) : (
+            <p>No rider has claimed a flight in this repository yet. Flew one of these? Open your flight page and claim it.</p>
+          )}
+        </div>
+
+        <p class="disclaimer">{disclaimer} Repository owner? <a href="/opt-out/">Request exclusion</a> — handled within 48 hours.</p>
+      </div>
+    </section>
+
+    <script>
+      // Progressive enhancement: sort the flights table by outcome on click.
+      const table = document.getElementById('repo-flights');
+      const button = table?.querySelector('.sort-outcome');
+      let flipped = false;
+      button?.addEventListener('click', () => {
+        const body = table!.querySelector('tbody')!;
+        const rows = [...body.querySelectorAll('tr')];
+        rows.sort((a, b) =>
+          (a.dataset.outcome ?? '').localeCompare(b.dataset.outcome ?? '') * (flipped ? -1 : 1));
+        flipped = !flipped;
+        for (const row of rows) body.appendChild(row);
+      });
+    </script>
+  </Base>
+)}
+
+{f && (
+  <script>
+    const claim = document.querySelector<HTMLButtonElement>('.btn-claim');
+    claim?.addEventListener('click', async () => {
+      const status = document.querySelector<HTMLElement>('.claim-status')!;
+      claim.disabled = true;
+      status.textContent = 'Claiming…';
+      try {
+        const res = await fetch('/api/flights/claim', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            owner: claim.dataset.owner, repo: claim.dataset.repo, number: Number(claim.dataset.number),
+          }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok || body.error) {
+          status.textContent = body.error ?? 'Claim failed.';
+          claim.disabled = false;
+          return;
+        }
+        if (body.claimable > 0 && confirm(`Claimed. We found ${body.claimable} more ${body.claimable === 1 ? 'flight' : 'flights'} of yours — claim all?`)) {
+          await fetch('/api/flights/claim', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ all: true }),
+          });
+        }
+        location.reload();
+      } catch {
+        status.textContent = 'Claim failed — try again.';
+        claim.disabled = false;
+      }
+    });
+  </script>
+)}
+
+<style>
+  .corpus { max-width: 880px; }
+  .corpus h2 { font-size: 24px; margin: 44px 0 14px; }
+  .flight-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  .outcome-badge {
+    font-family: var(--mono); font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase;
+    padding: 4px 10px; border-radius: var(--radius); border: 1px solid var(--bone-line);
+  }
+  .outcome--ok { background: #E3E8D4; color: #3E4A1F; border-color: #B9C39A; }
+  .outcome--warn { background: #F3E4C8; color: #6B4A12; border-color: #DCC79A; }
+  .outcome--burn { background: #F4D9CD; color: var(--ember-text); border-color: #E2B39F; }
+  .outcome--quiet { background: var(--bone-raised); color: var(--ash); }
+  .flight-agent { font-family: var(--mono); font-size: 14px; color: var(--text-on-bone-soft); }
+  .flight-confidence { font-family: var(--mono); font-size: 12.5px; color: var(--ash); }
+  .flight-author { margin-top: 14px; color: var(--text-on-bone-soft); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .flight-author img { border-radius: 50%; }
+  .flight-stats { margin-top: 22px; }
+  .metrics-note { font-size: 13.5px; color: var(--ash); margin-top: 8px; }
+  .debrief { margin-top: 26px; font-size: 19px; line-height: 1.6; max-width: var(--measure); }
+  .reviewer-quote, .rider-note {
+    margin: 26px 0 0; padding: 14px 18px; border-left: 3px solid var(--ember);
+    background: var(--bone-raised); max-width: var(--measure);
+  }
+  .rider-note { border-left-color: var(--bone-line); }
+  .reviewer-quote cite, .rider-note cite { display: block; margin-top: 8px; font-style: normal; font-size: 13.5px; color: var(--ash); }
+  .body-excerpt p { max-width: var(--measure); white-space: pre-line; }
+  .pr-link { margin-top: 26px; font-family: var(--mono); font-size: 15px; }
+  .claim-box {
+    margin-top: 34px; padding: 18px 20px; border: 1px solid var(--bone-line);
+    border-radius: var(--radius); background: var(--bone-raised);
+  }
+  .btn-claim {
+    margin-top: 10px; font-family: var(--mono); font-size: 14px; cursor: pointer;
+    background: var(--ink); color: var(--bone); border: 0; border-radius: var(--radius); padding: 10px 18px;
+  }
+  .btn-claim:hover { background: var(--ember); }
+  .claim-status { margin-left: 12px; font-size: 14px; color: var(--ash); }
+  .timeline ol { list-style: none; margin: 0; padding: 0; }
+  .timeline li { display: flex; gap: 14px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--bone-line); font-size: 14.5px; }
+  .timeline-when { font-family: var(--mono); font-size: 12.5px; color: var(--ash); min-width: 110px; }
+  .timeline-kind { font-family: var(--mono); font-size: 13px; }
+  .timeline-actor { color: var(--text-on-bone-soft); }
+  .related ul { list-style: none; margin: 0; padding: 0; }
+  .related li { padding: 8px 0; border-bottom: 1px solid var(--bone-line); }
+  .related-meta { margin-left: 10px; font-family: var(--mono); font-size: 12.5px; color: var(--ash); }
+  .disclaimer { margin-top: 40px; font-size: 13px; color: var(--ash); }
+  .burn { color: var(--ember-text); }
+  .corpus-table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+  .corpus-table th { text-align: left; font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ash); padding: 8px 10px 8px 0; border-bottom: 1px solid var(--text-on-bone); }
+  .corpus-table td { padding: 8px 10px 8px 0; border-bottom: 1px solid var(--bone-line); vertical-align: top; }
+  .corpus-table .cell-title { max-width: 380px; }
+  .tone--ok { color: #3E4A1F; } .tone--warn { color: #6B4A12; } .tone--burn { color: var(--ember-text); } .tone--quiet { color: var(--ash); }
+  .sort-outcome { background: none; border: 0; font: inherit; color: inherit; cursor: pointer; text-transform: inherit; letter-spacing: inherit; padding: 0; }
+  .repo-burns ul { list-style: none; margin: 0; padding: 0; }
+  .repo-burns li { padding: 10px 0; border-bottom: 1px solid var(--bone-line); }
+  .repo-burns q { display: block; margin-top: 4px; color: var(--text-on-bone-soft); }
+</style>

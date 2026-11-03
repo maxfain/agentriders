@@ -1,0 +1,71 @@
+# Flight Log corpus — the one-time Phase 1/2 backfill, run by hand
+# (Actions → flightlog-backfill → Run workflow). Order per the brief: load
+# AIDev core + pop (no API), repo metadata (one hour of GraphQL), classify
+# (minutes), debriefs (~20k calls, resumable), publish. Idempotent: safe to
+# re-run after a partial failure — the database is the checkpoint.
+#
+# Needs: FLIGHTLOG_DATABASE_URL (required); FLIGHTLOG_GITHUB_TOKEN,
+# FLIGHTLOG_ANTHROPIC_API_KEY, FLIGHTLOG_SUPABASE_URL,
+# FLIGHTLOG_SUPABASE_SERVICE_KEY (each step that lacks its secret is skipped,
+# so the load can run before the keys exist).
+name: flightlog-backfill
+on:
+  workflow_dispatch:
+    inputs:
+      sample:
+        description: 'Load only the first N core rows (smoke run; empty = everything)'
+        required: false
+      skip_debriefs:
+        description: 'Skip the LLM debrief step'
+        type: boolean
+        default: false
+
+concurrency: flightlog
+
+permissions:
+  contents: read
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    env:
+      DATABASE_URL: ${{ secrets.FLIGHTLOG_DATABASE_URL }}
+      FLIGHTLOG_GITHUB_TOKEN: ${{ secrets.FLIGHTLOG_GITHUB_TOKEN }}
+      ANTHROPIC_API_KEY: ${{ secrets.FLIGHTLOG_ANTHROPIC_API_KEY }}
+      SUPABASE_URL: ${{ secrets.FLIGHTLOG_SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.FLIGHTLOG_SUPABASE_SERVICE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: pipeline
+      - name: Apply migrations
+        run: node src/run.ts migrate
+        working-directory: pipeline
+      - name: Download AIDev v3 (~1 GB)
+        run: node src/run.ts download-aidev --dir data/aidev --revision v3
+        working-directory: pipeline
+      - name: Load AIDev (core 933k + pop detail)
+        run: >
+          node --max-old-space-size=6144 src/run.ts load-aidev --dir data/aidev
+          ${{ inputs.sample && format('--sample {0}', inputs.sample) || '' }}
+        working-directory: pipeline
+      - name: Repo metadata (GraphQL; skipped without the token)
+        if: env.FLIGHTLOG_GITHUB_TOKEN != ''
+        run: node src/run.ts repo-metadata
+        working-directory: pipeline
+      - name: Classify outcomes
+        run: node src/run.ts classify
+        working-directory: pipeline
+      - name: Debriefs (skipped without the key)
+        if: env.ANTHROPIC_API_KEY != '' && inputs.skip_debriefs != true
+        run: node src/run.ts debrief
+        working-directory: pipeline
+      - name: Publish (gate, aggregates, spot check; OG cards need the Supabase secrets)
+        run: >
+          node src/run.ts publish
+          ${{ (env.SUPABASE_URL == '' || env.SUPABASE_SERVICE_KEY == '') && '--dry-run' || '' }}
+        working-directory: pipeline

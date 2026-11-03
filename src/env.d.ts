@@ -17,6 +17,13 @@ type AgentRidersEnv = {
   GITHUB_BRANCH?: string;
   // Admin "Rebuild site" button → Cloudflare Pages deploy hook URL.
   PAGES_DEPLOY_HOOK?: string;
+  // Flight Log corpus (docs/flight-log-corpus.md): the Supabase Postgres the
+  // pipeline maintains. The service key stays server-side; tables are locked
+  // to the service role, so there is no browser-facing key at all.
+  SUPABASE_URL?: string;
+  SUPABASE_SERVICE_KEY?: string;
+  // Bearer for /api/cron/* (nightly rank recompute from the pipeline).
+  CRON_SECRET?: string;
   // Local dev only: "1" echoes the magic link in the API response
   // instead of requiring Resend. Never set in production.
   DEV_MAGIC_ECHO?: string;

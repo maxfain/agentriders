@@ -1,0 +1,184 @@
+---
+// Manage claimed corpus flights: visibility per flight (hidden removes it
+// from the profile and noindexes the page; the record stays and still counts
+// toward rank), the one rider-written field ("What I'd do differently",
+// ≤280), claim-all for the rest of the account's flights, and the share card.
+export const prerender = false;
+import Base from '../../layouts/Base.astro';
+import PageHero from '../../components/PageHero.astro';
+import {
+  AGENT_LABELS, OUTCOME_LABELS, fmtDate, flightlogConfigured, githubIdentityOf, rpc,
+  type RiderFlights,
+} from '../../lib/flightlog';
+
+const { env } = Astro.locals.runtime;
+const viewer = Astro.locals.rider;
+if (!viewer) return Astro.redirect('/join/?next=%2Fme%2Fflights%2F', 302);
+
+const configured = flightlogConfigured(env);
+let mine: RiderFlights | null = null;
+let claimable = 0;
+let hasGithub = false;
+if (configured) {
+  mine = await rpc<RiderFlights>(env, 'rider_flights', { p_rider_id: viewer.id });
+  const githubId = await githubIdentityOf(env.DB, viewer.id);
+  hasGithub = githubId !== null;
+  if (githubId !== null) {
+    const c = await rpc<{ count: number }>(env, 'claimable_for', { p_github_user_id: githubId });
+    claimable = Number(c?.count ?? 0);
+  }
+}
+const flights = mine?.flights ?? [];
+const cardUrl = env.SUPABASE_URL
+  ? `${env.SUPABASE_URL.replace(/\/$/, '')}/storage/v1/object/public/cards/riders/${viewer.handle}.png`
+  : null;
+---
+
+<Base title="Your GitHub flights" description="Claimed corpus flights." noindex>
+  <PageHero eyebrow="Your record" title="GitHub flights" description={`${mine?.total ?? 0} claimed · ${claimable} unclaimed`} art="ledger" compact>
+    <p class="page-hero__meta"><a href="/me/">← Your page</a></p>
+  </PageHero>
+
+  <section class="section section--bone">
+    <div class="container myflights">
+      {!configured && <p class="warn">The flight log is not configured yet.</p>}
+
+      {configured && !hasGithub && (
+        <p class="warn">Claiming needs a GitHub sign-in. <a href="/api/auth/github?next=%2Fme%2Fflights%2F" rel="nofollow">Sign in with GitHub</a> to link your account.</p>
+      )}
+
+      {claimable > 0 && (
+        <div class="claim-all">
+          <p>We found <strong>{claimable}</strong> {claimable === 1 ? 'flight' : 'flights'} opened by your GitHub account that you haven't claimed.</p>
+          <button type="button" class="btn btn--ink" id="claim-all">Claim all {claimable}</button>
+          <span id="claim-all-status" role="status"></span>
+        </div>
+      )}
+
+      {flights.length === 0 ? (
+        <p>No claimed flights yet. Find one of your agent PRs under <a href="/logs/">Flight Logs</a> and claim it from its page.</p>
+      ) : (
+        <ul class="flist">
+          {flights.map((f) => (
+            <li class="fitem" data-id={String((f as unknown as { id?: number }).id ?? '')}>
+              <div class="fitem__head">
+                <a href={`/logs/${f.repo}/${f.number}/`}>{f.title}</a>
+                <span class="fitem__meta">{f.repo}#{f.number} · {AGENT_LABELS[f.agent] ?? f.agent} · {f.outcome ? OUTCOME_LABELS[f.outcome] : f.state} · {fmtDate(f.opened_at)}</span>
+              </div>
+              <div class="fitem__controls" data-number={f.number} data-repo={f.repo}>
+                <label class="vis">
+                  <input type="checkbox" class="vis-toggle" checked={f.visibility === 'public'} />
+                  public
+                </label>
+                <details>
+                  <summary>What I'd do differently</summary>
+                  <textarea maxlength="280" rows="3" class="note-text" placeholder="280 characters, shown under the debrief, attributed to you.">{f.note ?? ''}</textarea>
+                  <button type="button" class="btn btn--ink note-save">Save note</button>
+                </details>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div class="share">
+        <h2>Your card</h2>
+        {cardUrl ? (
+          <>
+            <p>Rendered nightly from your claimed flights (1200×630). <a href={cardUrl} rel="noopener">Open the card</a> — share it with a link back to <code>/riders/{viewer.handle}/</code>.</p>
+            <p>
+              <a class="btn btn--ink" href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`My agent flight record — @${viewer.handle} on AgentRiders`)}&url=${encodeURIComponent(`https://agentriders.com/riders/${viewer.handle}/`)}`} rel="noopener nofollow">Share on X</a>
+              <a class="btn btn--ink" href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(`https://agentriders.com/riders/${viewer.handle}/`)}`} rel="noopener nofollow">Share on LinkedIn</a>
+            </p>
+          </>
+        ) : (
+          <p>Cards render once the flight log is configured.</p>
+        )}
+      </div>
+
+      <p class="fine">Hidden flights leave your public profile and their pages drop out of search, but the record stays and still counts toward rank. Want out entirely? <a href="/opt-out/">Opt out</a> hides every flight by your GitHub account, claimed or not.</p>
+    </div>
+  </section>
+</Base>
+
+<script>
+  // flight id rides on the row; fall back to resolving via the page JSON.
+  const flightId = async (controls: HTMLElement): Promise<number | null> => {
+    const row = controls.closest<HTMLElement>('.fitem');
+    const cached = row?.dataset.id;
+    if (cached) return Number(cached);
+    const repo = controls.dataset.repo!;
+    const number = controls.dataset.number!;
+    const res = await fetch(`/logs/${repo}/${number}.json`);
+    if (!res.ok) return null;
+    const body = (await res.json()) as { flight?: { id?: number } };
+    const id = body.flight?.id ?? null;
+    if (id && row) row.dataset.id = String(id);
+    return id;
+  };
+
+  document.getElementById('claim-all')?.addEventListener('click', async (e) => {
+    const button = e.currentTarget as HTMLButtonElement;
+    const status = document.getElementById('claim-all-status')!;
+    button.disabled = true;
+    status.textContent = 'Claiming…';
+    const res = await fetch('/api/flights/claim', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ all: true }),
+    });
+    if (res.ok) location.reload();
+    else {
+      status.textContent = 'Failed — try again.';
+      button.disabled = false;
+    }
+  });
+
+  for (const toggle of document.querySelectorAll<HTMLInputElement>('.vis-toggle')) {
+    toggle.addEventListener('change', async () => {
+      const controls = toggle.closest<HTMLElement>('.fitem__controls')!;
+      const id = await flightId(controls);
+      if (!id) return;
+      await fetch(`/api/flights/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visibility: toggle.checked ? 'public' : 'hidden' }),
+      });
+    });
+  }
+
+  for (const save of document.querySelectorAll<HTMLButtonElement>('.note-save')) {
+    save.addEventListener('click', async () => {
+      const controls = save.closest<HTMLElement>('.fitem__controls')!;
+      const id = await flightId(controls);
+      if (!id) return;
+      const note = controls.querySelector<HTMLTextAreaElement>('.note-text')!.value;
+      const res = await fetch(`/api/flights/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note }),
+      });
+      save.textContent = res.ok ? 'Saved' : 'Failed';
+      setTimeout(() => (save.textContent = 'Save note'), 1500);
+    });
+  }
+</script>
+
+<style>
+  .myflights { max-width: 760px; }
+  .myflights h2 { font-size: 22px; margin: 40px 0 10px; }
+  .warn { color: var(--ember-text); }
+  .claim-all { padding: 16px 18px; border: 1px solid var(--bone-line); border-radius: var(--radius); background: var(--bone-raised); margin-bottom: 26px; }
+  .claim-all button { margin-top: 8px; }
+  .flist { list-style: none; margin: 0; padding: 0; }
+  .fitem { padding: 14px 0; border-bottom: 1px solid var(--bone-line); }
+  .fitem__meta { display: block; font-family: var(--mono); font-size: 12.5px; color: var(--ash); margin-top: 3px; }
+  .fitem__controls { margin-top: 8px; display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+  .vis { font-family: var(--mono); font-size: 13px; display: flex; gap: 6px; align-items: center; }
+  details summary { cursor: pointer; font-family: var(--mono); font-size: 13px; color: var(--text-on-bone-soft); }
+  .note-text { display: block; width: min(56ch, 100%); margin: 8px 0; font: inherit; font-size: 14px; padding: 8px; border: 1px solid var(--bone-line); border-radius: var(--radius); background: var(--bone-raised); }
+  .share p { max-width: var(--measure); }
+  .share .btn { margin-right: 10px; }
+  .fine { margin-top: 36px; font-size: 13.5px; color: var(--ash); max-width: var(--measure); }
+  #claim-all-status { margin-left: 10px; color: var(--ash); font-size: 14px; }
+</style>

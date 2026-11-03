@@ -182,6 +182,11 @@ const latestFlights = (await getCollection('logs', ({ data }) => !data.draft))
           )}
         </div>
         <div class="me-card">
+          <p class="micro">GITHUB FLIGHTS</p>
+          <p class="me-card__value">&nbsp;</p>
+          <p class="me-card__fine">Agent PRs you opened on GitHub, claimable with one click. <a class="text-link" href="/me/flights/">Claim &amp; manage &rarr;</a></p>
+        </div>
+        <div class="me-card">
           <p class="micro">PROFILE</p>
           <p class="me-card__value">{profileSet ? 'Set' : '—'}</p>
           <p class="me-card__fine">A line under your name, and the mounts you ride. <a class="text-link" href="/me/profile/">Edit →</a></p>
