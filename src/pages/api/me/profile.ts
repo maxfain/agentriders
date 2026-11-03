@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { isPendingHandle } from '../../../lib/handles';
 import { rateLimit } from '../../../lib/ratelimit';
+import { readJsonCapped, BodyTooLargeError } from '../../../lib/http';
 import { readProfileExtras, validateProfileInput } from '../../../lib/profile';
 import { mountBySlug, mountCounts } from '../../../lib/mounts';
 
@@ -34,10 +35,13 @@ export const PUT: APIRoute = async ({ locals, request }) => {
     return json(429, { error: 'Too many saves. Try again in an hour.' });
   }
 
+  // Capped read: a chunked body carries no Content-Length for the middleware
+  // to judge, so the byte budget is enforced on the stream here as well.
   let body: unknown;
   try {
-    body = await request.json();
-  } catch {
+    body = await readJsonCapped(request);
+  } catch (error) {
+    if (error instanceof BodyTooLargeError) return json(413, { error: 'Request body too large.' });
     return json(400, { error: 'Send JSON.' });
   }
 

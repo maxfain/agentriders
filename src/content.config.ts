@@ -1,5 +1,6 @@
 import { defineCollection, z } from 'astro:content';
 import { glob } from 'astro/loaders';
+import { z as zod } from 'zod';
 import { logFrontmatterShape } from './lib/log-schema';
 
 // Every authored collection carries published/updated (backfilled from git
@@ -40,12 +41,22 @@ const manual = defineCollection({
 // Single source of truth for log frontmatter lives in src/lib/log-schema.ts
 // (shared with the submissions API). The content collection coerces `date`
 // to a Date object for templates; everything else is the shared shape.
+// The shape is built with the root `zod` (4.x — the copy that validates
+// rider input at request time), and a zod 3 object cannot hold zod 4 fields
+// (its parser calls `_parse` on each one, which v4 no longer has), so this
+// one collection is assembled with the same `zod` instead of astro:content's
+// `z` — Astro 5's bundled zod 3. Astro only asks the schema to parse. The
+// other collections keep `z` until Astro 7, where zod 4 is the native one.
+const logSchema = zod.object({
+  ...logFrontmatterShape,
+  date: zod.coerce.date(),
+});
 const logs = defineCollection({
   loader: glob({ pattern: '**/*.md', base: './src/content/logs' }),
-  schema: z.object({
-    ...logFrontmatterShape,
-    date: z.coerce.date(),
-  }),
+  // Type-only cast: defineCollection is typed for Astro 5's zod 3, and
+  // InferEntrySchema<'logs'> — what every template reads as `data` — is
+  // derived from this property, so it has to keep the parsed shape.
+  schema: logSchema as unknown as z.ZodType<zod.infer<typeof logSchema>>,
 });
 
 const training = defineCollection({

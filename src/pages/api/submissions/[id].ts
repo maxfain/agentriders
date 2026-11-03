@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { z } from 'zod';
+import { readJsonCapped, BodyTooLargeError } from '../../../lib/http.ts';
 import {
   buildSubmission,
   slugTaken,
@@ -56,10 +57,13 @@ export const PUT: APIRoute = async ({ locals, params, request }) => {
     return json(409, { error: `A ${row.status} submission can't be edited.` });
   }
 
+  // Capped read: a chunked body carries no Content-Length for the middleware
+  // to judge, so the byte budget is enforced on the stream here as well.
   let payload: unknown;
   try {
-    payload = await request.json();
-  } catch {
+    payload = await readJsonCapped(request);
+  } catch (error) {
+    if (error instanceof BodyTooLargeError) return json(413, { error: 'Request body too large.' });
     return json(400, { error: 'Send a JSON body.' });
   }
 
