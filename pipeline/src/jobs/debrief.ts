@@ -52,7 +52,9 @@ export async function debriefJob(
   let revalidated = 0;
   let errorSample: string | undefined;
   try {
-    const rows = await db.query<Row>(GATED_SQL, [DEBRIEF_PROMPT_VERSION, opts.limit ?? 5000]);
+    // No --limit means "every gated flight", not a silent cap — the backfill
+    // must not quietly stop 5k in. The daily job passes its own small limit.
+    const rows = await db.query<Row>(GATED_SQL, [DEBRIEF_PROMPT_VERSION, opts.limit ?? 1_000_000]);
     if (opts.dryRun) {
       const first = rows[0];
       if (first) console.log(JSON.stringify(buildDebriefPrompt(toRecord(first)), null, 2));
