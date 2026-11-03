@@ -86,7 +86,7 @@ test('hours allow rounded and day forms', () => {
 
 test('the prompt carries the record and the hard rules, never a diff', () => {
   const { system, user } = buildDebriefPrompt(record);
-  assert.match(system, /40 to 60 words/);
+  assert.match(system, /48 to 55 words/);
   assert.match(system, /forbidden/i);
   assert.ok(user.includes('"repo": "jamsocket/forevervm"'));
   assert.ok(!user.includes('diff'));

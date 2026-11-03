@@ -8,7 +8,10 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { wordCount } from './text.ts';
 
-export const DEBRIEF_PROMPT_VERSION = 'v1';
+// v2: tighter word-count target with margin, and the allowed numbers handed to
+// the model explicitly — the two things Haiku tripped on in the first backfill
+// pass (word-count overshoot past 60, and citing figures it computed itself).
+export const DEBRIEF_PROMPT_VERSION = 'v2';
 
 /** The structured record the model sees. Never the diff, never the full body. */
 export type DebriefRecord = {
@@ -45,22 +48,31 @@ export function buildDebriefPrompt(record: DebriefRecord): { system: string; use
     'Voice: a calm flight-log entry. Present tense. Plain, concrete, no hype.',
     'Guild vocabulary where it fits naturally (a failed flight is a burn; the human is the rider) and plain English where it does not.',
     'Hard rules:',
-    '- 40 to 60 words, one paragraph: the task, what happened, the outcome.',
+    '- Length: aim for 48 to 55 words; never fewer than 42 or more than 58. Count the words and trim before replying — running past 60 is the most common mistake.',
+    '- One paragraph: the task, what happened, the outcome.',
     '- Facts ONLY from the record you are given. Never guess or embellish.',
-    '- Use a number only if it appears in the record fields, and copy it exactly.',
+    '- Cite a number only if it is in the "Numbers you may cite" list in the message, copied exactly. Spell counts under ten as words (two reviews, four commits). Never state a percentage, a sum, or a rounded figure you worked out yourself.',
     '- Never speculate about motive or feeling. Phrases like "the agent decided" or "the reviewer felt" are forbidden.',
     '- No advice, no judgment, no exclamation marks, no emoji, no markdown.',
     '- If you quote the reviewer, quote the reviewer_excerpt verbatim (a contiguous span, in double quotes) and nothing else. Quoting is optional.',
     'Reply with the debrief text alone.',
   ].join('\n');
-  const user = `Write the debrief for this flight record:\n${JSON.stringify(
-    {
-      ...record,
-      outcome: `${record.outcome} (${OUTCOME_PHRASES[record.outcome] ?? record.outcome})`,
-    },
-    null,
-    1,
-  )}`;
+  const allowedNums = [
+    record.additions, record.deletions, record.files_changed, record.commits,
+    record.review_count, record.change_requests, record.review_comment_count, record.hours_to_merge,
+  ].filter((n): n is number => typeof n === 'number').map(String);
+  const user = [
+    'Write the debrief for this flight record:',
+    JSON.stringify(
+      { ...record, outcome: `${record.outcome} (${OUTCOME_PHRASES[record.outcome] ?? record.outcome})` },
+      null,
+      1,
+    ),
+    '',
+    allowedNums.length > 0
+      ? `Numbers you may cite — ONLY these exact values, nothing else (no percentages, no sums or rounded figures you compute), spelling counts under ten as words: ${allowedNums.join(', ')}.`
+      : 'Cite no numbers — none are recorded for this flight.',
+  ].join('\n');
   return { system, user };
 }
 
