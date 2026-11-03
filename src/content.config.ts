@@ -1,5 +1,6 @@
 import { defineCollection, z } from 'astro:content';
 import { glob } from 'astro/loaders';
+import { z as zod } from 'zod';
 import { logFrontmatterShape } from './lib/log-schema';
 
 // Every authored collection carries published/updated (backfilled from git
@@ -40,12 +41,42 @@ const manual = defineCollection({
 // Single source of truth for log frontmatter lives in src/lib/log-schema.ts
 // (shared with the submissions API). The content collection coerces `date`
 // to a Date object for templates; everything else is the shared shape.
+// The shape is built with the root `zod` (4.x — the copy that validates
+// rider input at request time), and a zod 3 object cannot hold zod 4 fields
+// (its parser calls `_parse` on each one, which v4 no longer has), so this
+// one collection is assembled with the same `zod` instead of astro:content's
+// `z` — Astro 5's bundled zod 3. The other collections keep `z` until Astro
+// 7, where zod 4 is the native one.
+const logSchema = zod.object({
+  ...logFrontmatterShape,
+  date: zod.coerce.date(),
+});
+// Astro 5 does two things with a collection schema that assume its zod 3.
+// On a failed parse it formats the error from zod 3's `.errors` alias
+// (core/errors/errors-data.js InvalidContentEntryDataError, content/utils.js
+// getYAMLErrorLine); zod 4's ZodError has only `.issues`, so a bad log would
+// fail the build with an opaque TypeError instead of "logs → <id> …
+// **field**: …" and a file:line. And `astro sync` feeds the schema to
+// zod-to-json-schema (which reads `_def` off it) for the editor's
+// .astro/collections/logs.schema.json — `{}` for a zod 4 schema, so
+// log-frontmatter intellisense is off until Astro 7. So: an object that
+// inherits from the real schema (keeps `_def` and the rest reachable; no new
+// sync warning) and overrides only the one method Astro calls, adding the
+// alias on failure.
+const logSchemaForAstro = Object.assign(Object.create(logSchema), {
+  async safeParseAsync(data: unknown) {
+    const r = await logSchema.safeParseAsync(data);
+    return r.success
+      ? r
+      : { success: false, error: Object.assign(r.error, { errors: r.error.issues }) };
+  },
+});
 const logs = defineCollection({
   loader: glob({ pattern: '**/*.md', base: './src/content/logs' }),
-  schema: z.object({
-    ...logFrontmatterShape,
-    date: z.coerce.date(),
-  }),
+  // Type-only cast: defineCollection is typed for Astro 5's zod 3, and
+  // InferEntrySchema<'logs'> — what every template reads as `data` — is
+  // derived from this property, so it has to keep the parsed shape.
+  schema: logSchemaForAstro as unknown as z.ZodType<zod.infer<typeof logSchema>>,
 });
 
 const training = defineCollection({

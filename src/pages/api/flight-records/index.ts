@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { rateLimit } from '../../../lib/ratelimit';
+import { readJsonCapped, BodyTooLargeError } from '../../../lib/http';
 import { activeDeviceByFingerprint } from '../../../lib/devices';
 import { matchRecordToLog } from '../../../lib/flight-records';
 import { deviceFingerprint, verifySignature, validatePayload, recordHash, evalScore } from '../../../lib/verify';
@@ -24,10 +25,13 @@ export const POST: APIRoute = async ({ locals, request }) => {
     return json(429, { error: 'Too many uploads. Try again later.' });
   }
 
+  // Capped read: a chunked body carries no Content-Length for the middleware
+  // to judge, so the byte budget is enforced on the stream here as well.
   let body: { payload?: unknown; signature?: unknown; public_key?: unknown; log?: unknown };
   try {
-    body = (await request.json()) as typeof body;
-  } catch {
+    body = (await readJsonCapped(request)) as typeof body;
+  } catch (error) {
+    if (error instanceof BodyTooLargeError) return json(413, { error: 'Request body too large.' });
     return json(400, { error: 'Send JSON: { payload, signature, public_key, log? }.' });
   }
   const signature = typeof body.signature === 'string' ? body.signature : '';

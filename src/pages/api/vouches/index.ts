@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { rateLimit } from '../../../lib/ratelimit.ts';
 import { cascadeRank } from '../../../lib/ranks.ts';
+import { readJsonCapped, BodyTooLargeError } from '../../../lib/http.ts';
 import {
   canVouch,
   validateStatement,
@@ -26,8 +27,9 @@ export const POST: APIRoute = async ({ locals, request }) => {
 
   let payload: { vouchee_handle?: string; statement?: string };
   try {
-    payload = (await request.json()) as { vouchee_handle?: string; statement?: string };
-  } catch {
+    payload = (await readJsonCapped(request)) as { vouchee_handle?: string; statement?: string };
+  } catch (error) {
+    if (error instanceof BodyTooLargeError) return json(413, { error: 'Request body too large.' });
     return json(400, { error: 'Send JSON: { vouchee_handle, statement }.' });
   }
 

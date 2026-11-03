@@ -114,8 +114,8 @@ export default defineConfig({
   vite: {
     build: {
       rollupOptions: {
-        // zod 4 (pulled in by @astrojs/rss and @astrojs/sitemap, which
-        // bundle their own copy) carries `@__PURE__` comments Rollup can't
+        // zod 4 (the root dependency, shared by @astrojs/rss and
+        // @astrojs/sitemap) carries `@__PURE__` comments Rollup can't
         // place; it drops them and warns. Cosmetic and upstream — silenced
         // for that one file set only, so a real warning still shows.
         onwarn(warning, warn) {

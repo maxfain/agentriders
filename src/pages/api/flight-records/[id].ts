@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { matchRecordToLog, unmatchRecord, deleteRecord } from '../../../lib/flight-records';
+import { readJsonCapped, BodyTooLargeError } from '../../../lib/http';
 
 export const prerender = false;
 
@@ -17,8 +18,9 @@ export const POST: APIRoute = async ({ locals, params, request }) => {
 
   let body: { log?: unknown };
   try {
-    body = (await request.json()) as typeof body;
-  } catch {
+    body = (await readJsonCapped(request)) as typeof body;
+  } catch (error) {
+    if (error instanceof BodyTooLargeError) return json(413, { error: 'Request body too large.' });
     return json(400, { error: 'Send JSON: { log }.' });
   }
 

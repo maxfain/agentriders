@@ -2,6 +2,7 @@ import { defineMiddleware } from 'astro:middleware';
 import { SESSION_COOKIE, resolveSession } from './lib/session';
 import { resolveDeviceAuth } from './lib/device-auth';
 import { isAdmin } from './lib/admin';
+import { declaredBodyTooLarge } from './lib/http';
 
 // Mirrors the `/*` block in public/_headers, which Pages applies to static
 // assets only — dynamic responses (sign-in, /me, admin) need them set here.
@@ -71,8 +72,8 @@ function slashedPath(url: URL): string | null {
 //
 // Request-time duties: trailing-slash redirect for pages, cross-origin
 // write rejection (Astro's built-in checkOrigin fires as well — two layers
-// on purpose), session-cookie → locals.rider resolution, and the caching
-// rule on every dynamic response.
+// on purpose), the body cap on API writes, session-cookie → locals.rider
+// resolution, and the caching rule on every dynamic response.
 export const onRequest = defineMiddleware(async (context, next) => {
   if (context.isPrerendered || !context.locals.runtime) return next();
 
@@ -94,6 +95,19 @@ export const onRequest = defineMiddleware(async (context, next) => {
       return new Response(JSON.stringify({ error: 'cross-origin request rejected' }), {
         status: 403,
         headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    // Body cap for every API write, cookie- or device-authed alike, before a
+    // handler reads a byte: a declared Content-Length over the limit is a
+    // 413 here; a body that arrives without one (chunked) is stopped by the
+    // handlers' readJsonCapped (lib/http.ts) at the same limit, and earlier
+    // by device auth's own smaller budget (device-auth.ts). The reply is
+    // shaped like the handlers' own JSON errors; a write's error is never
+    // cacheable, and the security headers travel as on any dynamic response.
+    if (context.url.pathname.startsWith('/api/') && declaredBodyTooLarge(context.request.headers)) {
+      return new Response(JSON.stringify({ error: 'Request body too large.' }), {
+        status: 413,
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...SECURITY_HEADERS },
       });
     }
   }

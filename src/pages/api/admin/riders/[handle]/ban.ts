@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { cascadeRank } from '../../../../../lib/ranks.ts';
+import { readJsonCapped, BodyTooLargeError } from '../../../../../lib/http.ts';
 import type { RiderRow } from '../../../../../lib/session.ts';
 
 export const prerender = false;
@@ -18,8 +19,9 @@ export const POST: APIRoute = async ({ locals, params, request }) => {
 
   let body: { banned?: boolean };
   try {
-    body = (await request.json()) as { banned?: boolean };
-  } catch {
+    body = (await readJsonCapped(request)) as { banned?: boolean };
+  } catch (error) {
+    if (error instanceof BodyTooLargeError) return json(413, { error: 'Request body too large.' });
     return json(400, { error: 'Send JSON: { banned: true|false }.' });
   }
   const banning = body.banned !== false;

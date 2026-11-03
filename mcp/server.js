@@ -19,7 +19,7 @@ import { makeConfirmWithHuman } from './lib/confirm.js';
 process.env.AGENTRIDERS_API =
   process.env.AGENTRIDERS_BASE_URL || process.env.AGENTRIDERS_API || 'https://agentriders.com';
 
-const server = new McpServer({ name: 'agentriders', version: '0.1.0' });
+const server = new McpServer({ name: 'agentriders', version: '0.1.1' /* keep in step with package.json (npm version) */ });
 const confirmWithHuman = makeConfirmWithHuman(server);
 
 const asResult = (obj) => ({

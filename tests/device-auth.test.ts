@@ -128,6 +128,35 @@ test('a revoked device and a banned rider are rejected', async () => {
   assert.equal(await resolveDeviceAuth(banned, b.req, b.url), null);
 });
 
+// A body past the 64 KiB device-auth budget is refused without being
+// buffered — declared, or chunked with no Content-Length to judge it by.
+test('an oversized body is refused before it is buffered', async () => {
+  const kp = makeKeypair();
+  const env = makeEnv({ rider_id: 'rider-1', public_key: kp.publicKeyB64, revoked_at: null }, rider());
+  const { req, url } = await buildSignedRequest({ keypair: kp, method: 'POST', path: '/api/submissions', body: { a: 1 } });
+  const headers = new Headers(req.headers);
+
+  headers.set('Content-Length', String(64 * 1024 + 1));
+  const declared = new Request(url.href, { method: 'POST', headers, body: '{"a":1}' });
+  assert.equal(await resolveDeviceAuth(env, declared, url), null);
+
+  headers.delete('Content-Length');
+  let pulled = 0;
+  const chunk = new TextEncoder().encode('x'.repeat(32 * 1024));
+  const stream = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (pulled < 16) { pulled++; controller.enqueue(chunk); } else controller.close();
+    },
+  });
+  const chunked = new Request(url.href, { method: 'POST', headers, body: stream, duplex: 'half' } as RequestInit);
+  assert.equal(chunked.headers.get('Content-Length'), null);
+  assert.equal(await resolveDeviceAuth(env, chunked, url), null);
+  // 32 + 32 KiB is at the cap and the third chunk crosses it; what follows
+  // is the stream machinery's own read-ahead (a chunk or two through the
+  // tee), so of the 512 KiB on offer at least half is never pulled.
+  assert.ok(pulled <= 8, `pulled ${pulled} chunks`);
+});
+
 test('an unknown device and a non-device request are rejected', async () => {
   const kp = makeKeypair();
   const env = makeEnv(null, null);

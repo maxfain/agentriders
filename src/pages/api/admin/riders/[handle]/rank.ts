@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { cascadeRank } from '../../../../../lib/ranks.ts';
+import { readJsonCapped, BodyTooLargeError } from '../../../../../lib/http.ts';
 import type { RiderRow } from '../../../../../lib/session.ts';
 
 const VOUCH_RANKS = new Set(['rider', 'wingleader']);
@@ -20,8 +21,9 @@ export const POST: APIRoute = async ({ locals, params, request }) => {
 
   let body: { rank?: string | null };
   try {
-    body = (await request.json()) as { rank?: string | null };
-  } catch {
+    body = (await readJsonCapped(request)) as { rank?: string | null };
+  } catch (error) {
+    if (error instanceof BodyTooLargeError) return json(413, { error: 'Request body too large.' });
     return json(400, { error: 'Send JSON: { rank }.' });
   }
   const newRank = body.rank ?? null;

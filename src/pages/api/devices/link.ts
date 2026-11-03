@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { rateLimit } from '../../../lib/ratelimit';
 import { consumeLinkCode, registerDevice } from '../../../lib/devices';
 import { deviceFingerprint } from '../../../lib/verify';
+import { readJsonCapped, BodyTooLargeError } from '../../../lib/http';
 
 export const prerender = false;
 
@@ -25,8 +26,9 @@ export const POST: APIRoute = async ({ locals, request }) => {
 
   let body: { code?: unknown; public_key?: unknown; name?: unknown };
   try {
-    body = (await request.json()) as typeof body;
-  } catch {
+    body = (await readJsonCapped(request)) as typeof body;
+  } catch (error) {
+    if (error instanceof BodyTooLargeError) return json(413, { error: 'Request body too large.' });
     return json(400, { error: 'Send JSON: { code, public_key, name }.' });
   }
   const code = typeof body.code === 'string' ? body.code : '';

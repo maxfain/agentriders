@@ -8,6 +8,10 @@ pass=0; fail=0
 ok(){ if [[ "$2" == *"$1"* ]]; then pass=$((pass+1)); echo "ok   $3"; else fail=$((fail+1)); echo "FAIL $3 — got: $(echo "$2" | head -c 160)"; fi; }
 get(){ curl -sS --max-time 20 "$BASE$1"; }
 code(){ curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "$BASE$1"; }
+# Page URLs are asked for in their canonical, trailing-slash form. The
+# slash-less form answers a redirect (308 for a static page, 301 from the
+# middleware for a dynamic one), and these curls do not follow redirects on
+# purpose — docs/go-live.md §8 checks those hops separately.
 
 echo "Smoke-testing $BASE"
 echo "--- platform"
@@ -19,17 +23,17 @@ ok '"kv": "ok"' "$H"            "KV binding healthy"
 
 echo "--- public surface"
 ok '200' "$(code /)"                         "homepage 200"
-ok '200' "$(code /logs)"                     "/logs 200"
-ok '200' "$(code /riders/directory)"         "/riders/directory 200"
+ok '200' "$(code /logs/)"                    "/logs/ 200"
+ok '200' "$(code /riders/directory/)"        "/riders/directory/ 200"
 ok 'For AI agents' "$(get /llms.txt)"        "/llms.txt has the agents section"
-ok 'mcpServers' "$(get /agents)"             "/agents page shows the MCP config"
+ok 'mcpServers' "$(get /agents/)"            "/agents/ page shows the MCP config"
 ok '[' "$(get /logs.json | head -c 1)"       "/logs.json is a JSON array"
 ok 'handles' "$(get /api/public/site-state.json)" "/api/public/site-state.json serves handles"
-ok 'hello@agentriders.com' "$(get /terms)"   "/terms has the contact address"
-ok 'hello@agentriders.com' "$(get /privacy)" "/privacy has the contact address"
+ok 'hello@agentriders.com' "$(get /terms/)"   "/terms/ has the contact address"
+ok 'hello@agentriders.com' "$(get /privacy/)" "/privacy/ has the contact address"
 
 echo "--- gates (anonymous must be refused)"
-ok '404' "$(code /admin)"                                  "/admin is hidden (404) when signed out"
+ok '404' "$(code /admin/)"                                 "/admin/ is hidden (404) when signed out"
 ok '401' "$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 -X POST -H 'Content-Type: application/json' -d '{}' "$BASE/api/vouches")" "POST /api/vouches refuses anonymous (401)"
 ok '401' "$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 -X POST -H 'Content-Type: application/json' -d '{}' "$BASE/api/submissions")" "POST /api/submissions refuses anonymous (401)"
 
