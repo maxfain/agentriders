@@ -32,12 +32,11 @@ let corpusRepos: CorpusRepo[] = [];
 let corpusAuthors: CorpusAuthor[] = [];
 let corpusFailed = false;
 if (flightlogConfigured(env)) {
-  // A slow (not merely failing) database must not hold up the hub: the whole
-  // page awaits these before anything renders, the rider-written logs below
-  // included. Race both calls against a deadline and fall back to a hidden
-  // corpus section if they do not beat it. The deadline is generous: a cold
-  // Pages Function plus two PostgREST round trips can take a few seconds, and
-  // a brief wait beats hiding the corpus on the first hit after idle.
+  // Each list is fetched under its own deadline and its own catch, so one slow
+  // or failing RPC hides only its own list — never the whole section. The
+  // deadline is generous: a cold Pages Function plus a PostgREST round trip can
+  // take a few seconds. Only the agents call (the spine of the section) failing
+  // hides the corpus and marks the render degraded, so it is not edge-cached.
   function deadline<T>(p: Promise<T>, ms = 6000): Promise<T> {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const limit = new Promise<never>((_, reject) => {
@@ -45,22 +44,18 @@ if (flightlogConfigured(env)) {
     });
     return Promise.race([p, limit]).finally(() => clearTimeout(timer));
   }
-  try {
-    // corpus_authors arrives with migration 0004; a database without it must
-    // not hide the agents and repos, so that call fails soft on its own.
-    const [agents, repos, authors] = await deadline(
-      Promise.all([
-        rpc<CorpusAgent[]>(env, 'corpus_agents', {}),
-        rpc<CorpusRepo[]>(env, 'corpus_repos', { p_limit: 15 }),
-        rpc<CorpusAuthor[]>(env, 'corpus_authors', { p_limit: 15 }).catch(() => null),
-      ]),
-    );
-    corpusAgents = (agents ?? []).filter((a) => isAgentSlug(a.agent));
-    corpusRepos = repos ?? [];
-    corpusAuthors = authors ?? [];
-  } catch {
-    corpusFailed = true; // timeout, transport, or SQL error
+  function safe<T>(p: Promise<T>): Promise<T | null> {
+    return deadline(p).catch(() => null);
   }
+  const [agents, repos, authors] = await Promise.all([
+    safe(rpc<CorpusAgent[]>(env, 'corpus_agents', {})),
+    safe(rpc<CorpusRepo[]>(env, 'corpus_repos', { p_limit: 15 })),
+    safe(rpc<CorpusAuthor[]>(env, 'corpus_authors', { p_limit: 15 })),
+  ]);
+  corpusAgents = (agents ?? []).filter((a) => isAgentSlug(a.agent));
+  corpusRepos = repos ?? [];
+  corpusAuthors = authors ?? [];
+  corpusFailed = agents === null; // only a failed agents call degrades the section
 }
 const corpusTotal = corpusAgents.reduce((sum, a) => sum + Number(a.flights || 0), 0);
 

@@ -206,6 +206,14 @@ test('sitemaps list only indexed flights', async () => {
   assert.ok(!rows.some((r) => r.loc.startsWith('/logs/gate/smallrepo/')));
   const pages = await db.query<{ loc: string }>('select loc from sitemap_pages()');
   assert.ok(pages.some((p) => p.loc === '/logs/agent/claude-code/'));
+
+  // corpus_repos reads mv_corpus_repos (0005), refreshed by refresh_corpus_views
+  // above: an indexed repo appears, a repo with no indexed flight does not.
+  const [{ corpus_repos: repoList }] = await db.query<{ corpus_repos: { full_name: string }[] }>(
+    'select corpus_repos(50)',
+  );
+  assert.ok(repoList.some((r) => r.full_name === 'gate/ok'), 'indexed repo listed');
+  assert.ok(!repoList.some((r) => r.full_name === 'gate/smallrepo'), 'non-indexed repo excluded');
 });
 
 test('author profiles: the view, the page, the sitemap gate, the names on every page, opt-out clearing', async () => {
