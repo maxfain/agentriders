@@ -18,7 +18,9 @@ import { abs, canonicalUrl, clampTitle, clampDescription, siteGraph } from '../l
 // §4.3, §4.5). Titles and descriptions are clamped here so no template can
 // ship an 80-character title; structured data is merged into one @graph.
 interface Props {
-  title: string;                 // ≤60 chars after " — AgentRiders" is appended (unless the caller did)
+  title: string;                 // ≤titleMax chars after " — AgentRiders" is appended (unless the caller did)
+  titleMax?: number;             // default 60; corpus pages raise it, front-loading the unique tokens
+  brandSuffix?: boolean;         // default true; false leaves the brand off (og:site_name and the Organization node carry it)
   description: string;           // ≤155 chars
   canonical?: string;            // absolute URL or site path; default: this page's path; ignored under noindex
   noindex?: boolean;             // robots noindex,follow; no canonical (not even an explicit one), no og:url
@@ -33,7 +35,11 @@ interface Props {
 
 const props = Astro.props;
 const isHome = Astro.url.pathname === '/';
-const title = clampTitle(/AgentRiders/.test(props.title) ? props.title : `${props.title} — AgentRiders`);
+const brandSuffix = props.brandSuffix !== false;
+const title = clampTitle(
+  brandSuffix && !/AgentRiders/.test(props.title) ? `${props.title} — AgentRiders` : props.title,
+  props.titleMax ?? 60,
+);
 const description = clampDescription(props.description);
 const noindex = props.noindex === true;
 const canonical = canonicalUrl(props.canonical ?? Astro.url.pathname);

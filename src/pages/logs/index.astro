@@ -8,7 +8,7 @@ import LogCard from '../../components/LogCard.astro';
 import { slugify } from '../../lib/facets';
 import { breadcrumbs, dataset } from '../../lib/seo';
 import {
-  AGENT_LABELS, fmtInt, fmtRate, flightlogConfigured, isAgentSlug, rpc,
+  AGENT_LABELS, agentVendor, agentWithVendor, fmtInt, fmtRate, flightlogConfigured, isAgentSlug, rpc,
 } from '../../lib/flightlog';
 
 // SSR so the live corpus (Supabase) renders into the hub for crawlers and
@@ -113,16 +113,21 @@ const burned = logs.filter((l) => l.data.burns.length > 0);
         <div class="corpus-intro">
           <p class="micro">THE CORPUS</p>
           <h2>Every public flight, logged.</h2>
-          <p>{fmtInt(corpusTotal)} pull requests opened by coding agents across public GitHub repositories — classified by outcome, with merge and burn rates for each agent. Browse by agent, or by repository.</p>
+          <p>
+            {fmtInt(corpusTotal)} pull requests opened by AI coding agents — {corpusAgents.map((a, i) => (
+              <>{i > 0 && ', '}<a href={`/logs/agent/${a.agent}/`}>{agentWithVendor(a.agent)}</a></>
+            ))} — across public GitHub repositories, classified by outcome with merge and burn rates for each agent. Browse by agent, or by repository.
+          </p>
         </div>
 
         <div class="table-scroll">
         <table class="browse-table">
-          <thead><tr><th>Agent</th><th>Flights</th><th>Merge rate</th><th>Burn rate</th><th>Repos</th></tr></thead>
+          <thead><tr><th>Agent</th><th>Maker</th><th>Flights</th><th>Merge rate</th><th>Burn rate</th><th>Repos</th></tr></thead>
           <tbody>
             {corpusAgents.map((a) => (
               <tr>
-                <td><a href={`/logs/agent/${a.agent}/`}>{AGENT_LABELS[a.agent] ?? a.agent}</a></td>
+                <td><a href={`/logs/agent/${a.agent}/`}>{AGENT_LABELS[a.agent] ?? a.agent} flights</a></td>
+                <td>{agentVendor(a.agent).vendor || '—'}</td>
                 <td>{fmtInt(a.flights)}</td>
                 <td>{fmtRate(a.merge_rate)}</td>
                 <td class:list={['burn-cell', Number(a.burn_rate) >= 0.2 && 'burn']}>{fmtRate(a.burn_rate)}</td>

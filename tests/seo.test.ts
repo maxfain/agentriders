@@ -5,7 +5,7 @@ import {
   abs, canonicalUrl, clampTitle, clampDescription, jsonLdString, siteGraph, smarten,
   orgGraph, website, breadcrumbs, techArticle, article, profilePage,
   learningResource, isoDuration, dataset, softwareApplication, founder, founderPage,
-  definedTermSet,
+  definedTermSet, clampAtSentence, collectionPage, softwareAgent,
 } from '../src/lib/seo.ts';
 import { fetchSiteState } from '../src/lib/build-state.ts';
 
@@ -325,4 +325,48 @@ test('fetchSiteState: carries profiles with ≥1 flight, drops malformed rows, d
   globalThis.fetch = (async () =>
     new Response(JSON.stringify({ handles: [], verified: {} }), { status: 200 })) as typeof fetch;
   assert.deepEqual((await fetchSiteState()).profiles, []);
+});
+
+test('clampAtSentence: whole sentences that fit, else the word clamp', () => {
+  const text = 'First sentence here. Second one is longer than the first. Third.';
+  assert.equal(clampAtSentence(text, 100), text);
+  assert.equal(clampAtSentence(text, 60), 'First sentence here. Second one is longer than the first.');
+  assert.equal(clampAtSentence(text, 25), 'First sentence here.');
+  // A decimal is not a sentence end; a closing quote after the stop stays with it.
+  assert.equal(clampAtSentence('Merged in 3.2 h after review. Then more words follow here.', 32), 'Merged in 3.2 h after review.');
+  assert.equal(clampAtSentence('He said “done.” Then left for the day.', 20), 'He said “done.”');
+  // No sentence fits: word-boundary clamp with an ellipsis.
+  const none = clampAtSentence('A single long sentence without any stop that keeps going on and on', 30);
+  assert.ok(none.endsWith('…') && Array.from(none).length <= 30, none);
+});
+
+test('collectionPage: CollectionPage with an ItemList of at most twenty entries and an about node', () => {
+  const items = Array.from({ length: 25 }, (_, i) => ({ name: `#${i + 1}`, path: `/logs/acme/widget/${i + 1}/` }));
+  const c = collectionPage({ name: 'acme/widget', description: 'd', path: '/logs/acme/widget/', about: { '@type': 'SoftwareSourceCode', name: 'acme/widget' }, items });
+  assert.equal(c['@type'], 'CollectionPage');
+  assert.equal(c['@id'], `${SITE}/logs/acme/widget/#collection`);
+  assert.equal(c.mainEntity['@type'], 'ItemList');
+  assert.equal(c.mainEntity.numberOfItems, 20);
+  assert.equal(c.mainEntity.itemListElement[0].url, `${SITE}/logs/acme/widget/1/`);
+  assert.equal(c.mainEntity.itemListElement[19].position, 20);
+  assert.deepEqual(c.publisher, { '@id': ORG_ID });
+});
+
+test('softwareAgent: a SoftwareApplication with its maker as publisher, keyed to the agent page', () => {
+  const a = softwareAgent({ product: 'OpenAI Codex', vendor: 'OpenAI', vendorUrl: 'https://openai.com/', productUrl: 'https://openai.com/codex/', path: '/logs/agent/openai-codex/' });
+  assert.equal(a['@id'], `${SITE}/logs/agent/openai-codex/#agent`);
+  assert.equal(a.applicationCategory, 'DeveloperApplication');
+  assert.deepEqual(a.publisher, { '@type': 'Organization', name: 'OpenAI', url: 'https://openai.com/' });
+  assert.ok(!('offers' in a)); // third-party product: no price, no ratings
+  const bare = softwareAgent({ product: 'Unknown agent' });
+  assert.ok(!('publisher' in bare) && !('@id' in bare));
+});
+
+test('profilePage for a GitHub author: no dateCreated, no vouches, an image', () => {
+  const p = profilePage({ name: 'Mona Lisa', handle: 'octocat', path: '/logs/author/octocat/', image: 'https://avatars.githubusercontent.com/u/1?v=4', flights: 3, sameAs: ['https://github.com/octocat'] });
+  assert.ok(!('dateCreated' in p));
+  assert.ok(!('interactionStatistic' in p.mainEntity));
+  assert.equal(p.mainEntity.image, 'https://avatars.githubusercontent.com/u/1?v=4');
+  assert.equal(p.mainEntity.identifier, 'octocat');
+  assert.equal(p.mainEntity.agentInteractionStatistic[0].userInteractionCount, 3);
 });

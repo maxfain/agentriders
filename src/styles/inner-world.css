@@ -313,3 +313,14 @@ html[data-motion="paused"] *,html[data-motion="paused"] *::before,html[data-moti
 @media (prefers-reduced-motion: reduce) {
   .field-book,.relic__orbits i,.rank-relic__main,.field-plate__flow { animation: none !important; }
 }
+
+/* Corpus pages (docs/seo-aeo-plan.md §4.3): the visible breadcrumb trail above
+   the hero, and the H1 suffix that carries agent, maker and author inside the
+   one heading. Both sit on the hero's ink. */
+.breadcrumbs { background: #191510; color: #b89e83; font: 10px/1.6 var(--mono); letter-spacing: .08em; }
+.breadcrumbs ol { list-style: none; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 4px 10px; padding-top: 22px; }
+.breadcrumbs li + li::before { content: '/'; margin-right: 10px; color: #6b5a47; }
+.breadcrumbs a { color: #d7cabc; text-decoration: none; }
+.breadcrumbs a:hover { color: #ffdbad; text-decoration: underline; text-underline-offset: 2px; }
+.breadcrumbs [aria-current] { color: #ffdbad; }
+.page-hero__h1-sub { display: block; margin-top: 12px; font-size: .4em; line-height: 1.3; font-weight: 400; letter-spacing: -.01em; color: #d7cabc; }

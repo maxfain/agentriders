@@ -2,14 +2,17 @@
 // Agent page: /logs/agent/{agent}/ — totals across all repos, merge and burn
 // rates over time, top repos, typical task types, recent notable flights.
 // Always indexed (it aggregates, so it is unique by construction), and the
-// monthly line changes every month so crawlers come back.
+// monthly line changes every month so crawlers come back. The maker's name
+// travels with the product everywhere (docs/seo-aeo-plan.md, corpus).
 import Base from '../../../layouts/Base.astro';
 import PageHero from '../../../components/PageHero.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import {
-  AGENT_LABELS, OUTCOME_LABELS, fmtDate, fmtHours, fmtInt, fmtRate, flightlogConfigured,
-  isAgentSlug, outcomeTone, rpc, type AgentPage,
+  AGENT_LABELS, AGENT_SIGNALS_PROSE, OUTCOME_LABELS, agentAnswer, agentH1Suffix, agentTitle, agentVendor,
+  agentWithVendor, fmtDate, fmtHours, fmtInt, fmtRate, flightlogConfigured, isAgentSlug, outcomeTone, rpc,
+  type AgentPage,
 } from '../../../lib/flightlog';
-import { breadcrumbs, clampDescription } from '../../../lib/seo';
+import { breadcrumbs, clampDescription, collectionPage, softwareAgent } from '../../../lib/seo';
 
 export const prerender = false;
 
@@ -20,35 +23,65 @@ const notFound = () =>
   new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' } });
 
 if (!isAgentSlug(agent) || !flightlogConfigured(env)) return notFound();
-const data = await rpc<AgentPage>(env, 'agent_page', { p_agent: agent });
+// One URL per agent: a differently-cased slug is the same page.
+if (Astro.params.agent !== agent) {
+  return new Response(null, {
+    status: 301,
+    headers: { Location: `/logs/agent/${agent}/${Astro.url.search}`, 'Cache-Control': 'public, max-age=86400' },
+  });
+}
+
+type CorpusAgent = { agent: string; flights: number };
+const [data, corpusAgents] = await Promise.all([
+  rpc<AgentPage>(env, 'agent_page', { p_agent: agent }),
+  rpc<CorpusAgent[]>(env, 'corpus_agents', {}).catch(() => null),
+]);
 if (!data) return notFound();
 
 const label = AGENT_LABELS[agent] ?? agent;
+const vendor = agentVendor(agent);
+const path = `/logs/agent/${agent}/`;
 const monthly = data.monthly.slice(-18);
-const description = clampDescription(
-  `${fmtInt(data.totals.flights)} public ${label} pull requests across ${fmtInt(data.totals.repos)} repositories: ` +
-  `${fmtRate(data.totals.merge_rate)} merged, ${fmtRate(data.totals.burn_rate)} burned.`,
-);
+const title = agentTitle(agent, data.totals);
+const answer = agentAnswer(agent, data.totals);
+const description = clampDescription(answer);
+const crumbs = [{ name: 'Home', path: '/' }, { name: 'Flight Logs', path: '/logs/' }, { name: label, path }];
+// Only agents that actually have flights get a sibling link — never a 404.
+const siblings = (corpusAgents ?? []).map((a) => a.agent).filter((a) => a !== agent && isAgentSlug(a));
+const agentNode = softwareAgent({ product: vendor.product, vendor: vendor.vendor, vendorUrl: vendor.vendorUrl, productUrl: vendor.url, path });
 ---
 
 <Base
-  title={`${label} flight log`}
+  title={title}
+  titleMax={90}
+  brandSuffix={false}
   description={description}
+  canonical={path}
   alternates={[{ href: `/logs/agent/${agent}.json`, type: 'application/json', title: 'This agent’s record as JSON' }]}
-  jsonLd={breadcrumbs([
-    { name: 'Home', path: '/' },
-    { name: 'Flight Logs', path: '/logs/' },
-    { name: label, path: `/logs/agent/${agent}/` },
-  ])}
+  jsonLd={[
+    breadcrumbs(crumbs),
+    collectionPage({
+      name: title,
+      description,
+      path,
+      about: agentNode,
+      items: data.notable.map((fl) => ({ name: `${fl.repo}#${fl.number} ${fl.title}`, path: `/logs/${fl.repo}/${fl.number}/` })),
+    }),
+  ]}
 >
+  <Breadcrumbs items={crumbs} />
   <PageHero
     eyebrow="Flight Log / agent"
     title={label}
-    description={`${fmtInt(data.totals.flights)} flights · ${fmtInt(data.totals.repos)} repositories`}
+    titleSuffix={agentH1Suffix(agent)}
+    description={answer}
     art="ledger"
     compact
   >
-    <p class="page-hero__meta"><a href="/logs/">← All flight logs</a></p>
+    <p class="page-hero__meta">
+      <a href="/logs/">All flight logs</a>
+      {vendor.vendor && <> · <a href={vendor.url} rel="noopener">{vendor.product} by {vendor.vendor} ↗</a></>}
+    </p>
   </PageHero>
 
   <section class="section section--bone" aria-label="Agent record">
@@ -62,9 +95,17 @@ const description = clampDescription(
       </dl>
       <p class="metrics-note">Rates are over decided flights (open ones not counted). Sources: the AIDev dataset and daily GH Archive discovery — see <a href="/data/methodology/">how the Guild counts</a>.</p>
 
+      <h2>What {label} is, and how its flights are identified</h2>
+      <p class="definition">
+        {vendor.vendor
+          ? <>{vendor.product} is a coding agent made by <a href={vendor.vendorUrl} rel="noopener">{vendor.vendor}</a> (<a href={vendor.url} rel="noopener">product page ↗</a>). </>
+          : <>{vendor.product} is a coding agent. </>}
+        {AGENT_SIGNALS_PROSE[agent]} Every flight on this page is a public pull request on GitHub; outcomes are classified deterministically from the review record — see <a href="/data/methodology/">how the Guild counts</a> and <a href="/glossary/#flight">what counts as a flight</a>.
+      </p>
+
       {monthly.length > 1 && (
         <>
-          <h2>Month by month</h2>
+          <h2>{label} merge and burn rates, month by month</h2>
           <table class="corpus-table">
             <thead><tr><th>Month</th><th>Flights</th><th>Merge rate</th><th>Burn rate</th></tr></thead>
             <tbody>
@@ -83,13 +124,13 @@ const description = clampDescription(
 
       {data.top_repos.length > 0 && (
         <>
-          <h2>Top repositories by flights</h2>
+          <h2>Repositories with the most {label} pull requests</h2>
           <table class="corpus-table">
             <thead><tr><th>Repository</th><th>Stars</th><th>Flights</th><th>Merge rate</th></tr></thead>
             <tbody>
               {data.top_repos.map((r) => (
                 <tr>
-                  <td><a href={`/logs/${r.full_name}/`}>{r.full_name}</a></td>
+                  <td><a href={`/logs/${r.full_name}/`}>{r.full_name} agent flights</a></td>
                   <td>{r.stars === null ? '—' : `★ ${fmtInt(r.stars)}`}</td>
                   <td>{fmtInt(r.flights)}</td>
                   <td>{fmtRate(r.merge_rate)}</td>
@@ -113,7 +154,7 @@ const description = clampDescription(
 
       {data.notable.length > 0 && (
         <>
-          <h2>Recent notable flights</h2>
+          <h2>Recent notable {label} flights</h2>
           <ul class="notable">
             {data.notable.map((fl) => (
               <li>
@@ -127,11 +168,19 @@ const description = clampDescription(
         </>
       )}
 
+      {siblings.length > 0 && (
+        <p class="compare">
+          Compare: {siblings.map((s, i) => (
+            <>{i > 0 && ' · '}<a href={`/logs/agent/${s}/`}>{agentWithVendor(s)} flights</a></>
+          ))}
+        </p>
+      )}
+
       <div class="claim-box">
         <p><strong>Fly {label} yourself?</strong> <a href="/logs/new/">Log your own flights</a> — or run the <a href="/agents/">agentriders CLI</a> for device-signed, verified records.</p>
       </div>
 
-      <p class="disclaimer">Data from public GitHub activity; this page is not affiliated with GitHub or with the agent's maker.</p>
+      <p class="disclaimer">Data from public GitHub activity; this page is not affiliated with GitHub or with {vendor.vendor || "the agent's maker"}.</p>
     </div>
   </section>
 </Base>
@@ -140,6 +189,7 @@ const description = clampDescription(
   .corpus { max-width: 880px; }
   .corpus h2 { font-size: 24px; margin: 44px 0 14px; }
   .metrics-note { font-size: 13.5px; color: var(--ash); margin-top: 10px; }
+  .definition { max-width: var(--measure); line-height: 1.6; }
   .burn { color: var(--ember-text); }
   .corpus-table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
   .corpus-table th { text-align: left; font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ash); padding: 8px 10px 8px 0; border-bottom: 1px solid var(--text-on-bone); }
@@ -149,6 +199,7 @@ const description = clampDescription(
   .notable li { padding: 10px 0; border-bottom: 1px solid var(--bone-line); }
   .related-meta { display: block; margin-top: 3px; font-family: var(--mono); font-size: 12.5px; color: var(--ash); }
   .tone--ok { color: #3E4A1F; } .tone--warn { color: #6B4A12; } .tone--burn { color: var(--ember-text); } .tone--quiet { color: var(--ash); }
+  .compare { margin-top: 36px; font-family: var(--mono); font-size: 14px; }
   .claim-box { margin-top: 40px; padding: 18px 20px; border: 1px solid var(--bone-line); border-radius: var(--radius); background: var(--bone-raised); }
   .disclaimer { margin-top: 40px; font-size: 13px; color: var(--ash); }
 </style>
