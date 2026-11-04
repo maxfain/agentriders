@@ -20,7 +20,6 @@ import {
 export const prerender = false;
 
 const { env } = Astro.locals.runtime;
-Astro.response.headers.set('Cache-Control', 'public, max-age=300, s-maxage=900');
 
 type CorpusAgent = { agent: string; flights: number; merge_rate: number | null; burn_rate: number | null; repos: number };
 type CorpusRepo = { full_name: string; stars: number | null; primary_language: string | null; flights: number; indexed_flights: number };
@@ -31,12 +30,15 @@ type CorpusAuthor = { login: string; name: string | null; flights: number; index
 let corpusAgents: CorpusAgent[] = [];
 let corpusRepos: CorpusRepo[] = [];
 let corpusAuthors: CorpusAuthor[] = [];
+let corpusFailed = false;
 if (flightlogConfigured(env)) {
   // A slow (not merely failing) database must not hold up the hub: the whole
   // page awaits these before anything renders, the rider-written logs below
-  // included. Race both calls against a short deadline and fall back to a
-  // hidden corpus section if they do not beat it.
-  function deadline<T>(p: Promise<T>, ms = 2500): Promise<T> {
+  // included. Race both calls against a deadline and fall back to a hidden
+  // corpus section if they do not beat it. The deadline is generous: a cold
+  // Pages Function plus two PostgREST round trips can take a few seconds, and
+  // a brief wait beats hiding the corpus on the first hit after idle.
+  function deadline<T>(p: Promise<T>, ms = 6000): Promise<T> {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const limit = new Promise<never>((_, reject) => {
       timer = setTimeout(() => reject(new Error('corpus timeout')), ms);
@@ -57,10 +59,20 @@ if (flightlogConfigured(env)) {
     corpusRepos = repos ?? [];
     corpusAuthors = authors ?? [];
   } catch {
-    /* corpus hidden on timeout, transport, or SQL error */
+    corpusFailed = true; // timeout, transport, or SQL error
   }
 }
 const corpusTotal = corpusAgents.reduce((sum, a) => sum + Number(a.flights || 0), 0);
+
+// Cache a good render at the edge, but never a degraded one: if the corpus was
+// configured yet failed to load, serve no-store so the miss is not pinned for
+// the full s-maxage and the next request retries. (When the corpus is simply
+// not configured — e.g. a preview env — the editorial-only page is correct
+// and cacheable.)
+Astro.response.headers.set(
+  'Cache-Control',
+  corpusFailed ? 'no-store' : 'public, max-age=300, s-maxage=900',
+);
 
 const logs = (await getCollection('logs', ({ data }) => !data.draft)).sort(
   (a, b) => b.data.date.valueOf() - a.data.date.valueOf(),

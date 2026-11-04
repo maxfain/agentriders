@@ -82,6 +82,15 @@ const BANNED = /\b(?:agent|reviewer|author|model|rider)s?\s+(?:decided|decides|f
 const EMOJI = /\p{Extended_Pictographic}/u;
 const NUMBER = /\d+(?:\.\d+)?/g;
 
+// Spelled-out counts the model may write (prompt: "spell counts under ten").
+const NUMBER_WORDS: Record<string, number> = {
+  zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7,
+  eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13,
+  fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18,
+  nineteen: 19, twenty: 20,
+};
+const NUMBER_WORD_RE = new RegExp(`\\b(${Object.keys(NUMBER_WORDS).join('|')})\\b`, 'gi');
+
 /** Spans inside double quotes (straight or curly). */
 function quotedSpans(text: string): string[] {
   const spans: string[] = [];
@@ -148,6 +157,16 @@ export function validateDebrief(text: string, record: DebriefRecord): DebriefVal
   for (const q of quotes) if (excerpt.includes(q)) numberScope = numberScope.split(q).join(' ');
   for (const m of numberScope.matchAll(NUMBER)) {
     if (!allowed.has(m[0])) reasons.push(`number ${m[0]} not in the record fields`);
+  }
+  // The prompt asks the model to spell counts under ten, so a digit-only check
+  // misses "nine reviews" when the record says three. Check spelled numbers
+  // too — from three up, leaving "one"/"two" (often structural, e.g. "one
+  // review round") out to avoid false positives.
+  for (const m of numberScope.matchAll(NUMBER_WORD_RE)) {
+    const value = NUMBER_WORDS[m[0].toLowerCase()];
+    if (value >= 3 && !allowed.has(String(value))) {
+      reasons.push(`number word "${m[0]}" (${value}) not in the record fields`);
+    }
   }
 
   return reasons.length === 0 ? { ok: true } : { ok: false, reasons };

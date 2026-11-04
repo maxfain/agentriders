@@ -60,6 +60,17 @@ test('numbers from the title are allowed', () => {
   assert.deepEqual(validateDebrief(text, r2), { ok: true });
 });
 
+test('a spelled-out count not in the record fails', () => {
+  // review_count is 3; "nine" (9) is not any field value.
+  const text =
+    'Claude Code adds a memory limit option to the forevervm CLI, touching 23 files with 395 additions ' +
+    'and 126 deletions across 5 commits. Nine reviews raise no blocking changes and the branch reworks ' +
+    'before the pull request merges after 30.16 hours of review there.';
+  const verdict = validateDebrief(text, record);
+  assert.equal(verdict.ok, false);
+  assert.ok(!verdict.ok && verdict.reasons.some((r) => r.includes('(9)')));
+});
+
 test('a quote that is not verbatim from reviewer_excerpt fails', () => {
   const bad = good.replace('"Don\'t do async execution"', '"Never do async execution"');
   const verdict = validateDebrief(bad, record);

@@ -216,7 +216,10 @@ async function applyEnrichment(db: Db, flightId: number, pr: EnrichedPr): Promis
       pr.deletions,
       pr.changedFiles,
       pr.commitsTotal,
-      pr.reviews.length,
+      // Accurate total even when the PR has >50 reviews; change_requests and
+      // the human counts below use the first page, which covers virtually all
+      // real PRs (a change-requested review past #50 is vanishingly rare).
+      pr.reviewsTotal,
       changeRequests,
       pr.reviewCommentCount,
       humanReviews.length,
