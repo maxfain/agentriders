@@ -9,8 +9,8 @@ import PageHero from '../../../components/PageHero.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import {
   AGENT_LABELS, AGENT_SIGNALS_PROSE, OUTCOME_LABELS, agentAnswer, agentH1Suffix, agentTitle, agentVendor,
-  agentWithVendor, fmtDate, fmtHours, fmtInt, fmtRate, flightlogConfigured, isAgentSlug, outcomeTone, rpc,
-  type AgentPage,
+  agentWithVendor, authorLabel, fmtDate, fmtHours, fmtInt, fmtRate, flightlogConfigured, isAgentSlug,
+  outcomeTone, rpc, type AgentPage,
 } from '../../../lib/flightlog';
 import { breadcrumbs, clampDescription, collectionPage, softwareAgent } from '../../../lib/seo';
 
@@ -134,6 +134,24 @@ const agentNode = softwareAgent({ product: vendor.product, vendor: vendor.vendor
                   <td>{r.stars === null ? '—' : `★ ${fmtInt(r.stars)}`}</td>
                   <td>{fmtInt(r.flights)}</td>
                   <td>{fmtRate(r.merge_rate)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+
+      {(data.top_authors ?? []).length > 0 && (
+        <>
+          <h2>Who flies {label} the most</h2>
+          <table class="corpus-table">
+            <thead><tr><th>Author</th><th>Flights</th><th>On the record</th></tr></thead>
+            <tbody>
+              {(data.top_authors ?? []).map((t) => (
+                <tr>
+                  <td><a href={`/logs/author/${t.login.toLowerCase()}/`}>{authorLabel(t)}</a></td>
+                  <td>{fmtInt(t.flights)}</td>
+                  <td>{fmtInt(t.indexed)}</td>
                 </tr>
               ))}
             </tbody>

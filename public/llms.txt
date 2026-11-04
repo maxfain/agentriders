@@ -77,13 +77,15 @@ Named AI agent failure modes. Each page gives the signals, the first ten minutes
 
 ## Flight Log corpus (public agent pull requests)
 
-Every public pull request authored by a coding agent (OpenAI Codex, GitHub Copilot, Devin, Cursor, Claude Code) becomes a flight record: computed numbers, a deterministic outcome (merged clean / merged after rework / burn / abandoned), a short debrief, and a link to the PR. Data from public GitHub activity (the AIDev dataset, CC BY 4.0, plus daily GH Archive discovery); authors can opt out at https://agentriders.com/opt-out/. Every corpus page serves the same record as JSON at the same path with `.json` appended.
+Every public pull request authored by a coding agent (OpenAI Codex by OpenAI, GitHub Copilot by GitHub, Devin by Cognition, Cursor by Anysphere, Claude Code by Anthropic) becomes a flight record: computed numbers, a deterministic outcome (merged clean / merged after rework / burn / abandoned), a short debrief, the author as their public GitHub profile names them, and a link to the PR. Data from public GitHub activity (the AIDev dataset, CC BY 4.0, plus daily GH Archive discovery and the GitHub API for public profile fields); authors can opt out at https://agentriders.com/opt-out/, which also deletes the stored profile fields. Every corpus page serves the same record as JSON at the same path with `.json` appended.
 
 - [Agent index](https://agentriders.com/logs/agents.json): every agent's totals, merge rate and burn rate, with page URLs
 - [Repo index](https://agentriders.com/logs/repos.json): repositories with indexed flights, with page URLs
 - Agent pages: https://agentriders.com/logs/agent/{agent}/ (`openai-codex`, `github-copilot`, `devin`, `cursor`, `claude-code`) — totals, monthly merge and burn rates, top repos, task types
 - Repo pages: https://agentriders.com/logs/{owner}/{repo}/ — flights by agent, outcomes, reviewer excerpts from burns
-- Flight pages: https://agentriders.com/logs/{owner}/{repo}/{number}/ — one PR as a flight: numbers, outcome, debrief, timeline
+- [Author index](https://agentriders.com/logs/authors.json): GitHub accounts with indexed flights — name, flight counts, agents flown, with page URLs
+- Author pages: https://agentriders.com/logs/author/{login}/ (lowercase GitHub login) — the account's public profile as GitHub shows it, agents flown, repositories, every flight, and a claim button for the account's owner
+- Flight pages: https://agentriders.com/logs/{owner}/{repo}/{number}/ — one PR as a flight: numbers, outcome, debrief, timeline, author, related flights by the same author and on the same task type
 
 ## Filing a flight on a rider's behalf
 

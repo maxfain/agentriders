@@ -76,7 +76,10 @@ if (numberRaw !== null) {
     const { flight, repo, author, claim, events, related } = data;
     return json({
       flight, repo,
-      author: { login: author.login, github_profile: `https://github.com/${author.login}` },
+      author: {
+        login: author.login, name: author.name ?? null, github_profile: `https://github.com/${author.login}`,
+        page: author.is_bot ? null : `https://agentriders.com/logs/author/${author.login.toLowerCase()}/`,
+      },
       claim: claim && { rider_handle: claim.rider_handle, claimed_at: claim.claimed_at, note: claim.note },
       events, related,
       pr_url: `https://github.com/${repo.full_name}/pull/${flight.number}`,
@@ -129,7 +132,7 @@ const fAnswer = f
       author: f.author, agent: f.flight.agent, repoFullName: f.repo.full_name,
       openedAt: f.flight.opened_at, state: f.flight.state, outcome: f.flight.outcome,
       hoursToMerge: f.flight.hours_to_merge, additions: f.flight.additions, deletions: f.flight.deletions,
-      filesChanged: f.flight.files_changed, reviewCount: f.flight.review_count,
+      filesChanged: f.flight.files_changed, reviewCount: f.flight.review_count, mergedBy: f.merged_by ?? null,
     })
   : '';
 const fDescription = f
@@ -155,6 +158,11 @@ const showExcerpt = f?.flight.reviewer_excerpt
 const truncated = !!f && (f.flight.body_chars ?? 0) > 300;
 const isAuthor = !!f && viewerGithubId !== null && viewerGithubId === f.author.github_user_id;
 const claimedByViewer = !!f && !!f.claim && !!viewer && f.claim.rider_handle === viewer.handle;
+// A bot's "author page" is its agent page: bot logins carry "[bot]", which no
+// owner name may, so they never get a /logs/author/ URL.
+const fAuthorPage = f && !f.author.is_bot ? `/logs/author/${f.author.login.toLowerCase()}/` : null;
+const fByAuthor = f?.related_by_author ?? [];
+const fByTask = f?.related_by_task ?? [];
 const fOg = f && f.flight.og_generated_at && cardsBase
   ? `${cardsBase}/flights/${f.repo.full_name}/${f.flight.number}.png`
   : undefined;
@@ -194,7 +202,12 @@ const rCrumbs = r
         path: fPath,
         datePublished: f.flight.opened_at ?? undefined,
         dateModified: f.flight.updated_at,
-        author: { login: f.author.login, name: authorDisplay(f.author) },
+        author: {
+          login: f.author.login,
+          name: authorDisplay(f.author),
+          url: fAuthorPage ?? undefined,
+          sameAs: [f.author.website_url ?? '', ...(f.author.social_urls ?? [])].filter((u) => /^https:\/\//.test(u)),
+        },
         repoFullName: f.repo.full_name,
         prUrl,
         agent: fAgentPage
@@ -238,7 +251,10 @@ const rCrumbs = r
         <p class="flight-author">
           Flown by
           {f.author.avatar_url && <img src={f.author.avatar_url} alt="" width="22" height="22" loading="lazy" />}
-          <a href={`https://github.com/${f.author.login}`} rel="nofollow noopener">{authorLabel(f.author)}</a>
+          {fAuthorPage
+            ? <a href={fAuthorPage}>{authorLabel(f.author)}</a>
+            : <span>{authorLabel(f.author)}</span>}
+          <a class="flight-author__gh" href={`https://github.com/${f.author.login}`} rel="nofollow noopener">GitHub ↗</a>
           {f.claim
             ? <>— claimed by <a href={`/riders/${f.claim.rider_handle}/`}>@{f.claim.rider_handle}</a></>
             : <>— unclaimed</>}
@@ -343,6 +359,35 @@ const rCrumbs = r
           </div>
         )}
 
+        {fByAuthor.length > 0 && (
+          <div class="related">
+            <h2>More agent flights by {authorDisplay(f.author)}</h2>
+            <ul>
+              {fByAuthor.map((rel) => (
+                <li>
+                  <a href={`/logs/${rel.repo}/${rel.number}/`}>{rel.title} <span class="related-num">{rel.repo}#{rel.number}</span></a>
+                  <span class="related-meta">{agentWithVendor(rel.agent)} · {rel.outcome ? OUTCOME_LABELS[rel.outcome] : rel.state}</span>
+                </li>
+              ))}
+            </ul>
+            {fAuthorPage && <p class="related-more"><a href={fAuthorPage}>Every agent flight by {authorLabel(f.author)}</a></p>}
+          </div>
+        )}
+
+        {fByTask.length > 0 && f.flight.task_type && (
+          <div class="related">
+            <h2>Other {f.flight.task_type} flights by {fVendor!.product}</h2>
+            <ul>
+              {fByTask.map((rel) => (
+                <li>
+                  <a href={`/logs/${rel.repo}/${rel.number}/`}>{rel.title} <span class="related-num">{rel.repo}#{rel.number}</span></a>
+                  <span class="related-meta">{rel.outcome ? OUTCOME_LABELS[rel.outcome] : rel.state} · {fmtDate(rel.opened_at)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <div class="read-next">
           <h2>Read next</h2>
           <ul>
@@ -373,6 +418,7 @@ const rCrumbs = r
     brandSuffix={false}
     description={rDescription}
     canonical={rPath}
+    noindex={(r.indexed ?? 1) === 0}
     alternates={[{ href: `/logs/${r.repo.full_name}.json`, type: 'application/json', title: 'This repo’s flight log as JSON' }]}
     jsonLd={[
       breadcrumbs(rCrumbs),
@@ -463,6 +509,20 @@ const rCrumbs = r
             ))}
           </tbody>
         </table>
+
+        {(r.top_authors ?? []).length > 0 && (
+          <div class="related">
+            <h2>Who flies agents in {r.repo.full_name}</h2>
+            <ul>
+              {(r.top_authors ?? []).map((t) => (
+                <li>
+                  <a href={`/logs/author/${t.login.toLowerCase()}/`}>{authorLabel(t)}</a>
+                  <span class="related-meta">{fmtInt(t.flights)} {Number(t.flights) === 1 ? 'flight' : 'flights'}{Number(t.indexed) > 0 && <> · {fmtInt(t.indexed)} on the record</>}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div class="claim-box">
           {(r.riders ?? []).length > 0 ? (
@@ -558,6 +618,8 @@ const rCrumbs = r
   .flight-confidence { font-family: var(--mono); font-size: 12.5px; color: var(--ash); }
   .flight-author { margin-top: 14px; color: var(--text-on-bone-soft); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .flight-author img { border-radius: 50%; }
+  .flight-author__gh { font-family: var(--mono); font-size: 12.5px; color: var(--ash); }
+  .related-more { margin-top: 10px; font-family: var(--mono); font-size: 14px; }
   .flight-stats { margin-top: 22px; }
   .metrics-note { font-size: 13.5px; color: var(--ash); margin-top: 8px; }
   .debrief { margin-top: 26px; font-size: 19px; line-height: 1.6; max-width: var(--measure); }

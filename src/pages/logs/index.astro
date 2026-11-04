@@ -8,7 +8,7 @@ import LogCard from '../../components/LogCard.astro';
 import { slugify } from '../../lib/facets';
 import { breadcrumbs, dataset } from '../../lib/seo';
 import {
-  AGENT_LABELS, agentVendor, agentWithVendor, fmtInt, fmtRate, flightlogConfigured, isAgentSlug, rpc,
+  AGENT_LABELS, agentVendor, agentWithVendor, authorLabel, fmtInt, fmtRate, flightlogConfigured, isAgentSlug, rpc,
 } from '../../lib/flightlog';
 
 // SSR so the live corpus (Supabase) renders into the hub for crawlers and
@@ -24,11 +24,13 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300, s-maxage=900')
 
 type CorpusAgent = { agent: string; flights: number; merge_rate: number | null; burn_rate: number | null; repos: number };
 type CorpusRepo = { full_name: string; stars: number | null; primary_language: string | null; flights: number; indexed_flights: number };
+type CorpusAuthor = { login: string; name: string | null; flights: number; indexed_flights: number; agents: string[] };
 
 // The corpus doorway. A failure here must never take down the logs hub, so the
 // section simply hides if the database is unreachable or not configured.
 let corpusAgents: CorpusAgent[] = [];
 let corpusRepos: CorpusRepo[] = [];
+let corpusAuthors: CorpusAuthor[] = [];
 if (flightlogConfigured(env)) {
   // A slow (not merely failing) database must not hold up the hub: the whole
   // page awaits these before anything renders, the rider-written logs below
@@ -42,14 +44,18 @@ if (flightlogConfigured(env)) {
     return Promise.race([p, limit]).finally(() => clearTimeout(timer));
   }
   try {
-    const [agents, repos] = await deadline(
+    // corpus_authors arrives with migration 0003; a database without it must
+    // not hide the agents and repos, so that call fails soft on its own.
+    const [agents, repos, authors] = await deadline(
       Promise.all([
         rpc<CorpusAgent[]>(env, 'corpus_agents', {}),
         rpc<CorpusRepo[]>(env, 'corpus_repos', { p_limit: 15 }),
+        rpc<CorpusAuthor[]>(env, 'corpus_authors', { p_limit: 15 }).catch(() => null),
       ]),
     );
     corpusAgents = (agents ?? []).filter((a) => isAgentSlug(a.agent));
     corpusRepos = repos ?? [];
+    corpusAuthors = authors ?? [];
   } catch {
     /* corpus hidden on timeout, transport, or SQL error */
   }
@@ -156,8 +162,25 @@ const burned = logs.filter((l) => l.data.burns.length > 0);
           </div>
         )}
 
+        {corpusAuthors.length > 0 && (
+          <div class="corpus-repos">
+            <h3>Most active authors</h3>
+            <ul class="repo-list">
+              {corpusAuthors.map((a) => (
+                <li>
+                  <a href={`/logs/author/${a.login.toLowerCase()}/`}>{authorLabel(a)}</a>
+                  <span class="repo-meta">
+                    {fmtInt(a.flights)} {Number(a.flights) === 1 ? 'flight' : 'flights'}
+                    {(a.agents ?? []).filter(isAgentSlug).length > 0 && <> · {(a.agents ?? []).filter(isAgentSlug).map((s) => AGENT_LABELS[s]).join(', ')}</>}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <p class="corpus-links">
-          Machine-readable: <a href="/logs/agents.json">all agents (JSON)</a> · <a href="/logs/repos.json">all repositories (JSON)</a>
+          Machine-readable: <a href="/logs/agents.json">all agents (JSON)</a> · <a href="/logs/repos.json">all repositories (JSON)</a> · <a href="/logs/authors.json">all authors (JSON)</a>
         </p>
       </div>
     </section>

@@ -58,6 +58,23 @@ export type FlightItem = {
   repo?: string;
 };
 
+/** The public profile a page shows next to a person's own pull request (docs/flight-log-corpus.md, Consent). */
+export type AuthorProfile = {
+  login: string;
+  avatar_url: string | null;
+  github_user_id: number;
+  is_bot: boolean;
+  name?: string | null;
+  bio?: string | null;
+  company?: string | null;
+  website_url?: string | null;
+  social_urls?: string[];
+  readme_excerpt?: string | null;
+  profile_fetched_at?: string | null;
+};
+
+export type TopAuthor = { login: string; name: string | null; flights: number; indexed: number };
+
 export type FlightPage = {
   gone?: boolean;
   flight: FlightItem & {
@@ -81,10 +98,15 @@ export type FlightPage = {
     updated_at: string;
   };
   repo: { full_name: string; owner: string; name: string; stars: number | null; primary_language: string | null; license: string | null };
-  author: { login: string; avatar_url: string | null; github_user_id: number; is_bot: boolean };
+  author: AuthorProfile & { indexed_flights?: number };
+  /** Login of whoever merged it — the human in the loop on a bot-authored flight. */
+  merged_by?: string | null;
   claim: { rider_handle: string; visibility: string; note: string | null; claimed_at: string } | null;
   events: { kind: string; actor_login: string | null; at: string | null; url: string | null }[];
   related: FlightItem[];
+  // Optional until migration 0003 is applied; pages treat a missing list as empty.
+  related_by_author?: FlightItem[];
+  related_by_task?: FlightItem[];
 };
 
 export type RepoPage = {
@@ -95,6 +117,9 @@ export type RepoPage = {
   burns: { number: number; agent: string; reviewer_excerpt: string; reviewer_excerpt_url: string | null }[];
   monthly: { month: string; flights: number; merged: number; burns: number }[];
   total: number;
+  /** Indexed flights (0 → the page is noindex). Optional until migration 0003. */
+  indexed?: number;
+  top_authors?: TopAuthor[];
 };
 
 export type AgentPage = {
@@ -104,6 +129,30 @@ export type AgentPage = {
   top_repos: { full_name: string; stars: number | null; flights: number; merge_rate: number | null }[];
   task_types: { type: string; flights: number }[];
   notable: FlightItem[];
+  top_authors?: TopAuthor[];
+};
+
+export type AuthorTotals = {
+  flights: number;
+  indexed: number;
+  merged: number;
+  burns: number;
+  repos: number;
+  merge_rate: number | string | null;
+  burn_rate: number | string | null;
+  last_flight_at: string | null;
+};
+
+export type AuthorPage = {
+  gone?: boolean;
+  author: AuthorProfile;
+  /** The agent with the most flights — a bot login 301s to its page. */
+  dominant_agent: string | null;
+  totals: AuthorTotals;
+  agents: { agent: string; flights: number; merged: number; burns: number }[];
+  repos: { full_name: string; stars: number | null; primary_language: string | null; flights: number }[];
+  flights: FlightItem[];
+  claim: { rider_handle: string } | null;
 };
 
 export type RiderFlights = {
@@ -424,4 +473,36 @@ export function agentAnswer(slug: string, t: AgentTotals): string {
   return `${agentWithVendor(slug)} has opened ${fmtInt(t.flights)} public pull ${Number(t.flights) === 1 ? 'request' : 'requests'} ` +
     `across ${fmtInt(t.repos)} GitHub ${Number(t.repos) === 1 ? 'repository' : 'repositories'} in this corpus: ` +
     `${fmtRate(t.merge_rate)} merged, ${fmtRate(t.burn_rate)} burned (closed unmerged after human review)${median}.`;
+}
+
+/** Author <title>: `{Name} (@login): {N} AI coding-agent pull requests with {Product (Vendor)}, …`. */
+export function authorTitle(a: AuthorRef, t: AuthorTotals, agents: { agent: string; flights: number }[], max = 90): string {
+  const head = `${authorLabel(a)}: ${fmtInt(t.flights)} AI coding-agent pull ${Number(t.flights) === 1 ? 'request' : 'requests'}`;
+  const products = [...agents].sort((x, y) => Number(y.flights) - Number(x.flights)).map((x) => agentWithVendor(x.agent));
+  for (let k = Math.min(3, products.length); k >= 1; k--) {
+    const title = `${head} with ${products.slice(0, k).join(', ')}`;
+    if (cpLen(title) <= max) return title;
+  }
+  return clampTitle(head, max);
+}
+
+export function authorH1Suffix(login: string): string {
+  return `— @${login}’s agent flight log`;
+}
+
+export function authorAnswer(a: AuthorRef, t: AuthorTotals, agents: { agent: string; flights: number }[]): string {
+  const list = [...agents].sort((x, y) => Number(y.flights) - Number(x.flights))
+    .map((x) => `${agentWithVendor(x.agent)} ${fmtInt(x.flights)}`).join(', ');
+  const rates: string[] = [];
+  if (t.merge_rate !== null && t.merge_rate !== undefined) rates.push(`${fmtRate(t.merge_rate)} merged`);
+  rates.push(`${fmtInt(t.burns)} ${Number(t.burns) === 1 ? 'burn' : 'burns'}`);
+  return `${authorDisplay(a)} has opened ${fmtInt(t.flights)} pull ${Number(t.flights) === 1 ? 'request' : 'requests'} with AI coding agents ` +
+    `across ${fmtInt(t.repos)} public GitHub ${Number(t.repos) === 1 ? 'repository' : 'repositories'}${list ? ` (${list})` : ''}; ${rates.join(', ')}.`;
+}
+
+/** Bio first when GitHub shows one (it is the person's own sentence), then the record. */
+export function authorDescription(a: AuthorRef, bio: string | null | undefined, answer: string): string {
+  const b = (bio ?? '').replace(/\s+/g, ' ').trim();
+  if (!b) return clampDescription(answer);
+  return clampAtSentence(`${authorLabel(a)} — ${b}${/[.!?…]$/.test(b) ? '' : '.'} ${answer}`, 155);
 }

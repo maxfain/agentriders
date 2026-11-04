@@ -22,7 +22,7 @@ const isExempt = (path) => FILE_LIKE.test(path) || EXEMPT_PREFIXES.some((p) => p
 // On-demand (Pages Functions) routes have no file in dist/; the adapter's
 // _routes.json lists their include patterns. The defaults stand in when the
 // file is missing and add the routes planned but not yet built.
-const DEFAULT_ROUTES = ['/api/*', '/admin', '/admin/*', '/join', '/logs/new', '/me', '/me/*', '/riders/*', '/sitemap-riders*'];
+const DEFAULT_ROUTES = ['/api/*', '/admin', '/admin/*', '/join', '/logs/new', '/logs/agent/*', '/logs/author/*', '/me', '/me/*', '/riders/*', '/sitemap-riders*'];
 
 function routePatterns() {
   const file = join(DIST, '_routes.json');

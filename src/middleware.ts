@@ -61,6 +61,9 @@ function slashedPath(url: URL): string | null {
   if (/\.[a-z0-9]+$/i.test(pathname)) return null;
   const handle = pathname.match(/^\/riders\/([^/]+)$/)?.[1];
   if (handle && handle !== handle.toLowerCase()) return `/riders/${handle.toLowerCase()}/${url.search}`;
+  // Author pages (the corpus) are lowercase too: /logs/author/MaxFain → one hop.
+  const login = pathname.match(/^\/logs\/author\/([^/]+)$/)?.[1];
+  if (login && login !== login.toLowerCase()) return `/logs/author/${login.toLowerCase()}/${url.search}`;
   return `${pathname}/${url.search}`;
 }
 

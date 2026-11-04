@@ -209,6 +209,10 @@ const jsonLd = [
             <>
               <h2 class="rider-h2">GitHub flights <span class="rider-h2__hint">— public agent PRs, claimed by GitHub sign-in</span></h2>
               {agentsFlown.length > 0 && <p class="micro">FLIES {agentsFlown.join(' · ').toUpperCase()}</p>}
+              {/* The corpus author page, only while the GitHub login is shown here at all (same opt-out and freshness rule as the link above). */}
+              {githubUrl && extras.github_login && (
+                <p class="rider-empty"><a href={`/logs/author/${encodeURIComponent(extras.github_login.toLowerCase())}/`}>{rider.display_name}’s agent flight log on GitHub →</a></p>
+              )}
               <ul class="rider-flights">
                 {githubFlights.slice(0, 30).map((f) => (
                   <li>

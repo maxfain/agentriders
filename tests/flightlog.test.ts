@@ -2,8 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   AGENT_LABELS, AGENT_SIGNALS_PROSE, AGENT_SLUGS, AGENT_VENDORS, agentAnswer, agentH1Suffix, agentTitle,
-  agentWithVendor, authorDisplay, authorLabel, flightAnswer, flightDescription, flightH1Suffix, flightTitle,
-  fmtHours, fmtRate, isAgentSlug, outcomeTone, repoAnswer, repoTitle, validOwner, validRepoName,
+  agentWithVendor, authorAnswer, authorDescription, authorDisplay, authorH1Suffix, authorLabel, authorTitle,
+  flightAnswer, flightDescription, flightH1Suffix, flightTitle, fmtHours, fmtRate, isAgentSlug, outcomeTone,
+  repoAnswer, repoTitle, validOwner, validRepoName,
 } from '../src/lib/flightlog.ts';
 import { safeNextPath } from '../src/lib/next-path.ts';
 import { flightArticle } from '../src/lib/seo.ts';
@@ -173,6 +174,9 @@ test('agentTitle, agentH1Suffix, agentAnswer carry product, maker and the stored
 test('safeNextPath allows only sign-in CTA surfaces', () => {
   assert.equal(safeNextPath('/logs/acme/widget/12/'), '/logs/acme/widget/12/');
   assert.equal(safeNextPath('/opt-out/'), '/opt-out/');
+  assert.equal(safeNextPath('/logs/author/janedoe/'), '/logs/author/janedoe/');
+  assert.equal(safeNextPath('/logs/author/JaneDoe/'), null); // author URLs are lowercase
+  assert.equal(safeNextPath('/logs/author/jane.doe/'), null);
   assert.equal(safeNextPath('/me/flights/'), '/me/flights/');
   assert.equal(safeNextPath('/logs/acme/widget/12/?x=1#y'), '/logs/acme/widget/12/');
   assert.equal(safeNextPath('https://evil.example/'), null);
@@ -212,4 +216,32 @@ test('flight JSON-LD: author is the GitHub account as a Person; about is the rep
   assert.equal(bare.author.name, 'octocat');
   assert.ok(!('url' in bare.author));
   assert.equal(bare.about.length, 1);
+});
+
+test('author builders: name and login first, makers by flights, bio-led description', () => {
+  const a = { login: 'janedoe', name: 'Jane Doe' };
+  const totals = { flights: 14, indexed: 9, merged: 10, burns: 1, repos: 3, merge_rate: 0.77, burn_rate: 0.08, last_flight_at: null };
+  const agents = [{ agent: 'openai-codex', flights: 2 }, { agent: 'claude-code', flights: 12 }];
+  // Two makers need 103 code points; at the default 90 only the busiest fits.
+  assert.equal(
+    authorTitle(a, totals, agents),
+    'Jane Doe (@janedoe): 14 AI coding-agent pull requests with Claude Code (Anthropic)',
+  );
+  assert.equal(
+    authorTitle(a, totals, agents, 110),
+    'Jane Doe (@janedoe): 14 AI coding-agent pull requests with Claude Code (Anthropic), OpenAI Codex (OpenAI)',
+  );
+  assert.equal(authorTitle({ login: 'octocat' }, { ...totals, flights: 1 }, [], 90), '@octocat: 1 AI coding-agent pull request');
+  assert.equal(authorH1Suffix('janedoe'), '— @janedoe’s agent flight log');
+  const answer = authorAnswer(a, totals, agents);
+  assert.equal(
+    answer,
+    'Jane Doe has opened 14 pull requests with AI coding agents across 3 public GitHub repositories (Claude Code (Anthropic) 12, OpenAI Codex (OpenAI) 2); 77% merged, 1 burn.',
+  );
+  const withBio = authorDescription(a, 'Builds sandboxes for agents', answer);
+  assert.ok(withBio.startsWith('Jane Doe (@janedoe) — Builds sandboxes for agents.'), withBio);
+  assert.ok(Array.from(withBio).length <= 155);
+  // No bio: the answer, clamped to the description budget.
+  assert.equal(authorDescription(a, null, 'A short answer.'), 'A short answer.');
+  assert.ok(Array.from(authorDescription(a, null, answer)).length <= 155);
 });
