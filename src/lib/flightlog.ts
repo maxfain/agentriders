@@ -3,6 +3,8 @@
 // plus the formatting helpers the corpus pages share. Plain fetch — no SDK —
 // and erasable TypeScript so node --test can import it directly.
 
+import { clampAtSentence, clampDescription, clampTitle } from './seo.ts';
+
 export type FlightlogEnv = { SUPABASE_URL?: string; SUPABASE_SERVICE_KEY?: string };
 
 export function flightlogConfigured(env: FlightlogEnv): boolean {
@@ -56,6 +58,23 @@ export type FlightItem = {
   repo?: string;
 };
 
+/** The public profile a page shows next to a person's own pull request (docs/flight-log-corpus.md, Consent). */
+export type AuthorProfile = {
+  login: string;
+  avatar_url: string | null;
+  github_user_id: number;
+  is_bot: boolean;
+  name?: string | null;
+  bio?: string | null;
+  company?: string | null;
+  website_url?: string | null;
+  social_urls?: string[];
+  readme_excerpt?: string | null;
+  profile_fetched_at?: string | null;
+};
+
+export type TopAuthor = { login: string; name: string | null; flights: number; indexed: number };
+
 export type FlightPage = {
   gone?: boolean;
   flight: FlightItem & {
@@ -79,10 +98,15 @@ export type FlightPage = {
     updated_at: string;
   };
   repo: { full_name: string; owner: string; name: string; stars: number | null; primary_language: string | null; license: string | null };
-  author: { login: string; avatar_url: string | null; github_user_id: number; is_bot: boolean };
+  author: AuthorProfile & { indexed_flights?: number };
+  /** Login of whoever merged it — the human in the loop on a bot-authored flight. */
+  merged_by?: string | null;
   claim: { rider_handle: string; visibility: string; note: string | null; claimed_at: string } | null;
   events: { kind: string; actor_login: string | null; at: string | null; url: string | null }[];
   related: FlightItem[];
+  // Optional until migration 0004 is applied; pages treat a missing list as empty.
+  related_by_author?: FlightItem[];
+  related_by_task?: FlightItem[];
 };
 
 export type RepoPage = {
@@ -93,6 +117,9 @@ export type RepoPage = {
   burns: { number: number; agent: string; reviewer_excerpt: string; reviewer_excerpt_url: string | null }[];
   monthly: { month: string; flights: number; merged: number; burns: number }[];
   total: number;
+  /** Indexed flights (0 → the page is noindex). Optional until migration 0004. */
+  indexed?: number;
+  top_authors?: TopAuthor[];
 };
 
 export type AgentPage = {
@@ -102,6 +129,30 @@ export type AgentPage = {
   top_repos: { full_name: string; stars: number | null; flights: number; merge_rate: number | null }[];
   task_types: { type: string; flights: number }[];
   notable: FlightItem[];
+  top_authors?: TopAuthor[];
+};
+
+export type AuthorTotals = {
+  flights: number;
+  indexed: number;
+  merged: number;
+  burns: number;
+  repos: number;
+  merge_rate: number | string | null;
+  burn_rate: number | string | null;
+  last_flight_at: string | null;
+};
+
+export type AuthorPage = {
+  gone?: boolean;
+  author: AuthorProfile;
+  /** The agent with the most flights — a bot login 301s to its page. */
+  dominant_agent: string | null;
+  totals: AuthorTotals;
+  agents: { agent: string; flights: number; merged: number; burns: number }[];
+  repos: { full_name: string; stars: number | null; primary_language: string | null; flights: number }[];
+  flights: FlightItem[];
+  claim: { rider_handle: string } | null;
 };
 
 export type RiderFlights = {
@@ -205,7 +256,253 @@ export function fmtInt(n: number | string | null | undefined): string {
   return Number.isFinite(v) ? v.toLocaleString('en-US') : '—';
 }
 
-/** The flight page's title pattern from the brief. */
-export function flightTitle(prTitle: string, agent: string, repoFullName: string): string {
-  return `${prTitle} — ${AGENT_LABELS[agent] ?? agent} flight in ${repoFullName}`;
+// --- vendors and attribution prose ---------------------------------------------
+
+/** Who makes each agent — for titles, answer paragraphs, anchors and JSON-LD. */
+export type AgentVendor = {
+  vendor: string;
+  vendorUrl: string;
+  product: string;
+  /** The product's own page: the one outbound link a corpus page makes to the maker. */
+  url: string;
+  /** Search synonyms (JSON-LD keywords). */
+  aliases: string[];
+};
+
+export const AGENT_VENDORS: Record<string, AgentVendor> = {
+  'claude-code': {
+    vendor: 'Anthropic', vendorUrl: 'https://www.anthropic.com/', product: 'Claude Code',
+    url: 'https://www.anthropic.com/claude-code', aliases: ['Claude', 'Anthropic Claude Code', 'Claude Code CLI'],
+  },
+  'openai-codex': {
+    vendor: 'OpenAI', vendorUrl: 'https://openai.com/', product: 'OpenAI Codex',
+    url: 'https://openai.com/codex/', aliases: ['Codex', 'Codex CLI', 'GPT'],
+  },
+  'github-copilot': {
+    vendor: 'GitHub', vendorUrl: 'https://github.com/', product: 'GitHub Copilot',
+    url: 'https://github.com/features/copilot', aliases: ['Copilot coding agent', 'Microsoft'],
+  },
+  cursor: {
+    vendor: 'Anysphere', vendorUrl: 'https://anysphere.inc/', product: 'Cursor',
+    url: 'https://cursor.com/', aliases: ['Cursor Agent'],
+  },
+  devin: {
+    vendor: 'Cognition', vendorUrl: 'https://cognition.ai/', product: 'Devin',
+    url: 'https://devin.ai/', aliases: ['Cognition AI'],
+  },
+};
+
+/** How a flight is attributed to each agent (pipeline/src/agents.ts), as prose for the agent page. */
+export const AGENT_SIGNALS_PROSE: Record<string, string> = {
+  'claude-code': 'A flight is attributed to Claude Code by the “Co-authored-by: Claude” trailer it writes into commits, by the claude[bot] author of its GitHub Action, and by claude/ branch names.',
+  'openai-codex': 'Codex writes no attribution of its own: flights come from the AIDev dataset’s identification and from codex/ branch names, and a branch prefix alone keeps a flight out of the index until a second signal or the author’s claim confirms it.',
+  'github-copilot': 'A flight is attributed to GitHub Copilot by the Copilot and copilot-swe-agent[bot] authors, the copilot-swe-agent co-author line, and copilot/ branch names.',
+  cursor: 'A flight is attributed to Cursor by the “Co-authored-by: Cursor Agent” commit line and by cursor/ branch names.',
+  devin: 'A flight is attributed to Devin by its devin-ai-integration[bot] author — the signature the AIDev paper confirmed.',
+};
+
+export function agentVendor(slug: string): AgentVendor {
+  return AGENT_VENDORS[slug] ?? { vendor: '', vendorUrl: '', product: AGENT_LABELS[slug] ?? slug, url: '', aliases: [] };
+}
+
+/** "Claude Code (Anthropic)"; the product alone when the maker is unknown. */
+export function agentWithVendor(slug: string): string {
+  const v = agentVendor(slug);
+  return v.vendor ? `${v.product} (${v.vendor})` : v.product;
+}
+
+// --- authors ---------------------------------------------------------------------
+
+export type AuthorRef = { login: string; name?: string | null; is_bot?: boolean };
+
+// A GitHub display name is free text. Control characters go, whitespace
+// collapses, anything past 40 code points is dropped, and an empty result — or
+// one that only repeats the login — falls back to the login, so no page ever
+// reads "octocat (@octocat)".
+const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/g;
+
+export function authorDisplay(a: AuthorRef): string {
+  const cleaned = (a.name ?? '').replace(CONTROL_CHARS, ' ').replace(/\s+/g, ' ').trim();
+  const name = Array.from(cleaned).slice(0, 40).join('').trim();
+  if (!name || name.toLowerCase() === a.login.toLowerCase()) return a.login;
+  return name;
+}
+
+/** "Jane Doe (@janedoe)", or "@janedoe" when no distinct name is known. */
+export function authorLabel(a: AuthorRef): string {
+  const name = authorDisplay(a);
+  return name === a.login ? `@${a.login}` : `${name} (@${a.login})`;
+}
+
+// --- titles, headings, answers ----------------------------------------------------
+// Pure strings from stored fields. Every page's <title>, H1 suffix, answer
+// paragraph and description come from here, so a change to the pattern is one
+// edit and one test.
+
+const OUTCOME_PHRASES: Record<string, string> = {
+  merged_clean: 'merged clean',
+  merged_after_rework: 'merged after rework',
+  burn: 'a burn — closed unmerged after human review',
+  abandoned: 'abandoned — closed unmerged with no human engagement',
+  open: 'still open',
+  stale: 'open and stale',
+};
+
+const cpLen = (s: string) => Array.from(s).length;
+
+/**
+ * Flight <title>: `{PR title} — {Product} ({Vendor}) pull request by {Name} in {owner/repo}`.
+ * Only the PR title is clamped (40 code points); the repo goes last so an
+ * overflow drops it, never the agent, the vendor or the name. No "#n" — it
+ * lives in the eyebrow, and nobody searches for it.
+ */
+export function flightTitle(f: { prTitle: string; agent: string; repoFullName: string; author: AuthorRef; max?: number }): string {
+  const max = f.max ?? 90;
+  const pr = clampTitle(f.prTitle, 40);
+  const tail = f.author.is_bot
+    ? ` — ${agentWithVendor(f.agent)} bot pull request`
+    : ` — ${agentWithVendor(f.agent)} pull request by ${authorDisplay(f.author)}`;
+  const full = `${pr}${tail} in ${f.repoFullName}`;
+  return cpLen(full) <= max ? full : clampTitle(`${pr}${tail}`, max);
+}
+
+/** Inside the H1, after the PR title. */
+export function flightH1Suffix(agent: string, author: AuthorRef): string {
+  return author.is_bot
+    ? `— a ${agentWithVendor(agent)} bot flight`
+    : `— a ${agentWithVendor(agent)} flight by ${authorDisplay(author)}`;
+}
+
+export type FlightFacts = {
+  author: AuthorRef;
+  agent: string;
+  repoFullName: string;
+  openedAt: string | null;
+  state: string;
+  outcome: string | null;
+  hoursToMerge: number | string | null;
+  additions: number | null;
+  deletions: number | null;
+  filesChanged: number | null;
+  reviewCount: number | null;
+  /** Login of whoever merged a bot-authored flight (the human in the loop). */
+  mergedBy?: string | null;
+};
+
+/** The answer paragraph under the H1: who, which agent, where, when, how it ended, the numbers. */
+export function flightAnswer(f: FlightFacts): string {
+  const v = agentVendor(f.agent);
+  const opened = f.author.is_bot
+    ? `The ${v.product} bot${v.vendor ? ` (${v.vendor})` : ''} opened this pull request`
+    : `${authorLabel(f.author)} opened this ${agentWithVendor(f.agent)} pull request`;
+  const when = f.openedAt ? ` on ${fmtDate(f.openedAt)}` : '';
+  let ending = f.outcome ? (OUTCOME_PHRASES[f.outcome] ?? f.outcome.replace(/_/g, ' ')) : f.state;
+  if (f.state === 'merged' && f.hoursToMerge !== null && f.hoursToMerge !== undefined) ending += ` in ${fmtHours(f.hoursToMerge)}`;
+  if (f.state === 'merged' && f.mergedBy) ending += `, merged by @${f.mergedBy}`;
+  const numbers: string[] = [];
+  if (f.additions !== null && f.deletions !== null) numbers.push(`+${fmtInt(f.additions)} −${fmtInt(f.deletions)}`);
+  if (f.filesChanged !== null) numbers.push(`${fmtInt(f.filesChanged)} ${Number(f.filesChanged) === 1 ? 'file' : 'files'}`);
+  if (f.reviewCount !== null) numbers.push(`${fmtInt(f.reviewCount)} ${Number(f.reviewCount) === 1 ? 'review' : 'reviews'}`);
+  return `${opened} in ${f.repoFullName}${when}; ${ending}${numbers.length > 0 ? `: ${numbers.join(', ')}` : ''}.`;
+}
+
+/**
+ * Meta description: whose, which agent and maker, where — then the debrief,
+ * the one unique prose per flight, cut at a sentence boundary. Without a
+ * debrief (the flight is unindexed anyway) the answer sentence stands in.
+ */
+export function flightDescription(f: { author: AuthorRef; agent: string; repoFullName: string; debrief: string | null; answer: string }): string {
+  if (!f.debrief) return clampDescription(f.answer);
+  const prefix = f.author.is_bot
+    ? `${agentWithVendor(f.agent)} bot PR in ${f.repoFullName}: `
+    : `${authorDisplay(f.author)}’s ${agentWithVendor(f.agent)} PR in ${f.repoFullName}: `;
+  const room = 155 - cpLen(prefix);
+  if (room < 40) return clampDescription(`${prefix}${f.debrief}`);
+  return `${prefix}${clampAtSentence(f.debrief, room)}`;
+}
+
+export type RepoAgentStat = { agent: string; flights: number; merge_rate: number | string | null };
+
+const byFlights = (a: RepoAgentStat, b: RepoAgentStat) => Number(b.flights) - Number(a.flights);
+
+/** Repo <title>: `{owner/repo}: {N} AI coding-agent pull requests — {Product (Vendor)}, …`; makers drop from the end until it fits. */
+export function repoTitle(r: { fullName: string; total: number; agents: RepoAgentStat[]; max?: number }): string {
+  const max = r.max ?? 90;
+  const head = `${r.fullName}: ${fmtInt(r.total)} AI coding-agent pull ${Number(r.total) === 1 ? 'request' : 'requests'}`;
+  const products = [...r.agents].sort(byFlights).map((a) => agentWithVendor(a.agent));
+  for (let k = Math.min(3, products.length); k >= 1; k--) {
+    const t = `${head} — ${products.slice(0, k).join(', ')}`;
+    if (cpLen(t) <= max) return t;
+  }
+  return clampTitle(head, max);
+}
+
+export const repoH1Suffix = '— agent flight log';
+
+export function repoAnswer(r: { fullName: string; total: number; stars: number | null; language: string | null; agents: RepoAgentStat[] }): string {
+  const meta = [r.stars !== null ? `★ ${fmtInt(r.stars)}` : null, r.language].filter(Boolean).join(', ');
+  const agents = [...r.agents].sort(byFlights).map((a) =>
+    `${agentWithVendor(a.agent)} ${fmtInt(a.flights)}${a.merge_rate !== null && a.merge_rate !== undefined ? ` (${fmtRate(a.merge_rate)} merged)` : ''}`);
+  return `${fmtInt(r.total)} pull ${Number(r.total) === 1 ? 'request' : 'requests'} opened by AI coding agents in ${r.fullName}` +
+    `${meta ? ` (${meta})` : ''}${agents.length > 0 ? `: ${agents.join(', ')}` : ''}.`;
+}
+
+export type AgentTotals = {
+  flights: number;
+  repos: number;
+  merge_rate: number | string | null;
+  burn_rate: number | string | null;
+  median_hours_to_merge: number | string | null;
+};
+
+export function agentTitle(slug: string, t: AgentTotals, max = 90): string {
+  return clampTitle(
+    `${agentWithVendor(slug)} pull requests on GitHub: ${fmtInt(t.flights)} flights, ${fmtRate(t.merge_rate)} merged, ${fmtRate(t.burn_rate)} burned`,
+    max,
+  );
+}
+
+export function agentH1Suffix(slug: string): string {
+  const v = agentVendor(slug);
+  return v.vendor ? `— ${v.vendor}’s coding agent, on the record` : '— on the record';
+}
+
+export function agentAnswer(slug: string, t: AgentTotals): string {
+  const median = t.median_hours_to_merge !== null && t.median_hours_to_merge !== undefined
+    ? `, median ${fmtHours(t.median_hours_to_merge)} to merge` : '';
+  return `${agentWithVendor(slug)} has opened ${fmtInt(t.flights)} public pull ${Number(t.flights) === 1 ? 'request' : 'requests'} ` +
+    `across ${fmtInt(t.repos)} GitHub ${Number(t.repos) === 1 ? 'repository' : 'repositories'} in this corpus: ` +
+    `${fmtRate(t.merge_rate)} merged, ${fmtRate(t.burn_rate)} burned (closed unmerged after human review)${median}.`;
+}
+
+/** Author <title>: `{Name} (@login): {N} AI coding-agent pull requests with {Product (Vendor)}, …`. */
+export function authorTitle(a: AuthorRef, t: AuthorTotals, agents: { agent: string; flights: number }[], max = 90): string {
+  const head = `${authorLabel(a)}: ${fmtInt(t.flights)} AI coding-agent pull ${Number(t.flights) === 1 ? 'request' : 'requests'}`;
+  const products = [...agents].sort((x, y) => Number(y.flights) - Number(x.flights)).map((x) => agentWithVendor(x.agent));
+  for (let k = Math.min(3, products.length); k >= 1; k--) {
+    const title = `${head} with ${products.slice(0, k).join(', ')}`;
+    if (cpLen(title) <= max) return title;
+  }
+  return clampTitle(head, max);
+}
+
+export function authorH1Suffix(login: string): string {
+  return `— @${login}’s agent flight log`;
+}
+
+export function authorAnswer(a: AuthorRef, t: AuthorTotals, agents: { agent: string; flights: number }[]): string {
+  const list = [...agents].sort((x, y) => Number(y.flights) - Number(x.flights))
+    .map((x) => `${agentWithVendor(x.agent)} ${fmtInt(x.flights)}`).join(', ');
+  const rates: string[] = [];
+  if (t.merge_rate !== null && t.merge_rate !== undefined) rates.push(`${fmtRate(t.merge_rate)} merged`);
+  rates.push(`${fmtInt(t.burns)} ${Number(t.burns) === 1 ? 'burn' : 'burns'}`);
+  return `${authorDisplay(a)} has opened ${fmtInt(t.flights)} pull ${Number(t.flights) === 1 ? 'request' : 'requests'} with AI coding agents ` +
+    `across ${fmtInt(t.repos)} public GitHub ${Number(t.repos) === 1 ? 'repository' : 'repositories'}${list ? ` (${list})` : ''}; ${rates.join(', ')}.`;
+}
+
+/** Bio first when GitHub shows one (it is the person's own sentence), then the record. */
+export function authorDescription(a: AuthorRef, bio: string | null | undefined, answer: string): string {
+  const b = (bio ?? '').replace(/\s+/g, ' ').trim();
+  if (!b) return clampDescription(answer);
+  return clampAtSentence(`${authorLabel(a)} — ${b}${/[.!?…]$/.test(b) ? '' : '.'} ${answer}`, 155);
 }

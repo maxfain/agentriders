@@ -35,10 +35,13 @@ Astro.response.headers.set('X-Robots-Tag', 'noindex');
     <div class="container optout">
       <p>
         The Flight Log lists public pull requests authored by coding agents, with the GitHub login that opened
-        each one. If you'd rather not appear here: sign in with GitHub, press the button, done. Every flight by
-        your account leaves the pages, the JSON, the sitemaps and the aggregates on the next publish, and its
-        pages answer <code>410 Gone</code>. We keep only your account id, flagged opted-out, so the pipeline
-        never re-adds you. You can opt back in the same way.
+        each one and, once an account has an indexed flight, the name and profile text shown on its GitHub
+        profile (name, bio, company, website, social links, the first line of a profile README), on an author
+        page. If you'd rather not appear here: sign in with GitHub, press the button, done. Every flight by
+        your account and your author page leave the pages, the JSON, the sitemaps and the aggregates at once,
+        the profile fields are deleted in the same step, and the pages answer <code>410 Gone</code>. We keep
+        only your account id, flagged opted-out, so the pipeline never re-adds you or re-reads your profile.
+        You can opt back in the same way.
       </p>
 
       {!configured ? (

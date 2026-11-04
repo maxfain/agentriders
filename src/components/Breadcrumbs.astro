@@ -1,0 +1,16 @@
+---
+// The visible breadcrumb trail (docs/seo-aeo-plan.md §4.3, item 1). A page
+// hands the same items array to breadcrumbs() in src/lib/seo.ts, so the trail
+// a reader sees and the BreadcrumbList a crawler reads never diverge.
+interface Props { items: { name: string; path: string }[] }
+const { items } = Astro.props;
+---
+<nav class="breadcrumbs" aria-label="Breadcrumb">
+  <ol class="container">
+    {items.map((item, i) => (
+      <li>
+        {i < items.length - 1 ? <a href={item.path}>{item.name}</a> : <span aria-current="page">{item.name}</span>}
+      </li>
+    ))}
+  </ol>
+</nav>

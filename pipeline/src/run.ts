@@ -21,6 +21,8 @@ const JOBS: Record<string, string> = {
   'refresh-open': 'Nightly re-enrichment of open flights',
   'refresh-repos': 'Weekly repo metadata refresh for repos with indexed flights',
   'rider-cards': 'Render rider share cards for riders with claims',
+  'author-profiles': 'GraphQL public profile fields for authors with indexed flights (never fetched)',
+  'refresh-authors': 'Monthly re-fetch of author profiles older than 30 days',
 };
 
 function usage(): never {
@@ -41,6 +43,7 @@ const { positionals, values } = parseArgs({
     limit: { type: 'string' },
     concurrency: { type: 'string' },
     'dry-run': { type: 'boolean', default: false },
+    refresh: { type: 'boolean', default: false },
   },
 });
 
@@ -131,6 +134,16 @@ try {
     case 'rider-cards': {
       const { riderCards } = await import('./jobs/rider-cards.ts');
       await riderCards(db);
+      break;
+    }
+    case 'author-profiles': {
+      const { authorProfiles } = await import('./jobs/author-profiles.ts');
+      await authorProfiles(db, { limit: values.limit ? Number(values.limit) : undefined, refresh: values.refresh });
+      break;
+    }
+    case 'refresh-authors': {
+      const { authorProfiles } = await import('./jobs/author-profiles.ts');
+      await authorProfiles(db, { limit: values.limit ? Number(values.limit) : undefined, refresh: true });
       break;
     }
     default:

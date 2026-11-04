@@ -85,6 +85,66 @@ export function buildRepoBatchQuery(repos: { owner: string; name: string }[]): s
   return `query {\n${parts.join('\n')}\nrateLimit { remaining resetAt cost }\n}`;
 }
 
+// --- user profiles -----------------------------------------------------------
+// Public profile fields for attribution (docs/flight-log-corpus.md, Consent
+// and footprint). 25 per query: the point cost is tiny (~5 per batch), but a
+// README blob makes each response heavy. The profile README lives in the
+// repository named after the login; GitHub renders README.md at HEAD.
+
+export const USER_BATCH = 25;
+const README_MAX_BYTES = 100_000;
+
+export function buildUserBatchQuery(logins: string[]): string {
+  const parts = logins.map(
+    (login, i) =>
+      `u${i}: user(login: ${JSON.stringify(login)}) {` +
+      ` databaseId login name bio company websiteUrl` +
+      ` socialAccounts(first: 5) { nodes { provider url } }` +
+      ` repository(name: ${JSON.stringify(login)}) { object(expression: "HEAD:README.md") {` +
+      ` ... on Blob { text byteSize isTruncated isBinary } } } }`,
+  );
+  return `query {\n${parts.join('\n')}\nrateLimit { remaining resetAt cost }\n}`;
+}
+
+export type UserProfile = {
+  databaseId: number | null;
+  login: string;
+  name: string | null;
+  bio: string | null;
+  company: string | null;
+  websiteUrl: string | null;
+  /** https links only, at most five. */
+  socialUrls: string[];
+  /** The README markdown, or null when missing, binary, truncated or over 100 kB. */
+  readmeText: string | null;
+};
+
+export function parseUserNode(node: unknown): UserProfile | null {
+  const u = node as Record<string, unknown> | null;
+  if (!u || typeof u.login !== 'string') return null;
+  const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null);
+  const socials = (u.socialAccounts as { nodes?: { provider?: string; url?: unknown }[] } | null)?.nodes ?? [];
+  const blob = (u.repository as {
+    object?: { text?: unknown; byteSize?: number; isTruncated?: boolean; isBinary?: boolean } | null;
+  } | null)?.object ?? null;
+  const readmeOk =
+    !!blob && typeof blob.text === 'string' && !blob.isBinary && !blob.isTruncated &&
+    (blob.byteSize ?? 0) <= README_MAX_BYTES;
+  return {
+    databaseId: typeof u.databaseId === 'number' ? u.databaseId : null,
+    login: u.login,
+    name: str(u.name),
+    bio: str(u.bio),
+    company: str(u.company),
+    websiteUrl: str(u.websiteUrl),
+    socialUrls: socials
+      .map((n) => n.url)
+      .filter((url): url is string => typeof url === 'string' && /^https:\/\//.test(url))
+      .slice(0, 5),
+    readmeText: readmeOk ? (blob!.text as string) : null,
+  };
+}
+
 export type GraphqlResult = {
   data?: Record<string, unknown> & {
     rateLimit?: { remaining: number; resetAt: string; cost: number };

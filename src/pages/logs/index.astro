@@ -8,7 +8,7 @@ import LogCard from '../../components/LogCard.astro';
 import { slugify } from '../../lib/facets';
 import { breadcrumbs, dataset } from '../../lib/seo';
 import {
-  AGENT_LABELS, fmtInt, fmtRate, flightlogConfigured, isAgentSlug, rpc,
+  AGENT_LABELS, agentVendor, agentWithVendor, authorLabel, fmtInt, fmtRate, flightlogConfigured, isAgentSlug, rpc,
 } from '../../lib/flightlog';
 
 // SSR so the live corpus (Supabase) renders into the hub for crawlers and
@@ -23,11 +23,13 @@ const { env } = Astro.locals.runtime;
 
 type CorpusAgent = { agent: string; flights: number; merge_rate: number | null; burn_rate: number | null; repos: number };
 type CorpusRepo = { full_name: string; stars: number | null; primary_language: string | null; flights: number; indexed_flights: number };
+type CorpusAuthor = { login: string; name: string | null; flights: number; indexed_flights: number; agents: string[] };
 
 // The corpus doorway. A failure here must never take down the logs hub, so the
 // section simply hides if the database is unreachable or not configured.
 let corpusAgents: CorpusAgent[] = [];
 let corpusRepos: CorpusRepo[] = [];
+let corpusAuthors: CorpusAuthor[] = [];
 let corpusFailed = false;
 if (flightlogConfigured(env)) {
   // A slow (not merely failing) database must not hold up the hub: the whole
@@ -44,14 +46,18 @@ if (flightlogConfigured(env)) {
     return Promise.race([p, limit]).finally(() => clearTimeout(timer));
   }
   try {
-    const [agents, repos] = await deadline(
+    // corpus_authors arrives with migration 0004; a database without it must
+    // not hide the agents and repos, so that call fails soft on its own.
+    const [agents, repos, authors] = await deadline(
       Promise.all([
         rpc<CorpusAgent[]>(env, 'corpus_agents', {}),
         rpc<CorpusRepo[]>(env, 'corpus_repos', { p_limit: 15 }),
+        rpc<CorpusAuthor[]>(env, 'corpus_authors', { p_limit: 15 }).catch(() => null),
       ]),
     );
     corpusAgents = (agents ?? []).filter((a) => isAgentSlug(a.agent));
     corpusRepos = repos ?? [];
+    corpusAuthors = authors ?? [];
   } catch {
     corpusFailed = true; // timeout, transport, or SQL error
   }
@@ -125,16 +131,21 @@ const burned = logs.filter((l) => l.data.burns.length > 0);
         <div class="corpus-intro">
           <p class="micro">THE CORPUS</p>
           <h2>Every public flight, logged.</h2>
-          <p>{fmtInt(corpusTotal)} pull requests opened by coding agents across public GitHub repositories — classified by outcome, with merge and burn rates for each agent. Browse by agent, or by repository.</p>
+          <p>
+            {fmtInt(corpusTotal)} pull requests opened by AI coding agents — {corpusAgents.map((a, i) => (
+              <>{i > 0 && ', '}<a href={`/logs/agent/${a.agent}/`}>{agentWithVendor(a.agent)}</a></>
+            ))} — across public GitHub repositories, classified by outcome with merge and burn rates for each agent. Browse by agent, or by repository.
+          </p>
         </div>
 
         <div class="table-scroll">
         <table class="browse-table">
-          <thead><tr><th>Agent</th><th>Flights</th><th>Merge rate</th><th>Burn rate</th><th>Repos</th></tr></thead>
+          <thead><tr><th>Agent</th><th>Maker</th><th>Flights</th><th>Merge rate</th><th>Burn rate</th><th>Repos</th></tr></thead>
           <tbody>
             {corpusAgents.map((a) => (
               <tr>
-                <td><a href={`/logs/agent/${a.agent}/`}>{AGENT_LABELS[a.agent] ?? a.agent}</a></td>
+                <td><a href={`/logs/agent/${a.agent}/`}>{AGENT_LABELS[a.agent] ?? a.agent} flights</a></td>
+                <td>{agentVendor(a.agent).vendor || '—'}</td>
                 <td>{fmtInt(a.flights)}</td>
                 <td>{fmtRate(a.merge_rate)}</td>
                 <td class:list={['burn-cell', Number(a.burn_rate) >= 0.2 && 'burn']}>{fmtRate(a.burn_rate)}</td>
@@ -163,8 +174,25 @@ const burned = logs.filter((l) => l.data.burns.length > 0);
           </div>
         )}
 
+        {corpusAuthors.length > 0 && (
+          <div class="corpus-repos">
+            <h3>Most active authors</h3>
+            <ul class="repo-list">
+              {corpusAuthors.map((a) => (
+                <li>
+                  <a href={`/logs/author/${a.login.toLowerCase()}/`}>{authorLabel(a)}</a>
+                  <span class="repo-meta">
+                    {fmtInt(a.flights)} {Number(a.flights) === 1 ? 'flight' : 'flights'}
+                    {(a.agents ?? []).filter(isAgentSlug).length > 0 && <> · {(a.agents ?? []).filter(isAgentSlug).map((s) => AGENT_LABELS[s]).join(', ')}</>}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <p class="corpus-links">
-          Machine-readable: <a href="/logs/agents.json">all agents (JSON)</a> · <a href="/logs/repos.json">all repositories (JSON)</a>
+          Machine-readable: <a href="/logs/agents.json">all agents (JSON)</a> · <a href="/logs/repos.json">all repositories (JSON)</a> · <a href="/logs/authors.json">all authors (JSON)</a>
         </p>
       </div>
     </section>

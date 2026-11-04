@@ -3,17 +3,19 @@
 //   /logs/{owner}/{repo}/           repo page        (+ .json twin)
 //   /logs/{owner}/{repo}/{number}/  flight page      (+ .json twin)
 // A rest route so the prerendered content routes (/logs/[slug], the facet
-// pages, /logs/new, /logs/template) always win; anything unmatched lands
-// here. Opted-out authors and excluded repos answer 410 Gone; unknown paths
-// fall through to the branded 404.
+// pages, /logs/new, /logs/template) and /logs/agent/, /logs/author/ always
+// win; anything unmatched lands here. Opted-out authors and excluded repos
+// answer 410 Gone; unknown paths fall through to the branded 404.
 import Base from '../../layouts/Base.astro';
 import PageHero from '../../components/PageHero.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import {
-  AGENT_LABELS, CONFIDENCE_LABELS, OUTCOME_LABELS, fmtDate, fmtHours, fmtInt, fmtRate,
-  flightTitle, flightlogConfigured, outcomeTone, rpc, validOwner, validRepoName,
-  type FlightPage, type RepoPage,
+  AGENT_LABELS, CONFIDENCE_LABELS, OUTCOME_LABELS, agentVendor, agentWithVendor, authorDisplay, authorLabel,
+  fmtDate, fmtHours, fmtInt, fmtRate, flightAnswer, flightDescription, flightH1Suffix, flightTitle,
+  flightlogConfigured, isAgentSlug, outcomeTone, repoAnswer, repoH1Suffix, repoTitle, rpc, validOwner,
+  validRepoName, type FlightPage, type RepoPage,
 } from '../../lib/flightlog';
-import { breadcrumbs, clampDescription, flightArticle } from '../../lib/seo';
+import { breadcrumbs, clampDescription, collectionPage, flightArticle } from '../../lib/seo';
 
 export const prerender = false;
 
@@ -31,6 +33,13 @@ const json = (payload: unknown) =>
   new Response(JSON.stringify(payload, null, 1), {
     headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=60, s-maxage=300' },
   });
+// One URL per record. owner/repo match case-insensitively (full_name_lower),
+// so a differently-cased path is the same page: HTML requests 301 to the
+// stored casing and declare it canonical; the .json twins answer in place.
+// The target is a stored repo name (validated shape), never request text.
+// Set the cache header here — the middleware only caches 2xx responses.
+const redirectTo = (path: string) =>
+  new Response(null, { status: 301, headers: { Location: `${path}${Astro.url.search}`, 'Cache-Control': 'public, max-age=86400' } });
 
 const segments = (Astro.params.corpus ?? '').split('/').filter(Boolean);
 if (segments.length < 2 || segments.length > 3) return notFound();
@@ -67,13 +76,18 @@ if (numberRaw !== null) {
     const { flight, repo, author, claim, events, related } = data;
     return json({
       flight, repo,
-      author: { login: author.login, github_profile: `https://github.com/${author.login}` },
+      author: {
+        login: author.login, name: author.name ?? null, github_profile: `https://github.com/${author.login}`,
+        page: author.is_bot ? null : `https://agentriders.com/logs/author/${author.login.toLowerCase()}/`,
+      },
       claim: claim && { rider_handle: claim.rider_handle, claimed_at: claim.claimed_at, note: claim.note },
       events, related,
       pr_url: `https://github.com/${repo.full_name}/pull/${flight.number}`,
       page: `https://agentriders.com/logs/${repo.full_name}/${flight.number}/`,
     });
   }
+  const expected = `/logs/${data.repo.full_name}/${data.flight.number}/`;
+  if (Astro.url.pathname !== expected) return redirectTo(expected);
   view = { kind: 'flight', data };
 } else {
   const data = await rpc<RepoPage & { riders?: string[] }>(env, 'repo_page', {
@@ -82,6 +96,8 @@ if (numberRaw !== null) {
   if (!data) return notFound();
   if (data.gone) return goneResponse();
   if (wantJson) return json({ ...data, page: `https://agentriders.com/logs/${data.repo.full_name}/` });
+  const expected = `/logs/${data.repo.full_name}/`;
+  if (Astro.url.pathname !== expected) return redirectTo(expected);
   view = { kind: 'repo', data };
 }
 
@@ -102,41 +118,76 @@ if (viewer && view.kind === 'flight') {
   } catch { /* claim CTA degrades to signed-out */ }
 }
 
+const disclaimer = 'Data from public GitHub activity; this page is not affiliated with GitHub or the repository.';
+
 // --- flight page data ----------------------------------------------------------
 const f = view.kind === 'flight' ? view.data : null;
 const prUrl = f ? `https://github.com/${f.repo.full_name}/pull/${f.flight.number}` : '';
 const fPath = f ? `/logs/${f.repo.full_name}/${f.flight.number}/` : '';
-const fTitle = f ? flightTitle(f.flight.title, f.flight.agent, f.repo.full_name) : '';
-const fDescription = f
-  ? clampDescription(f.flight.debrief ?? `${AGENT_LABELS[f.flight.agent]} pull request in ${f.repo.full_name}: ${f.flight.title}`)
+const fVendor = f ? agentVendor(f.flight.agent) : null;
+const fAgentPage = f && isAgentSlug(f.flight.agent) ? `/logs/agent/${f.flight.agent}/` : null;
+const fTitle = f ? flightTitle({ prTitle: f.flight.title, agent: f.flight.agent, repoFullName: f.repo.full_name, author: f.author }) : '';
+const fAnswer = f
+  ? flightAnswer({
+      author: f.author, agent: f.flight.agent, repoFullName: f.repo.full_name,
+      openedAt: f.flight.opened_at, state: f.flight.state, outcome: f.flight.outcome,
+      hoursToMerge: f.flight.hours_to_merge, additions: f.flight.additions, deletions: f.flight.deletions,
+      filesChanged: f.flight.files_changed, reviewCount: f.flight.review_count, mergedBy: f.merged_by ?? null,
+    })
   : '';
+const fDescription = f
+  ? flightDescription({ author: f.author, agent: f.flight.agent, repoFullName: f.repo.full_name, debrief: f.flight.debrief, answer: fAnswer })
+  : '';
+const fCrumbs = f
+  ? [
+      { name: 'Home', path: '/' },
+      { name: 'Flight Logs', path: '/logs/' },
+      ...(fAgentPage ? [{ name: fVendor!.product, path: fAgentPage }] : []),
+      { name: f.repo.full_name, path: `/logs/${f.repo.full_name}/` },
+      { name: `#${f.flight.number}`, path: fPath },
+    ]
+  : [];
+const fKeywords = f
+  ? [...new Set([
+      fVendor!.product, fVendor!.vendor, ...fVendor!.aliases, 'AI coding agent', 'pull request',
+      authorDisplay(f.author), f.flight.outcome ? OUTCOME_LABELS[f.flight.outcome] : '', f.flight.task_type ?? '',
+    ].filter(Boolean))]
+  : [];
 const showExcerpt = f?.flight.reviewer_excerpt
   && (f.flight.outcome === 'burn' || f.flight.outcome === 'merged_after_rework');
 const truncated = !!f && (f.flight.body_chars ?? 0) > 300;
 const isAuthor = !!f && viewerGithubId !== null && viewerGithubId === f.author.github_user_id;
 const claimedByViewer = !!f && !!f.claim && !!viewer && f.claim.rider_handle === viewer.handle;
+// A bot's "author page" is its agent page: bot logins carry "[bot]", which no
+// owner name may, so they never get a /logs/author/ URL.
+const fAuthorPage = f && !f.author.is_bot ? `/logs/author/${f.author.login.toLowerCase()}/` : null;
+const fByAuthor = f?.related_by_author ?? [];
+const fByTask = f?.related_by_task ?? [];
 const fOg = f && f.flight.og_generated_at && cardsBase
   ? `${cardsBase}/flights/${f.repo.full_name}/${f.flight.number}.png`
   : undefined;
 
 // --- repo page data -------------------------------------------------------------
 const r = view.kind === 'repo' ? view.data : null;
+const rPath = r ? `/logs/${r.repo.full_name}/` : '';
 const rMonthly = r ? r.monthly.slice(-12) : [];
-const rTitle = r ? `${r.repo.full_name} — agent flight log` : '';
-const rDescription = r
-  ? clampDescription(
-      `${r.total} coding-agent pull requests logged in ${r.repo.full_name}: ` +
-      r.agents.map((a) => `${AGENT_LABELS[a.agent] ?? a.agent} ${a.flights}`).join(', '),
-    )
+const rTitle = r ? repoTitle({ fullName: r.repo.full_name, total: r.total, agents: r.agents }) : '';
+const rAnswer = r
+  ? repoAnswer({ fullName: r.repo.full_name, total: r.total, stars: r.repo.stars, language: r.repo.primary_language, agents: r.agents })
   : '';
-
-const disclaimer = 'Data from public GitHub activity; this page is not affiliated with GitHub or the repository.';
+const rDescription = r ? clampDescription(rAnswer) : '';
+const rCrumbs = r
+  ? [{ name: 'Home', path: '/' }, { name: 'Flight Logs', path: '/logs/' }, { name: r.repo.full_name, path: rPath }]
+  : [];
 ---
 
 {f && (
   <Base
     title={fTitle}
+    titleMax={90}
+    brandSuffix={false}
     description={fDescription}
+    canonical={fPath}
     noindex={!f.flight.index_ok}
     ogType="article"
     ogImage={fOg}
@@ -151,28 +202,34 @@ const disclaimer = 'Data from public GitHub activity; this page is not affiliate
         path: fPath,
         datePublished: f.flight.opened_at ?? undefined,
         dateModified: f.flight.updated_at,
-        authorLogin: f.author.login,
+        author: {
+          login: f.author.login,
+          name: authorDisplay(f.author),
+          url: fAuthorPage ?? undefined,
+          sameAs: [f.author.website_url ?? '', ...(f.author.social_urls ?? [])].filter((u) => /^https:\/\//.test(u)),
+        },
         repoFullName: f.repo.full_name,
         prUrl,
-        keywords: [AGENT_LABELS[f.flight.agent], 'AI coding agent', 'pull request', f.flight.task_type ?? ''].filter(Boolean),
+        agent: fAgentPage
+          ? { product: fVendor!.product, vendor: fVendor!.vendor, vendorUrl: fVendor!.vendorUrl, productUrl: fVendor!.url, path: fAgentPage }
+          : undefined,
+        keywords: fKeywords,
       }),
-      breadcrumbs([
-        { name: 'Home', path: '/' },
-        { name: 'Flight Logs', path: '/logs/' },
-        { name: f.repo.full_name, path: `/logs/${f.repo.full_name}/` },
-        { name: `#${f.flight.number}`, path: fPath },
-      ]),
+      breadcrumbs(fCrumbs),
     ]}
   >
+    <Breadcrumbs items={fCrumbs} />
     <PageHero
-      eyebrow={`Flight Log / ${f.repo.full_name}`}
+      eyebrow={`Flight Log / ${f.repo.full_name} #${f.flight.number}`}
       title={f.flight.title}
-      description={`A ${AGENT_LABELS[f.flight.agent] ?? f.flight.agent} flight, ${fmtDate(f.flight.opened_at)}`}
+      titleSuffix={flightH1Suffix(f.flight.agent, f.author)}
+      description={fAnswer}
       art="ledger"
       compact
     >
       <p class="page-hero__meta">
-        <a href={`/logs/${f.repo.full_name}/`}>← All flights in {f.repo.full_name}</a>
+        <a href={`/logs/${f.repo.full_name}/`}>All agent flights in {f.repo.full_name}</a>
+        {fAgentPage && <> · <a href={fAgentPage}>{fVendor!.product} flights</a></>}
       </p>
     </PageHero>
 
@@ -182,7 +239,10 @@ const disclaimer = 'Data from public GitHub activity; this page is not affiliate
           <span class:list={['outcome-badge', `outcome--${outcomeTone(f.flight.outcome)}`]}>
             {f.flight.outcome ? OUTCOME_LABELS[f.flight.outcome] : 'Not yet classified'}
           </span>
-          <span class="flight-agent">{AGENT_LABELS[f.flight.agent] ?? f.flight.agent}</span>
+          {fAgentPage
+            ? <a class="flight-agent" href={fAgentPage}>{fVendor!.product} flights</a>
+            : <span class="flight-agent">{AGENT_LABELS[f.flight.agent] ?? f.flight.agent}</span>}
+          {fVendor!.vendor && <a class="flight-vendor" href={fVendor!.url} rel="noopener">by {fVendor!.vendor} ↗</a>}
           <span class="flight-confidence" title={`Signals: ${f.flight.signals.join(', ') || 'none recorded'}`}>
             attribution: {CONFIDENCE_LABELS[f.flight.confidence] ?? f.flight.confidence}
           </span>
@@ -191,7 +251,10 @@ const disclaimer = 'Data from public GitHub activity; this page is not affiliate
         <p class="flight-author">
           Flown by
           {f.author.avatar_url && <img src={f.author.avatar_url} alt="" width="22" height="22" loading="lazy" />}
-          <a href={`https://github.com/${f.author.login}`} rel="nofollow noopener">{f.author.login}</a>
+          {fAuthorPage
+            ? <a href={fAuthorPage}>{authorLabel(f.author)}</a>
+            : <span>{authorLabel(f.author)}</span>}
+          <a class="flight-author__gh" href={`https://github.com/${f.author.login}`} rel="nofollow noopener">GitHub ↗</a>
           {f.claim
             ? <>— claimed by <a href={`/riders/${f.claim.rider_handle}/`}>@{f.claim.rider_handle}</a></>
             : <>— unclaimed</>}
@@ -284,18 +347,64 @@ const disclaimer = 'Data from public GitHub activity; this page is not affiliate
 
         {f.related.length > 0 && (
           <div class="related">
-            <h2>More flights in {f.repo.full_name}</h2>
+            <h2>More agent flights in {f.repo.full_name}</h2>
             <ul>
               {f.related.map((rel) => (
                 <li>
-                  <a href={`/logs/${f.repo.full_name}/${rel.number}/`}>#{rel.number} {rel.title}</a>
-                  <span class="related-meta">{AGENT_LABELS[rel.agent] ?? rel.agent} · {rel.outcome ? OUTCOME_LABELS[rel.outcome] : rel.state}</span>
+                  <a href={`/logs/${f.repo.full_name}/${rel.number}/`}>{rel.title} <span class="related-num">#{rel.number}</span></a>
+                  <span class="related-meta">{agentWithVendor(rel.agent)} · {rel.outcome ? OUTCOME_LABELS[rel.outcome] : rel.state}</span>
                 </li>
               ))}
             </ul>
           </div>
         )}
 
+        {fByAuthor.length > 0 && (
+          <div class="related">
+            <h2>More agent flights by {authorDisplay(f.author)}</h2>
+            <ul>
+              {fByAuthor.map((rel) => (
+                <li>
+                  <a href={`/logs/${rel.repo}/${rel.number}/`}>{rel.title} <span class="related-num">{rel.repo}#{rel.number}</span></a>
+                  <span class="related-meta">{agentWithVendor(rel.agent)} · {rel.outcome ? OUTCOME_LABELS[rel.outcome] : rel.state}</span>
+                </li>
+              ))}
+            </ul>
+            {fAuthorPage && <p class="related-more"><a href={fAuthorPage}>Every agent flight by {authorLabel(f.author)}</a></p>}
+          </div>
+        )}
+
+        {fByTask.length > 0 && f.flight.task_type && (
+          <div class="related">
+            <h2>Other {f.flight.task_type} flights by {fVendor!.product}</h2>
+            <ul>
+              {fByTask.map((rel) => (
+                <li>
+                  <a href={`/logs/${rel.repo}/${rel.number}/`}>{rel.title} <span class="related-num">{rel.repo}#{rel.number}</span></a>
+                  <span class="related-meta">{rel.outcome ? OUTCOME_LABELS[rel.outcome] : rel.state} · {fmtDate(rel.opened_at)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div class="read-next">
+          <h2>Read next</h2>
+          <ul>
+            <li><a href="/data/methodology/">How merge rate and burn rate are counted</a></li>
+            {f.flight.outcome === 'burn' ? (
+              <>
+                <li><a href="/glossary/#burn">What a burn is</a></li>
+                <li><a href="/burns/first-ten-minutes/">The first ten minutes after an agent burn</a></li>
+              </>
+            ) : (
+              <li><a href="/glossary/#flight">What counts as a flight</a></li>
+            )}
+            {fAgentPage && <li><a href={fAgentPage}>Every {fVendor!.product} ({fVendor!.vendor}) flight on the record</a></li>}
+          </ul>
+        </div>
+
+        <p class="cite">Cite this flight: AgentRiders Flight Log, {f.repo.full_name}#{f.flight.number}, record updated {fmtDate(f.flight.updated_at)}, https://agentriders.com{fPath}</p>
         <p class="disclaimer">{disclaimer}</p>
       </div>
     </section>
@@ -305,22 +414,29 @@ const disclaimer = 'Data from public GitHub activity; this page is not affiliate
 {r && (
   <Base
     title={rTitle}
+    titleMax={90}
+    brandSuffix={false}
     description={rDescription}
+    canonical={rPath}
+    noindex={(r.indexed ?? 1) === 0}
     alternates={[{ href: `/logs/${r.repo.full_name}.json`, type: 'application/json', title: 'This repo’s flight log as JSON' }]}
-    jsonLd={breadcrumbs([
-      { name: 'Home', path: '/' },
-      { name: 'Flight Logs', path: '/logs/' },
-      { name: r.repo.full_name, path: `/logs/${r.repo.full_name}/` },
-    ])}
+    jsonLd={[
+      breadcrumbs(rCrumbs),
+      collectionPage({
+        name: rTitle,
+        description: rDescription,
+        path: rPath,
+        about: { '@type': 'SoftwareSourceCode', name: r.repo.full_name, codeRepository: `https://github.com/${r.repo.full_name}` },
+        items: r.flights.map((fl) => ({ name: `#${fl.number} ${fl.title}`, path: `/logs/${r.repo.full_name}/${fl.number}/` })),
+      }),
+    ]}
   >
+    <Breadcrumbs items={rCrumbs} />
     <PageHero
       eyebrow="Flight Log / repository"
       title={r.repo.full_name}
-      description={[
-        r.repo.stars !== null ? `★ ${fmtInt(r.repo.stars)}` : null,
-        r.repo.primary_language,
-        `${fmtInt(r.total)} agent ${r.total === 1 ? 'flight' : 'flights'} logged`,
-      ].filter(Boolean).join(' · ')}
+      titleSuffix={repoH1Suffix}
+      description={rAnswer}
       art="ledger"
       compact
     >
@@ -335,7 +451,9 @@ const disclaimer = 'Data from public GitHub activity; this page is not affiliate
           <tbody>
             {r.agents.map((a) => (
               <tr>
-                <td><a href={`/logs/agent/${a.agent}/`}>{AGENT_LABELS[a.agent] ?? a.agent}</a></td>
+                <td>{isAgentSlug(a.agent)
+                  ? <a href={`/logs/agent/${a.agent}/`}>{agentWithVendor(a.agent)}</a>
+                  : (AGENT_LABELS[a.agent] ?? a.agent)}</td>
                 <td>{fmtInt(a.flights)}</td>
                 <td>{fmtRate(a.merge_rate)}</td>
                 <td>{fmtHours(a.median_hours_to_merge)}</td>
@@ -365,8 +483,7 @@ const disclaimer = 'Data from public GitHub activity; this page is not affiliate
             <ul>
               {r.burns.map((b) => (
                 <li>
-                  <a href={`/logs/${r.repo.full_name}/${b.number}/`}>#{b.number}</a>
-                  <span class="related-meta">{AGENT_LABELS[b.agent] ?? b.agent}</span>
+                  <a href={`/logs/${r.repo.full_name}/${b.number}/`}>{agentWithVendor(b.agent)} burn #{b.number}</a>
                   <q>{b.reviewer_excerpt}</q>
                 </li>
               ))}
@@ -383,7 +500,7 @@ const disclaimer = 'Data from public GitHub activity; this page is not affiliate
             {r.flights.map((fl) => (
               <tr data-outcome={fl.outcome ?? 'zz-unclassified'}>
                 <td><a href={`/logs/${r.repo.full_name}/${fl.number}/`}>#{fl.number}</a></td>
-                <td class="cell-title">{fl.title}</td>
+                <td class="cell-title"><a href={`/logs/${r.repo.full_name}/${fl.number}/`}>{fl.title}</a></td>
                 <td>{AGENT_LABELS[fl.agent] ?? fl.agent}</td>
                 <td class:list={[`tone--${outcomeTone(fl.outcome)}`]}>{fl.outcome ? OUTCOME_LABELS[fl.outcome] : fl.state}</td>
                 <td>{fmtDate(fl.opened_at)}</td>
@@ -393,6 +510,20 @@ const disclaimer = 'Data from public GitHub activity; this page is not affiliate
           </tbody>
         </table>
 
+        {(r.top_authors ?? []).length > 0 && (
+          <div class="related">
+            <h2>Who flies agents in {r.repo.full_name}</h2>
+            <ul>
+              {(r.top_authors ?? []).map((t) => (
+                <li>
+                  <a href={`/logs/author/${t.login.toLowerCase()}/`}>{authorLabel(t)}</a>
+                  <span class="related-meta">{fmtInt(t.flights)} {Number(t.flights) === 1 ? 'flight' : 'flights'}{Number(t.indexed) > 0 && <> · {fmtInt(t.indexed)} on the record</>}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <div class="claim-box">
           {(r.riders ?? []).length > 0 ? (
             <p>Riders who fly here: {(r.riders ?? []).map((h, i) => (
@@ -401,6 +532,15 @@ const disclaimer = 'Data from public GitHub activity; this page is not affiliate
           ) : (
             <p>No rider has claimed a flight in this repository yet. Flew one of these? Open your flight page and claim it.</p>
           )}
+        </div>
+
+        <div class="read-next">
+          <h2>Read next</h2>
+          <ul>
+            <li><a href="/data/methodology/">How merge rate and burn rate are counted</a></li>
+            <li><a href="/burns/">The burns registry: named AI agent failure modes</a></li>
+            <li><a href="/logs/">Every flight log</a></li>
+          </ul>
         </div>
 
         <p class="disclaimer">{disclaimer} Repository owner? <a href="/opt-out/">Request exclusion</a> — handled within 48 hours.</p>
@@ -474,9 +614,12 @@ const disclaimer = 'Data from public GitHub activity; this page is not affiliate
   .outcome--burn { background: #F4D9CD; color: var(--ember-text); border-color: #E2B39F; }
   .outcome--quiet { background: var(--bone-raised); color: var(--ash); }
   .flight-agent { font-family: var(--mono); font-size: 14px; color: var(--text-on-bone-soft); }
+  .flight-vendor { font-family: var(--mono); font-size: 13px; color: var(--ash); }
   .flight-confidence { font-family: var(--mono); font-size: 12.5px; color: var(--ash); }
   .flight-author { margin-top: 14px; color: var(--text-on-bone-soft); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .flight-author img { border-radius: 50%; }
+  .flight-author__gh { font-family: var(--mono); font-size: 12.5px; color: var(--ash); }
+  .related-more { margin-top: 10px; font-family: var(--mono); font-size: 14px; }
   .flight-stats { margin-top: 22px; }
   .metrics-note { font-size: 13.5px; color: var(--ash); margin-top: 8px; }
   .debrief { margin-top: 26px; font-size: 19px; line-height: 1.6; max-width: var(--measure); }
@@ -503,15 +646,19 @@ const disclaimer = 'Data from public GitHub activity; this page is not affiliate
   .timeline-when { font-family: var(--mono); font-size: 12.5px; color: var(--ash); min-width: 110px; }
   .timeline-kind { font-family: var(--mono); font-size: 13px; }
   .timeline-actor { color: var(--text-on-bone-soft); }
-  .related ul { list-style: none; margin: 0; padding: 0; }
-  .related li { padding: 8px 0; border-bottom: 1px solid var(--bone-line); }
+  .related ul, .read-next ul { list-style: none; margin: 0; padding: 0; }
+  .related li, .read-next li { padding: 8px 0; border-bottom: 1px solid var(--bone-line); }
+  .related-num { font-family: var(--mono); font-size: 12.5px; color: var(--ash); }
   .related-meta { margin-left: 10px; font-family: var(--mono); font-size: 12.5px; color: var(--ash); }
-  .disclaimer { margin-top: 40px; font-size: 13px; color: var(--ash); }
+  .cite { margin-top: 36px; font-family: var(--mono); font-size: 12.5px; color: var(--ash); word-break: break-word; }
+  .disclaimer { margin-top: 16px; font-size: 13px; color: var(--ash); }
   .burn { color: var(--ember-text); }
   .corpus-table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
   .corpus-table th { text-align: left; font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ash); padding: 8px 10px 8px 0; border-bottom: 1px solid var(--text-on-bone); }
   .corpus-table td { padding: 8px 10px 8px 0; border-bottom: 1px solid var(--bone-line); vertical-align: top; }
   .corpus-table .cell-title { max-width: 380px; }
+  .corpus-table .cell-title a { color: inherit; text-decoration: none; }
+  .corpus-table .cell-title a:hover { text-decoration: underline; }
   .tone--ok { color: #3E4A1F; } .tone--warn { color: #6B4A12; } .tone--burn { color: var(--ember-text); } .tone--quiet { color: var(--ash); }
   .sort-outcome { background: none; border: 0; font: inherit; color: inherit; cursor: pointer; text-transform: inherit; letter-spacing: inherit; padding: 0; }
   .repo-burns ul { list-style: none; margin: 0; padding: 0; }

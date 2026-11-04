@@ -63,6 +63,23 @@ export const clampTitle = (s: string, max = 60): string => clamp(s, max);
 export const clampDescription = (s: string, max = 155): string => clamp(s, max);
 
 /**
+ * Cut at a sentence boundary: as many whole sentences as fit in `max`, else
+ * the word-boundary clamp. For descriptions built from prose (a flight's
+ * debrief), so a result page never shows half a sentence when a whole one fits.
+ */
+export function clampAtSentence(s: string, max: number): string {
+  const text = s.replace(/\s+/g, ' ').trim();
+  if (Array.from(text).length <= max) return text;
+  let best = '';
+  for (const m of text.matchAll(/[.?!]["”’)]*(?=\s)/g)) {
+    const candidate = text.slice(0, (m.index ?? 0) + m[0].length);
+    if (Array.from(candidate).length > max) break;
+    best = candidate;
+  }
+  return best || clamp(text, max);
+}
+
+/**
  * Educate straight quotes and apostrophes the way Astro's markdown pipeline
  * (smartypants) does, so `summary` and `faq` text — emitted verbatim from
  * frontmatter — reads with the same typography as the markdown body on the
@@ -102,6 +119,17 @@ type Dateish = Date | string | undefined;
 function isoDate(d: Dateish): string | undefined {
   if (d === undefined) return undefined;
   if (typeof d === 'string' && /^\d{4}-\d{2}(-\d{2})?$/.test(d)) return d;
+  const date = d instanceof Date ? d : new Date(d);
+  return Number.isNaN(date.valueOf()) ? undefined : date.toISOString();
+}
+
+// Full ISO 8601 date-time for the properties Google types as DateTime —
+// ProfilePage.dateCreated and dateModified, where Search Console reports a
+// bare date as "Invalid datetime value". A date-only string carries no time
+// and none is invented: the property is dropped instead.
+function isoDateTime(d: Dateish): string | undefined {
+  if (d === undefined) return undefined;
+  if (typeof d === 'string' && /^\d{4}-\d{2}(-\d{2})?$/.test(d)) return undefined;
   const date = d instanceof Date ? d : new Date(d);
   return Number.isNaN(date.valueOf()) ? undefined : date.toISOString();
 }
@@ -176,14 +204,17 @@ export function founder() {
   };
 }
 
-/** ProfilePage for /about: the founder is its main entity. */
+/**
+ * ProfilePage for /about: the founder is its main entity. `dateModified` is a
+ * DateTime on this type (Google), so only a real timestamp is emitted.
+ */
 export function founderPage(dateModified?: Dateish) {
   const url = canonicalUrl(FOUNDER.path);
   return compact({
     '@type': 'ProfilePage',
     '@id': `${url}#profile`,
     url,
-    dateModified: isoDate(dateModified),
+    dateModified: isoDateTime(dateModified),
     mainEntity: founder(),
   });
 }
@@ -215,10 +246,28 @@ export function breadcrumbs(items: { name: string; path: string }[]) {
 }
 
 /**
- * TechArticle for a corpus flight page (docs/flight-log-corpus.md): `about`
- * is the repository as SoftwareSourceCode, the author is the GitHub login as
- * a Person whose sameAs is their GitHub profile — exactly what the page
- * shows, nothing more.
+ * The agent as a SoftwareApplication, always nested under `about` — never a
+ * top-level node: a bare SoftwareApplication without offers or ratings fails
+ * the Rich Results Test, and these are third-party products the site does not
+ * sell. The stable @id ties every flight to the agent page's own node.
+ */
+export function softwareAgent(a: { product: string; vendor?: string; vendorUrl?: string; productUrl?: string; path?: string }) {
+  return compact({
+    '@type': 'SoftwareApplication',
+    '@id': a.path ? `${canonicalUrl(a.path)}#agent` : undefined,
+    name: a.product,
+    applicationCategory: 'DeveloperApplication',
+    url: a.productUrl || undefined,
+    publisher: a.vendor ? compact({ '@type': 'Organization', name: a.vendor, url: a.vendorUrl || undefined }) : undefined,
+  });
+}
+
+/**
+ * TechArticle for a corpus flight page (docs/flight-log-corpus.md): the author
+ * is the GitHub account as a Person (display name when the profile shows one,
+ * the login otherwise, GitHub profile in sameAs, the author page as url);
+ * `about` is the repository as SoftwareSourceCode plus the agent as a
+ * SoftwareApplication — exactly what the page shows, nothing more.
  */
 export function flightArticle(f: {
   headline: string;
@@ -226,9 +275,10 @@ export function flightArticle(f: {
   path: string;
   datePublished?: Dateish;
   dateModified?: Dateish;
-  authorLogin: string;
+  author: { login: string; name?: string; url?: string; sameAs?: string[] };
   repoFullName: string;
   prUrl: string;
+  agent?: Parameters<typeof softwareAgent>[0];
   keywords?: string[];
 }) {
   const url = canonicalUrl(f.path);
@@ -241,19 +291,61 @@ export function flightArticle(f: {
     mainEntityOfPage: url,
     datePublished: isoDate(f.datePublished),
     dateModified: isoDate(f.dateModified),
-    author: {
+    author: compact({
       '@type': 'Person',
-      name: f.authorLogin,
-      sameAs: `https://github.com/${f.authorLogin}`,
-    },
-    about: {
-      '@type': 'SoftwareSourceCode',
-      name: f.repoFullName,
-      codeRepository: `https://github.com/${f.repoFullName}`,
-    },
+      name: f.author.name || f.author.login,
+      alternateName: `@${f.author.login}`,
+      url: f.author.url ? canonicalUrl(f.author.url) : undefined,
+      sameAs: [`https://github.com/${f.author.login}`, ...(f.author.sameAs ?? [])],
+    }),
+    about: [
+      {
+        '@type': 'SoftwareSourceCode',
+        name: f.repoFullName,
+        codeRepository: `https://github.com/${f.repoFullName}`,
+      },
+      ...(f.agent ? [softwareAgent(f.agent)] : []),
+    ],
     isBasedOn: f.prUrl,
     publisher: { '@id': ORG_ID },
     keywords: f.keywords,
+    inLanguage: 'en',
+  });
+}
+
+/**
+ * CollectionPage + ItemList for a corpus hub (repo, agent, author): what the
+ * page collects, the first twenty entries, and the entity it is about.
+ */
+export function collectionPage(c: {
+  name: string;
+  description: string;
+  path: string;
+  about?: object | object[];
+  items: { name: string; path: string }[];
+  dateModified?: Dateish;
+}) {
+  const url = canonicalUrl(c.path);
+  const items = c.items.slice(0, 20);
+  return compact({
+    '@type': 'CollectionPage',
+    '@id': `${url}#collection`,
+    name: c.name,
+    description: c.description,
+    url,
+    about: c.about,
+    dateModified: isoDate(c.dateModified),
+    mainEntity: {
+      '@type': 'ItemList',
+      numberOfItems: items.length,
+      itemListElement: items.map((item, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        name: item.name,
+        url: canonicalUrl(item.path),
+      })),
+    },
+    publisher: { '@id': ORG_ID },
     inLanguage: 'en',
   });
 }
@@ -321,17 +413,24 @@ export function article(a: {
   });
 }
 
-/** ProfilePage + Person for a rider profile. */
+/**
+ * ProfilePage + Person for a rider profile, or for a GitHub author's corpus
+ * page. `dateCreated` and `vouches` belong to riders only: an author's
+ * profile creation date is unknown and never invented, and nobody vouches on
+ * GitHub. Both dates are DateTime on this type (Google): callers pass the
+ * stored timestamps, and a bare date is dropped rather than given a time.
+ */
 export function profilePage(p: {
   name: string;
   handle: string;
   path: string;
   description?: string;
-  dateCreated: Dateish;
+  image?: string;
+  dateCreated?: Dateish;
   dateModified?: Dateish;
   sameAs?: string[];
   flights: number;
-  vouches: number;
+  vouches?: number;
 }) {
   const url = canonicalUrl(p.path);
   const counter = (interactionType: string, name: string, count: number) => ({
@@ -344,8 +443,8 @@ export function profilePage(p: {
     '@type': 'ProfilePage',
     '@id': `${url}#profile`,
     url,
-    dateCreated: isoDate(p.dateCreated),
-    dateModified: isoDate(p.dateModified),
+    dateCreated: isoDateTime(p.dateCreated),
+    dateModified: isoDateTime(p.dateModified),
     mainEntity: compact({
       '@type': 'Person',
       '@id': `${url}#person`,
@@ -354,10 +453,13 @@ export function profilePage(p: {
       identifier: p.handle,
       url,
       description: p.description,
+      image: p.image,
       sameAs: p.sameAs && p.sameAs.length > 0 ? p.sameAs : undefined,
       // What the rider did (agent of the action) vs. what they received.
       agentInteractionStatistic: [counter('https://schema.org/WriteAction', 'Published flights', p.flights)],
-      interactionStatistic: [counter('https://schema.org/EndorseAction', 'Vouches received', p.vouches)],
+      interactionStatistic: p.vouches === undefined
+        ? undefined
+        : [counter('https://schema.org/EndorseAction', 'Vouches received', p.vouches)],
     }),
   });
 }

@@ -2,6 +2,7 @@
 #   06:00 UTC  GH Archive discovery for yesterday
 #   then       GraphQL enrichment of new candidates and state changes
 #   then       classification → debriefs → publish (gate, views, OG, spot check)
+#   then       author profiles for authors whose first flight was just indexed
 # Each step is idempotent; a failed step fails the run and GitHub pages the
 # owner (watch the repo's Actions notifications).
 name: flightlog-daily
@@ -51,4 +52,7 @@ jobs:
         working-directory: pipeline
       - name: Publish (gate, aggregates, OG cards, spot check)
         run: node src/run.ts publish
+        working-directory: pipeline
+      - name: Author profiles (public GitHub profile fields for newly indexed authors)
+        run: node src/run.ts author-profiles --limit 2000
         working-directory: pipeline

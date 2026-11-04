@@ -88,3 +88,25 @@ test('middleware: a cross-origin oversized write is refused as cross-origin firs
   assert.deepEqual(await res.json(), { error: 'cross-origin request rejected' });
   assert.equal(nextCalled(), 0);
 });
+
+test('middleware: page paths get their slash, and a mixed-case rider handle or author login folds in the same hop', async () => {
+  const cases: [string, string][] = [
+    ['/manual', '/manual/'],
+    ['/riders/MaxCR', '/riders/maxcr/'],
+    ['/logs/author/JaneDoe', '/logs/author/janedoe/'],
+    ['/logs/author/JaneDoe?x=1', '/logs/author/janedoe/?x=1'],
+  ];
+  for (const [path, to] of cases) {
+    const { response, nextCalled } = run({ method: 'GET', path, env: {} });
+    const res = await response;
+    assert.equal(res.status, 301, path);
+    assert.equal(res.headers.get('Location'), to, path);
+    assert.equal(nextCalled(), 0, path);
+  }
+  // Already slashed and lowercase: no redirect. An API path never gets a slash.
+  for (const path of ['/logs/author/janedoe/', '/api/me']) {
+    const { response, nextCalled } = run({ method: 'GET', path, env: {} });
+    assert.equal((await response).status, 200, path);
+    assert.equal(nextCalled(), 1, path);
+  }
+});
