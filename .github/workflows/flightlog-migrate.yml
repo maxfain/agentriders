@@ -1,0 +1,50 @@
+# Flight Log corpus — one-click migrate + publish + author backfill.
+#
+# A manual companion to flightlog-backfill. Runs on a GitHub Actions runner
+# (the only place with the FLIGHTLOG_* secrets and reachability to Postgres)
+# when a new migration needs applying and the corpus refreshed, WITHOUT the
+# hours-long AIDev download + reload that flightlog-backfill does. Every step
+# is idempotent and re-runnable:
+#   migrate          apply pipeline/migrations/*.sql in order (0001 -> 0004 ...)
+#   publish          recompute index_ok, refresh aggregate views, OG cards, spot check
+#   author-profiles  public GitHub profile fields for authors with indexed flights
+#
+# Run it from Actions -> flightlog-migrate -> Run workflow, e.g. after merging
+# a PR that adds a migration (0004 author profiles) so the daily workflow's
+# new author-profiles step does not fail on an unapplied schema.
+name: flightlog-migrate
+on:
+  workflow_dispatch:
+
+# Share the daily/backfill lock so a migrate run never overlaps a scheduled
+# matview refresh.
+concurrency: flightlog
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: ${{ secrets.FLIGHTLOG_DATABASE_URL }}
+      FLIGHTLOG_GITHUB_TOKEN: ${{ secrets.FLIGHTLOG_GITHUB_TOKEN }}
+      SUPABASE_URL: ${{ secrets.FLIGHTLOG_SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.FLIGHTLOG_SUPABASE_SERVICE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: pipeline
+      - name: Apply migrations (idempotent; applies 0004 author profiles)
+        run: node src/run.ts migrate
+        working-directory: pipeline
+      - name: Publish (gate, aggregate views, OG cards, spot check)
+        run: node src/run.ts publish
+        working-directory: pipeline
+      - name: Author profiles (public GitHub fields for authors with indexed flights)
+        run: node src/run.ts author-profiles
+        working-directory: pipeline
