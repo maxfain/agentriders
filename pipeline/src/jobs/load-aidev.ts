@@ -568,8 +568,20 @@ async function loadPopDetail(
     written += updated.length;
   }
 
-  // flight_events: replace wholesale for these flights (idempotent re-run).
-  const withEvents = found.filter((p) => p.events.length > 0);
+  // flight_events: replace wholesale, but ONLY for flights GraphQL has not
+  // enriched — the metrics update above is guarded the same way. Without this,
+  // a backfill re-run would delete a flight's newer GitHub timeline and put
+  // the older AIDev events back while leaving the newer metrics in place.
+  const notEnriched = new Set<number>();
+  for (let i = 0; i < found.length; i += 10_000) {
+    const chunk = found.slice(i, i + 10_000).map((p) => p.flightId);
+    const rows = await db.query<{ id: number }>(
+      'select id from flights where id = any($1::bigint[]) and enriched_at is null',
+      [`{${chunk.join(',')}}`],
+    );
+    for (const row of rows) notEnriched.add(Number(row.id));
+  }
+  const withEvents = found.filter((p) => p.events.length > 0 && notEnriched.has(p.flightId!));
   for (let i = 0; i < withEvents.length; i += 200) {
     const batch = withEvents.slice(i, i + 200);
     await db.query(`delete from flight_events where flight_id = any($1::bigint[])`, [

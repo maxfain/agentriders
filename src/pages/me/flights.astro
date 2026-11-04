@@ -136,14 +136,24 @@ const cardUrl = env.SUPABASE_URL
 
   for (const toggle of document.querySelectorAll<HTMLInputElement>('.vis-toggle')) {
     toggle.addEventListener('change', async () => {
+      const wanted = toggle.checked;
       const controls = toggle.closest<HTMLElement>('.fitem__controls')!;
+      // A failed save (rate limit, corpus down) must not leave the checkbox
+      // showing "hidden" while the flight is still public — revert and tell
+      // the rider, so what they see matches reality.
+      const fail = () => { toggle.checked = !wanted; alert('Could not change visibility — please try again.'); };
       const id = await flightId(controls);
-      if (!id) return;
-      await fetch(`/api/flights/${id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ visibility: toggle.checked ? 'public' : 'hidden' }),
-      });
+      if (!id) { fail(); return; }
+      try {
+        const res = await fetch(`/api/flights/${id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ visibility: wanted ? 'public' : 'hidden' }),
+        });
+        if (!res.ok) fail();
+      } catch {
+        fail();
+      }
     });
   }
 
