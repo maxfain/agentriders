@@ -1,5 +1,6 @@
 # Flight Log corpus — the daily chain (brief, Schedule):
-#   06:00 UTC  GH Archive discovery for yesterday
+#   06:37 UTC  GH Archive discovery for yesterday (minute jittered off :00,
+#              which GitHub's scheduler contends on and often drops)
 #   then       GraphQL enrichment of new candidates and state changes
 #   then       classification → debriefs → publish (gate, views, OG, spot check)
 #   then       author profiles for authors whose first flight was just indexed
@@ -8,7 +9,7 @@
 name: flightlog-daily
 on:
   schedule:
-    - cron: '0 6 * * *'
+    - cron: '37 6 * * *'
   workflow_dispatch:
     inputs:
       date:
