@@ -1,5 +1,6 @@
 # Flight Log corpus — weekly (Sunday): repo stars/language/license/fork
-# refresh for repositories with indexed flights (brief, Schedule).
+# refresh for repositories with indexed flights (brief, Schedule), and the
+# monthly re-fetch of author profiles (docs/flight-log-corpus.md, Consent).
 name: flightlog-weekly
 on:
   schedule:
@@ -27,4 +28,7 @@ jobs:
         working-directory: pipeline
       - name: Refresh repo metadata
         run: node src/run.ts refresh-repos
+        working-directory: pipeline
+      - name: Refresh author profiles (older than 30 days)
+        run: node src/run.ts refresh-authors
         working-directory: pipeline

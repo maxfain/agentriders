@@ -18,10 +18,14 @@ and why. The operational runbook is `pipeline/README.md`.
   PostgREST RPCs with the service key (no new npm dependency in the site);
   tables and functions are locked to the service role.
 - **Site routes** — `/logs/{owner}/{repo}/{number}/` (flight),
-  `/logs/{owner}/{repo}/` (repo), `/logs/agent/{agent}/` (agent), each with a
-  `.json` twin, all `prerender = false` server routes behind the existing
-  middleware cache rule (anonymous GETs are edge-cached 5 minutes). Corpus
-  sitemaps are served from Postgres at `/sitemap-corpus.xml`.
+  `/logs/{owner}/{repo}/` (repo), `/logs/agent/{agent}/` (agent),
+  `/logs/author/{login}/` (author, lowercase login), each with a `.json`
+  twin, all `prerender = false` server routes behind the existing middleware
+  cache rule (anonymous GETs are edge-cached 5 minutes). Corpus sitemaps are
+  served from Postgres at `/sitemap-corpus.xml`. Every page names the agent
+  product with its maker (Claude Code by Anthropic, OpenAI Codex, GitHub
+  Copilot, Cursor, Devin) and the author by display name in its title, H1 and
+  description; the patterns are pure builders in `src/lib/flightlog.ts`.
 - **Claim flow** — GitHub sign-in is the only proof: the session rider's
   GitHub identity (`identities.provider_id`, stamped at OAuth) must equal the
   flight author's `github_user_id`. Claims live in Postgres; riders stay in D1.
@@ -58,19 +62,39 @@ and why. The operational runbook is `pipeline/README.md`.
    admin gate (session + allowlist + 404-shape), rather than a new
    authentication scheme for a bare `/status`.
 7. **Route collisions**: `/logs/[facet]/[value]` (static, facets `task`,
-   `mount`, `outcome`, `burns`) and `/logs/agent/…` are reserved before the
-   catch-all corpus route, so a GitHub owner literally named `task`, `mount`,
-   `outcome`, `burns`, `agent`, `new` or `template` cannot have a repo page
-   (flight pages, three segments deep, still work). Accepted and documented.
+   `mount`, `outcome`, `burns`), `/logs/agent/…` and `/logs/author/…` are
+   reserved before the catch-all corpus route, so a GitHub owner literally
+   named `task`, `mount`, `outcome`, `burns`, `agent`, `author`, `new` or
+   `template` cannot have a repo page (flight pages, three segments deep,
+   still work). Accepted and documented.
+8. **Author profiles.** The original footprint was login, numeric id and
+   avatar URL only. Author pages and named bylines (the SEO work of
+   November 2026) added the public profile fields GitHub shows next to a
+   person's own pull requests — see Consent and footprint. The author-page
+   index gate is `author_index_min()` in Postgres (1 indexed flight today),
+   one line to raise if Search Console shows thin pages piling up.
 
 ## Consent and footprint
 
-- Stored per person: GitHub login, numeric user id, constructed avatar URL.
-  No emails, no display names; AIDev commit author strings are logins and are
-  not stored beyond flight signals.
+- Stored per person: GitHub login, numeric user id, constructed avatar URL,
+  and — for authors with at least one indexed flight — the public profile
+  fields GitHub shows on their profile: display name, bio (≤160 chars),
+  company, website, up to five social links, and the first paragraph of the
+  profile README as plain text (≤25 words, the same verbatim-excerpt bound
+  the flight pages use). Fetched by the `author-profiles` job over the
+  GraphQL API (25 users per call), only for human accounts, only after the
+  response's `databaseId` matches the stored user id (a renamed login can
+  belong to someone else), re-fetched every 30 days so a changed profile
+  changes here too, and shown with the date it was read. No emails, no
+  location; AIDev commit author strings are logins and are not stored beyond
+  flight signals. Profile fields never live in a materialized view — every
+  page reads them through a live join on `opted_out`.
 - `/opt-out/`: sign in with GitHub, one button → `authors.opted_out`, flights
-  410 on the next render, dropped from JSON, sitemaps and aggregates. The row
-  stays so the pipeline never re-creates the author. Email fallback for
+  and the author page 410 on the next render, dropped from JSON, sitemaps and
+  aggregates, and every profile field cleared in the same statement
+  (`opt_out_author()`), with `profile_fetched_at` stamped so the job never
+  re-fetches. The row stays so the pipeline never re-creates the author.
+  Opting back in clears the stamp and the next backfill restores the profile. Email fallback for
   people who won't sign in: verify via a line in the GitHub profile bio, then
   the admin sets the same flag from `/admin/flightlog`.
 - Repo takedown: `repos.excluded` (same 410 behavior), from `/admin/flightlog`.

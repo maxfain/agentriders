@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { excerpt300, firstWords, hoursBetween, wordCount } from '../src/text.ts';
+import { excerpt300, firstWords, hoursBetween, readmeExcerpt, wordCount } from '../src/text.ts';
 import { discoverySql } from '../src/bigquery.ts';
 import { buildPrBatchQuery } from '../src/github-graphql.ts';
 import { fullNameFromRepoUrl, pgTextArray } from '../src/jobs/load-aidev.ts';
@@ -54,4 +54,23 @@ test('GraphQL batch query aliases and escapes names', () => {
   assert.ok(q.includes('"o\\"wner"'));
   assert.ok(q.includes('rateLimit { remaining resetAt cost }'));
   assert.ok(q.includes('fragment PrFields on PullRequest'));
+});
+
+test('readmeExcerpt: first readable paragraph, plain text, 25 words at most', () => {
+  assert.equal(readmeExcerpt(null), null);
+  assert.equal(readmeExcerpt(''), null);
+  // Badges, images and headings only: nothing readable.
+  assert.equal(readmeExcerpt('# Hi 👋\n\n[![ci](https://img.example/ci.svg)](https://ci.example) ![x](https://img.example/x.png)\n'), null);
+  // Heading dropped, link text kept, emphasis stripped, the first paragraph only.
+  assert.equal(
+    readmeExcerpt('<!-- a comment -->\n## About me\n\nI build **sandboxes** for agents at [Acme](https://acme.example).\n\nSecond paragraph.'),
+    'I build sandboxes for agents at Acme.',
+  );
+  // HTML READMEs read as text.
+  assert.equal(readmeExcerpt('<h1 align="center">Hi</h1><p>I am <b>Jane</b>, I build things for people.</p>'), 'Hi I am Jane, I build things for people.');
+  // Lists and blockquotes lose their markers; code blocks go.
+  assert.equal(readmeExcerpt('```sh\nnpm i\n```\n\n- Currently working on an agent harness for teams\n- Also writing'), 'Currently working on an agent harness for teams Also writing');
+  // A bare URL paragraph is skipped; 25 words cap.
+  const long = readmeExcerpt('https://example.com\n\n' + Array.from({ length: 40 }, (_, i) => `word${i}`).join(' '));
+  assert.equal(long!.split(' ').length, 25);
 });

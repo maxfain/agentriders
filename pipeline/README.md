@@ -32,15 +32,20 @@ node src/run.ts migrate         # apply migrations/ to DATABASE_URL
 - **GitHub GraphQL API** for enrichment. Per GitHub's Acceptable Use Policies
   (information-usage rules), data stays public-aggregate plus attribution by
   login: no contacting users, no selling personal information, API only —
-  never scraped HTML. Store nothing about a person beyond login, numeric id
-  and the constructed avatar URL.
+  never scraped HTML. About a person the corpus stores the login, numeric id
+  and constructed avatar URL, and — for authors with an indexed flight — the
+  public profile fields GitHub shows next to their own pull requests (display
+  name, bio, company, website, social links, a ≤25-word plain-text excerpt of
+  the profile README), fetched by `author-profiles`, refreshed every 30 days,
+  cleared on opt-out (`docs/flight-log-corpus.md`, Consent and footprint).
+  Nothing private: no emails, no location, nothing beyond the flights.
 
 ## Secrets (environment variables — never in the repo)
 
 | Variable | Used by | Notes |
 |---|---|---|
 | `DATABASE_URL` | every job | Supabase Postgres connection string (use the session pooler URI; `pglite://memory` or `pglite://path` for tests) |
-| `FLIGHTLOG_GITHUB_TOKEN` | enrich, repo metadata | fine-grained PAT, **public-repo read only**, no write scopes — separate from the OAuth app and the bot PAT, so a leaked ingest token can't sign anyone in or commit |
+| `FLIGHTLOG_GITHUB_TOKEN` | enrich, repo metadata, author profiles | fine-grained PAT, **public-repo read only**, no write scopes — separate from the OAuth app and the bot PAT, so a leaked ingest token can't sign anyone in or commit |
 | `BQ_SERVICE_ACCOUNT_JSON` | discover | GCP service-account key JSON (`client_email`, `private_key`, `project_id`) with BigQuery read + a billed project |
 | `ANTHROPIC_API_KEY` | debrief | debrief model defaults to `claude-opus-5-5`; set `DEBRIEF_MODEL=claude-haiku-5-5` to cut the ~20k-call backfill roughly 40× — the task is narrow and machine-validated, but the trade is yours to make |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` | publish, rider-cards | Storage uploads (public `cards` bucket). The same two values go to Cloudflare Pages secrets for the site |
@@ -77,6 +82,7 @@ node src/run.ts repo-metadata        # 2,807 pop repos: ~1 batch-hour of GraphQL
 node src/run.ts classify             # minutes, SQL only
 node src/run.ts debrief              # ~20k LLM calls; resumable — the DB is the checkpoint
 node src/run.ts publish              # gate, aggregates, OG cards, spot check
+node src/run.ts author-profiles      # public profile fields, 25 users per GraphQL call
 ```
 
 `--sample N` on `load-aidev` loads a slice for a smoke run;
@@ -98,16 +104,16 @@ claim confirms it.
 
 | When | Workflow | Steps |
 |---|---|---|
-| 06:00 daily | `flightlog-daily` | discover (yesterday) → enrich → classify → debrief → publish |
+| 06:00 daily | `flightlog-daily` | discover (yesterday) → enrich → classify → debrief → publish → author profiles (newly indexed authors) |
 | 02:00 nightly | `flightlog-nightly` | re-enrich open + claimed flights → classify → rider cards → site rank resync |
-| Sun 04:00 | `flightlog-weekly` | repo metadata refresh (indexed repos) |
+| Sun 04:00 | `flightlog-weekly` | repo metadata refresh (indexed repos) → author profile refresh (30+ days old) |
 | 1st 05:30 | `flightlog-monthly` | full re-classify → debriefs → full gate re-run |
 
 ## Rate limits (how each job stays under them)
 
 | Resource | Limit | Behavior |
 |---|---|---|
-| GitHub GraphQL | 5,000 points/hr | 25 PRs (or 50 repos) per aliased query; `rateLimit { remaining resetAt }` read on every response, sleep to `resetAt` under 200; 3 consecutive 5xx → 15-minute pause |
+| GitHub GraphQL | 5,000 points/hr | 25 PRs (or 50 repos, or 25 user profiles) per aliased query; `rateLimit { remaining resetAt }` read on every response, sleep to `resetAt` under 200; 3 consecutive 5xx → 15-minute pause |
 | GitHub REST | 30 req/min search | not used by any scheduled job (avatars are constructed URLs, repo lookups ride GraphQL) |
 | BigQuery | billed per byte | one query per day over one day table, selected columns only, never `SELECT *` on month tables |
 | Anthropic | cost per call | gated flights only, cached by (flight, prompt version), concurrency 4, failure rate >5% fails the run |

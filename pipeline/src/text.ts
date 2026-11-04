@@ -32,3 +32,39 @@ export function hoursBetween(from?: string | null, to?: string | null): number |
   if (!Number.isFinite(a) || !Number.isFinite(b) || b < a) return null;
   return Math.round(((b - a) / 36e5) * 100) / 100;
 }
+
+/**
+ * The first readable paragraph of a profile README as plain text, at most 25
+ * words (the corpus's verbatim-excerpt bound, ≤300 characters): HTML and
+ * comments, images and badges, code, headings, list markers, link syntax and
+ * emphasis are stripped first. Nothing readable → null.
+ */
+export function readmeExcerpt(markdown: string | null | undefined): string | null {
+  if (!markdown) return null;
+  const text = markdown
+    .replace(/\r\n/g, '\n')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, '')
+    .replace(/\[!\[[^\]]*\]\([^)]*\)\]\([^)]*\)/g, '') // linked badges
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '') // images, badges
+    .replace(/<img\b[^>]*>/gi, '')
+    .replace(/<[^>]+>/g, ' ') // any other tag
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1') // links → their text
+    .replace(/^[ \t]{0,3}#{1,6}[ \t].*$/gm, '') // heading lines, whole
+    .replace(/^[ \t]*[-*+][ \t]+/gm, '') // list markers
+    .replace(/^[ \t]*>[ \t]?/gm, '') // blockquotes
+    .replace(/[*_`~]+/g, '') // emphasis, code spans, strikethrough
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&');
+  for (const block of text.split(/\n[ \t]*\n/)) {
+    // Collapse whitespace; a tag replaced by a space must not leave "Jane ,".
+    const para = block.replace(/\s+/g, ' ').replace(/\s+([,.;:!?])/g, '$1').trim();
+    // Needs words, not a bare URL, an emoji row or a leftover separator.
+    if (para.length < 12 || !/[A-Za-z]{3}/.test(para) || /^https?:\/\/\S+$/.test(para)) continue;
+    let excerpt = firstWords(para, 25);
+    while (excerpt.length > 300 && excerpt.includes(' ')) excerpt = excerpt.slice(0, excerpt.lastIndexOf(' '));
+    return excerpt.length > 0 && excerpt.length <= 300 ? excerpt : null;
+  }
+  return null;
+}

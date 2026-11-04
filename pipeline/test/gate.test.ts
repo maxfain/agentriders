@@ -207,3 +207,106 @@ test('sitemaps list only indexed flights', async () => {
   const pages = await db.query<{ loc: string }>('select loc from sitemap_pages()');
   assert.ok(pages.some((p) => p.loc === '/logs/agent/claude-code/'));
 });
+
+test('author profiles: the view, the page, the sitemap gate, the names on every page, opt-out clearing', async () => {
+  await insertFlight({ repo: 'authors/alpha', login: 'profiled', number: 21, outcome: 'merged_clean' });
+  await insertFlight({ repo: 'authors/beta', login: 'profiled', number: 22, state: 'closed', outcome: 'burn' });
+  await insertFlight({ repo: 'authors/alpha', login: 'copilot-swe-agent[bot]', number: 23, outcome: 'merged_clean' });
+  await insertFlight({ repo: 'authors/alpha', login: 'quiet-author', number: 24, outcome: 'merged_clean', debrief: null });
+  await db.query("update authors set is_bot = true where login = 'copilot-swe-agent[bot]'");
+  await db.query("update flights set task_type = 'feat' where number in (21, 22) and repo_id in (select id from repos where full_name like 'authors/%')");
+  await db.query(`update authors set name = 'Pro Filed', bio = 'Builds things', company = 'Acme',
+    website_url = 'https://pro.example/', social_urls = '{https://x.com/profiled}',
+    readme_excerpt = 'Hi, I build sandboxes.', profile_fetched_at = now() where login = 'profiled'`);
+  await db.query('select recompute_index_ok()');
+  await db.query('select refresh_corpus_views()');
+
+  // The view: counts only, bots and (later) opted-out authors excluded.
+  const [tot] = await db.query<{ flights: number; indexed: number; burns: number; repos: number; agents: string[] | string }>(
+    "select t.flights, t.indexed, t.burns, t.repos, t.agents from mv_author_totals t join authors a on a.id = t.author_id where a.login = 'profiled'",
+  );
+  assert.equal(Number(tot.flights), 2);
+  assert.equal(Number(tot.indexed), 2);
+  assert.equal(Number(tot.burns), 1);
+  assert.equal(Number(tot.repos), 2);
+  const botRows = await db.query('select 1 from mv_author_totals t join authors a on a.id = t.author_id where a.is_bot');
+  assert.equal(botRows.length, 0);
+
+  // author_page: case-insensitive, the profile, agents, repos, flights, the dominant agent.
+  const [{ author_page: page }] = await db.query<{ author_page: any }>("select author_page('PROFILED')");
+  assert.equal(page.author.login, 'profiled');
+  assert.equal(page.author.name, 'Pro Filed');
+  assert.deepEqual(page.author.social_urls, ['https://x.com/profiled']);
+  assert.equal(page.author.readme_excerpt, 'Hi, I build sandboxes.');
+  assert.equal(page.totals.indexed, 2);
+  assert.equal(page.dominant_agent, 'claude-code');
+  assert.equal(page.agents.length, 1);
+  assert.equal(page.repos.length, 2);
+  assert.equal(page.flights.length, 2);
+  assert.ok(page.flights.every((f: { repo: string }) => f.repo.startsWith('authors/')));
+  assert.equal(page.claim, null);
+  const [{ author_page: quiet }] = await db.query<{ author_page: any }>("select author_page('quiet-author')");
+  assert.equal(quiet.totals.indexed, 0, 'a page below the gate still renders (noindex on the site)');
+  const [{ author_page: missing }] = await db.query<{ author_page: unknown }>("select author_page('nobody-here')");
+  assert.equal(missing, null);
+
+  // Duplicate logins (a rename): the row the API last confirmed wins.
+  await db.query("insert into authors (github_user_id, login, profile_fetched_at) values (424242, 'Profiled', now() - interval '1 day')");
+  const [{ author_page: dup }] = await db.query<{ author_page: any }>("select author_page('profiled')");
+  assert.notEqual(dup.author.github_user_id, 424242);
+  assert.equal(dup.author.name, 'Pro Filed');
+
+  // Sitemap: at the gate yes, below it no, bots never; lowercase URLs.
+  const pages = await db.query<{ loc: string }>('select loc from sitemap_pages()');
+  assert.ok(pages.some((p) => p.loc === '/logs/author/profiled/'));
+  assert.ok(!pages.some((p) => p.loc === '/logs/author/quiet-author/'));
+  assert.ok(!pages.some((p) => p.loc.includes('[bot]')));
+  assert.equal(pages.filter((p) => p.loc === '/logs/author/profiled/').length, 1, 'one URL per login, whatever the casing');
+
+  // corpus_authors, flight_page, repo_page, agent_page carry the name through live joins.
+  const [{ corpus_authors: list }] = await db.query<{ corpus_authors: any[] }>('select corpus_authors(10)');
+  assert.ok(list.some((x) => x.login === 'profiled' && x.name === 'Pro Filed' && x.indexed_flights === 2));
+  assert.ok(!list.some((x) => x.login === 'quiet-author'), 'below the gate');
+  const [{ flight_page: fp }] = await db.query<{ flight_page: any }>("select flight_page('authors', 'alpha', 21)");
+  assert.equal(fp.author.name, 'Pro Filed');
+  assert.equal(fp.author.indexed_flights, 2);
+  assert.ok(Array.isArray(fp.related), 'the published .json contract keeps related');
+  assert.equal(fp.related_by_author.length, 1);
+  assert.equal(fp.related_by_author[0].repo, 'authors/beta');
+  assert.equal(fp.related_by_task.length, 1, 'same agent, same task type, indexed');
+  assert.equal(fp.related_by_task[0].number, 22);
+  const [{ repo_page: rp }] = await db.query<{ repo_page: any }>("select repo_page('authors', 'alpha')");
+  assert.equal(rp.indexed, 2);
+  assert.equal(rp.top_authors[0].login, 'profiled');
+  assert.equal(rp.top_authors[0].name, 'Pro Filed');
+  assert.ok(!rp.top_authors.some((x: { login: string }) => x.login.includes('[bot]')));
+  const [{ agent_page: ap }] = await db.query<{ agent_page: any }>("select agent_page('claude-code')");
+  assert.ok(ap.top_authors.some((x: { login: string; name: string }) => x.login === 'profiled' && x.name === 'Pro Filed'));
+
+  // Opt-out: every profile column cleared, stamped, gone everywhere at once — before any view refresh.
+  const [who] = await db.query<{ github_user_id: number }>("select github_user_id from authors where login = 'profiled' and name = 'Pro Filed'");
+  await db.query('select opt_out_author($1, true)', [Number(who.github_user_id)]);
+  const [row] = await db.query<Record<string, unknown>>(
+    "select name, bio, company, website_url, social_urls, readme_excerpt, profile_fetched_at from authors where github_user_id = $1",
+    [Number(who.github_user_id)],
+  );
+  for (const col of ['name', 'bio', 'company', 'website_url', 'readme_excerpt']) assert.equal(row[col], null, col);
+  assert.ok(row.profile_fetched_at, 'stamped: the job never re-fetches an opted-out author');
+  const [{ author_page: gone }] = await db.query<{ author_page: any }>("select author_page('profiled')");
+  assert.ok(gone === null || gone.gone === true || gone.author.github_user_id === 424242, 'the opted-out row never renders');
+  const [{ repo_page: rp2 }] = await db.query<{ repo_page: any }>("select repo_page('authors', 'alpha')");
+  assert.ok(!rp2.top_authors.some((x: { name: string | null }) => x.name === 'Pro Filed'));
+  const [{ agent_page: ap2 }] = await db.query<{ agent_page: any }>("select agent_page('claude-code')");
+  assert.ok(!ap2.top_authors.some((x: { name: string | null }) => x.name === 'Pro Filed'));
+  const [{ corpus_authors: list2 }] = await db.query<{ corpus_authors: any[] }>('select corpus_authors(10)');
+  assert.ok(!list2.some((x) => x.name === 'Pro Filed'));
+  const [{ flight_page: fp2 }] = await db.query<{ flight_page: any }>("select flight_page('authors', 'beta', 22)");
+  assert.equal(fp2.gone, true);
+  // Opting back in clears the stamp so the backfill picks the row up again.
+  await db.query('select opt_out_author($1, false)', [Number(who.github_user_id)]);
+  const [back] = await db.query<{ profile_fetched_at: string | null; opted_out: boolean }>(
+    'select profile_fetched_at, opted_out from authors where github_user_id = $1', [Number(who.github_user_id)],
+  );
+  assert.equal(back.opted_out, false);
+  assert.equal(back.profile_fetched_at, null);
+});
