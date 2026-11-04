@@ -123,6 +123,17 @@ function isoDate(d: Dateish): string | undefined {
   return Number.isNaN(date.valueOf()) ? undefined : date.toISOString();
 }
 
+// Full ISO 8601 date-time for the properties Google types as DateTime —
+// ProfilePage.dateCreated and dateModified, where Search Console reports a
+// bare date as "Invalid datetime value". A date-only string carries no time
+// and none is invented: the property is dropped instead.
+function isoDateTime(d: Dateish): string | undefined {
+  if (d === undefined) return undefined;
+  if (typeof d === 'string' && /^\d{4}-\d{2}(-\d{2})?$/.test(d)) return undefined;
+  const date = d instanceof Date ? d : new Date(d);
+  return Number.isNaN(date.valueOf()) ? undefined : date.toISOString();
+}
+
 // Drop undefined values so optional fields never render as null.
 function compact<T extends Record<string, unknown>>(obj: T): T {
   const out: Record<string, unknown> = {};
@@ -193,14 +204,17 @@ export function founder() {
   };
 }
 
-/** ProfilePage for /about: the founder is its main entity. */
+/**
+ * ProfilePage for /about: the founder is its main entity. `dateModified` is a
+ * DateTime on this type (Google), so only a real timestamp is emitted.
+ */
 export function founderPage(dateModified?: Dateish) {
   const url = canonicalUrl(FOUNDER.path);
   return compact({
     '@type': 'ProfilePage',
     '@id': `${url}#profile`,
     url,
-    dateModified: isoDate(dateModified),
+    dateModified: isoDateTime(dateModified),
     mainEntity: founder(),
   });
 }
@@ -403,7 +417,8 @@ export function article(a: {
  * ProfilePage + Person for a rider profile, or for a GitHub author's corpus
  * page. `dateCreated` and `vouches` belong to riders only: an author's
  * profile creation date is unknown and never invented, and nobody vouches on
- * GitHub.
+ * GitHub. Both dates are DateTime on this type (Google): callers pass the
+ * stored timestamps, and a bare date is dropped rather than given a time.
  */
 export function profilePage(p: {
   name: string;
@@ -428,8 +443,8 @@ export function profilePage(p: {
     '@type': 'ProfilePage',
     '@id': `${url}#profile`,
     url,
-    dateCreated: isoDate(p.dateCreated),
-    dateModified: isoDate(p.dateModified),
+    dateCreated: isoDateTime(p.dateCreated),
+    dateModified: isoDateTime(p.dateModified),
     mainEntity: compact({
       '@type': 'Person',
       '@id': `${url}#person`,

@@ -122,12 +122,14 @@ test('founder / founderPage: the Person behind the Organization\'s founder @id, 
   assert.ok(f.sameAs.includes(`${SITE}/riders/maxcr/`));
   assert.ok(!('email' in f) && !('address' in f)); // nothing personal on the Person
 
-  const page = founderPage('2026-10-16');
+  const page = founderPage('2026-10-16T09:30:00Z');
   assert.equal(page['@type'], 'ProfilePage');
   assert.equal(page['@id'], `${SITE}/about/#profile`);
-  assert.equal(page.dateModified, '2026-10-16');
+  assert.equal(page.dateModified, '2026-10-16T09:30:00.000Z'); // DateTime: Google's type for ProfilePage dates
   assert.deepEqual(page.mainEntity, f);
   assert.ok(!('dateModified' in founderPage()));
+  // A bare date is dropped, never given an invented time (Search Console: "Invalid datetime value").
+  assert.ok(!('dateModified' in founderPage('2026-10-16')));
 });
 
 test('breadcrumbs: positioned ListItems with canonical item URLs', () => {
@@ -178,13 +180,18 @@ test('article: rider as Person with @handle and profile URL, part of the dataset
   assert.deepEqual(a.publisher, { '@id': ORG_ID });
 });
 
-test('profilePage: Person main entity; flights written vs vouches received; date-only dateCreated', () => {
+test('profilePage: Person main entity; flights written vs vouches received; DateTime dates', () => {
   const p = profilePage({
-    name: 'Max', handle: 'maxcr', path: '/riders/maxcr', dateCreated: '2026-10-01',
+    name: 'Max', handle: 'maxcr', path: '/riders/maxcr', dateCreated: '2026-10-01T12:00:00.000Z',
+    dateModified: new Date('2026-10-20T08:00:00Z'),
     flights: 14, vouches: 2, sameAs: ['https://github.com/maxfain'],
   });
   assert.equal(p['@type'], 'ProfilePage');
-  assert.equal(p.dateCreated, '2026-10-01'); // never a timestamp: the page shows a month
+  // Google types ProfilePage dates as DateTime: the stored timestamps, in full.
+  assert.equal(p.dateCreated, '2026-10-01T12:00:00.000Z');
+  assert.equal(p.dateModified, '2026-10-20T08:00:00.000Z');
+  // A bare date is dropped rather than given a time.
+  assert.ok(!('dateCreated' in profilePage({ name: 'M', handle: 'm', path: '/riders/m', dateCreated: '2026-10-01', flights: 1 })));
   assert.equal(p.mainEntity['@type'], 'Person');
   assert.equal(p.mainEntity.alternateName, '@maxcr');
   // The rider is the agent of WriteAction (flights) and the object of EndorseAction (vouches).

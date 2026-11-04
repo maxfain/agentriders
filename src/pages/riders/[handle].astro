@@ -55,10 +55,10 @@ if (!rider || (rider.banned_at && !viewerIsAdmin)) {
   return new Response(null, { status: 404 });
 }
 
-type Flight = { slug: string; title: string; date: string; task: string; outcome: string; burns_count: number };
+type Flight = { slug: string; title: string; date: string; task: string; outcome: string; burns_count: number; published_at: string };
 const flights = (
   await env.DB.prepare(
-    'SELECT slug, title, date, task, outcome, burns_count FROM published_logs WHERE rider_id = ? ORDER BY date DESC',
+    'SELECT slug, title, date, task, outcome, burns_count, published_at FROM published_logs WHERE rider_id = ? ORDER BY date DESC',
   )
     .bind(rider.id)
     .all<Flight>()
@@ -126,13 +126,17 @@ const landed = flights.filter((f) => f.outcome === 'landed').length;
 const flightsLabel = `${flights.length} ${flights.length === 1 ? 'flight' : 'flights'}`;
 
 // Index gate (docs/seo-aeo-plan.md §4.4): a profile is indexable from its
-// first published flight. The ProfilePage mirrors the stat cards.
+// first published flight. The ProfilePage mirrors the stat cards; its dates
+// are DateTime (Google's type for ProfilePage), so they are the stored
+// timestamps — the account's creation and the newest publish — not the day
+// strings the page displays.
 const path = `/riders/${rider.handle}/`;
+const lastPublished = flights.map((f) => f.published_at).filter(Boolean).sort().at(-1);
 const jsonLd = [
   breadcrumbs([{ name: 'Home', path: '/' }, { name: 'The Riders', path: '/riders/' }, { name: `@${rider.handle}`, path }]),
   profilePage({
     name: rider.display_name, handle: rider.handle, path, description: rider.bio ?? undefined,
-    dateCreated: day(rider.created_at), dateModified: flights[0]?.date,
+    dateCreated: rider.created_at, dateModified: lastPublished,
     sameAs: githubUrl ? [githubUrl] : undefined,
     flights: flights.length, vouches: received.length,
   }),

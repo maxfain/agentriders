@@ -245,7 +245,7 @@ Emitted from `Base.astro` via a `jsonLd` prop (`src/components/JsonLd.astro`) wi
 | `TechArticle` | chapters, kill-switch/spend-cap/compared, burn patterns | headline (industry term), datePublished, dateModified, author → `#org` until a named byline exists (S1), then Person, isPartOf → "The Field Manual" |
 | `Article` | logs | headline, generated description, datePublished, author → Person {name, `@handle`, url → profile}, keywords [mount, model, task, outcome], isPartOf → `#dataset` |
 | `Dataset` | `/logs/`, `/data/` | name, description, `distribution` → `/logs.json`, **license: the Terms URL until a public reuse grant is added to the Terms** (§8 decision 5), isAccessibleForFree, temporalCoverage, variableMeasured |
-| `ProfilePage` + `Person` | profiles, `/about` | name, alternateName, description, sameAs (rider-supplied links), agentInteractionStatistic (flights written), interactionStatistic (vouches received), dateCreated at the precision the page shows |
+| `ProfilePage` + `Person` | profiles, `/about` | name, alternateName, description, sameAs (rider-supplied links), agentInteractionStatistic (flights written), interactionStatistic (vouches received), dateCreated/dateModified as full ISO 8601 date-times from stored timestamps (Google types them DateTime; a bare date was a Search Console error, 2026-11-04) |
 | `LearningResource` + `Article` | lessons, missions | educationalLevel (rank), timeRequired, teaches, isPartOf → Course "Flight School" (free) |
 | `SoftwareApplication` | `/agents/` | CLI + MCP: category, OS, version, installUrl, price 0, license, codeRepository. No ratings |
 | `DefinedTermSet` | `/glossary/` | one set, terms with alternateName (industry synonyms) |

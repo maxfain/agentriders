@@ -7,10 +7,11 @@ import { breadcrumbs, founderPage } from '../lib/seo';
 
 // The page that says who runs the site (docs/seo-aeo-plan.md §8 S1): the
 // founder block below is the ProfilePage's main entity, and every chapter's
-// author Person links here. The date is the block's last real change.
+// author Person links here. No dateModified: Google types ProfilePage dates
+// as DateTime, and only the day of the block's last change is known.
 const jsonLd = [
   breadcrumbs([{ name: 'Home', path: '/' }, { name: 'About', path: '/about/' }]),
-  founderPage('2026-10-16'),
+  founderPage(),
 ];
 ---
 
