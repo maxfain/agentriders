@@ -1,4 +1,6 @@
--- 0003: author profiles and author pages.
+-- 0004: author profiles and author pages. Applies after 0003_sitemap_performance,
+-- whose sitemap_pages() this file extends with the author rows (same
+-- index-scan form: filter on index_ok, never count(*) filter over all flights).
 --
 -- Public GitHub profile fields for attribution (docs/flight-log-corpus.md,
 -- Consent and footprint): name, bio, company, website, social links and a
@@ -486,24 +488,26 @@ returns jsonb language sql stable as $$
 $$;
 
 -- Sitemap: agent pages, repo pages with indexed flights, and author pages at
--- or above the gate. Author URLs are lowercase (login_lower).
+-- or above the gate. Author URLs are lowercase (login_lower). Every branch
+-- filters `where f.index_ok` so the flights_indexok partial index is used
+-- (0003_sitemap_performance: the count(*) filter form scanned ~950k rows).
 create or replace function sitemap_pages()
 returns table (loc text, lastmod text) language sql stable as $$
-  select '/logs/agent/' || t.agent || '/',
-         to_char(now(), 'YYYY-MM-DD')
+  select '/logs/agent/' || t.agent || '/', to_char(now(), 'YYYY-MM-DD')
   from mv_agent_totals t
   union all
   select '/logs/' || r.full_name || '/',
          to_char(max(coalesce(f.enriched_at, f.updated_at)), 'YYYY-MM-DD')
-  from repos r join flights f on f.repo_id = r.id
-  where r.excluded is not true
+  from repos r
+  join flights f on f.repo_id = r.id
+  where f.index_ok and r.excluded is not true
   group by r.id
-  having count(*) filter (where f.index_ok) > 0
   union all
   select '/logs/author/' || a.login_lower || '/',
          to_char(max(coalesce(f.enriched_at, f.updated_at)), 'YYYY-MM-DD')
-  from authors a join flights f on f.author_id = a.id
-  where a.is_bot is not true and a.opted_out is not true
+  from authors a
+  join flights f on f.author_id = a.id
+  where f.index_ok and a.is_bot is not true and a.opted_out is not true
   group by a.login_lower
-  having count(*) filter (where f.index_ok) >= author_index_min();
+  having count(*) >= author_index_min();
 $$;

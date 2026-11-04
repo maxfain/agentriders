@@ -46,7 +46,7 @@ if (flightlogConfigured(env)) {
     return Promise.race([p, limit]).finally(() => clearTimeout(timer));
   }
   try {
-    // corpus_authors arrives with migration 0003; a database without it must
+    // corpus_authors arrives with migration 0004; a database without it must
     // not hide the agents and repos, so that call fails soft on its own.
     const [agents, repos, authors] = await deadline(
       Promise.all([

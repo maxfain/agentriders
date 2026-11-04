@@ -104,7 +104,7 @@ export type FlightPage = {
   claim: { rider_handle: string; visibility: string; note: string | null; claimed_at: string } | null;
   events: { kind: string; actor_login: string | null; at: string | null; url: string | null }[];
   related: FlightItem[];
-  // Optional until migration 0003 is applied; pages treat a missing list as empty.
+  // Optional until migration 0004 is applied; pages treat a missing list as empty.
   related_by_author?: FlightItem[];
   related_by_task?: FlightItem[];
 };
@@ -117,7 +117,7 @@ export type RepoPage = {
   burns: { number: number; agent: string; reviewer_excerpt: string; reviewer_excerpt_url: string | null }[];
   monthly: { month: string; flights: number; merged: number; burns: number }[];
   total: number;
-  /** Indexed flights (0 → the page is noindex). Optional until migration 0003. */
+  /** Indexed flights (0 → the page is noindex). Optional until migration 0004. */
   indexed?: number;
   top_authors?: TopAuthor[];
 };

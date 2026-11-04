@@ -38,7 +38,7 @@ const redirectTo = (path: string) =>
 if (!validOwner(login) || !flightlogConfigured(env)) return notFound();
 if (raw !== login) return redirectTo(`/logs/author/${login}/`);
 
-// A database still on migration 0002 has no author_page: a 404, not a 500.
+// A database without migration 0004 has no author_page: a 404, not a 500.
 let data: AuthorPage | null = null;
 try {
   data = await rpc<AuthorPage>(env, 'author_page', { p_login: login });
