@@ -36,6 +36,15 @@ export async function publish(db: Db, opts: { skipOg?: boolean; ogLimit?: number
       await db.query('select recompute_index_ok()');
     }
 
+    // Keep planner statistics in step with the gate. recompute_index_ok() just
+    // flipped index_ok on up to tens of thousands of rows; without fresh stats
+    // the planner assumes ~0 indexed rows and picks disastrous plans for every
+    // `where index_ok` reader (sitemap_pages, the author queries, the
+    // mv_corpus_repos refresh below). A few seconds here saves seconds on every
+    // later request. autoanalyze will not do this in time — a publish changes
+    // far fewer rows than its 10% threshold.
+    await db.query('analyze flights');
+
     await db.query('select refresh_corpus_views()');
 
     let ogRendered = 0;
