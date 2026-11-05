@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { readJsonCapped, BodyTooLargeError } from '../../../../../lib/http.ts';
+import { sendDecisionNotice } from '../../../../../lib/email.ts';
 import type { SubmissionRow } from '../../../../../lib/submissions.ts';
 
 export const prerender = false;
@@ -9,7 +10,7 @@ const json = (status: number, body: unknown) =>
 
 // Request changes or reject — both require reviewer notes and carry the
 // submission back to the rider (changes_requested) or close it (rejected).
-export const POST: APIRoute = async ({ locals, params, request }) => {
+export const POST: APIRoute = async ({ locals, params, request, url }) => {
   const admin = locals.rider!; // middleware guarantees admin
   const { env } = locals.runtime;
 
@@ -44,6 +45,41 @@ export const POST: APIRoute = async ({ locals, params, request }) => {
   )
     .bind(newStatus, notes, admin.id, now, row.id)
     .run();
+
+  // Best-effort: tell the rider their log was sent back or closed, with the
+  // reviewer's notes. Never let a mail failure (or a rider without a usable
+  // email) affect the decision; do the lookup and send in the background when
+  // the runtime offers waitUntil. Prefer the magic-link address (always
+  // deliverable) over a GitHub one, which may be a noreply alias.
+  const notice = (async () => {
+    if (!env.RESEND_API_KEY) return;
+    const recipient = await env.DB.prepare(
+      `SELECT r.handle AS handle,
+              (SELECT i.email FROM identities i
+               WHERE i.rider_id = r.id AND i.email IS NOT NULL
+               ORDER BY (i.provider = 'email') DESC, i.created_at DESC
+               LIMIT 1) AS email
+       FROM riders r WHERE r.id = ?`,
+    )
+      .bind(row.rider_id)
+      .first<{ handle: string; email: string | null }>();
+    if (!recipient?.email) return;
+    try {
+      await sendDecisionNotice(env.RESEND_API_KEY, recipient.email, {
+        title: row.title,
+        handle: recipient.handle,
+        action,
+        notes,
+        submissionId: row.id,
+        origin: url.origin,
+      });
+    } catch {
+      /* notification is best-effort */
+    }
+  })();
+  const ctx = locals.runtime.ctx;
+  if (ctx?.waitUntil) ctx.waitUntil(notice);
+  else await notice;
 
   return json(200, { ok: true, status: newStatus });
 };

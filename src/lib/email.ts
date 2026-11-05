@@ -68,3 +68,35 @@ export async function sendSubmissionNotice(
     ].join('\n'),
   });
 }
+
+// Decision notice to the rider when a reviewer sends a submission back for
+// changes or rejects it, carrying the reviewer's notes. Best-effort: the
+// caller never fails a decision if this throws.
+export async function sendDecisionNotice(
+  apiKey: string,
+  to: string,
+  d: {
+    title: string;
+    handle: string;
+    action: 'request_changes' | 'reject';
+    notes: string;
+    submissionId: string;
+    origin: string;
+  },
+): Promise<void> {
+  const changes = d.action === 'request_changes';
+  const subject = changes
+    ? `Changes requested on "${d.title}"`
+    : `Your flight log "${d.title}" wasn't accepted`;
+  const lead = changes
+    ? `A reviewer read your flight log "${d.title}" and sent it back with changes to make before it can fly.`
+    : `A reviewer read your flight log "${d.title}", and it wasn't accepted for publication this time.`;
+  const tail = changes
+    ? `Make your edits and resubmit here:\n${d.origin}/logs/new/?id=${d.submissionId}`
+    : `You're welcome to file a new one whenever you're ready:\n${d.origin}/logs/new/`;
+  await send(apiKey, {
+    to,
+    subject,
+    text: [`@${d.handle},`, '', lead, '', 'Notes from the reviewer:', d.notes, '', tail].join('\n'),
+  });
+}
