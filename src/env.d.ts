@@ -17,6 +17,9 @@ type AgentRidersEnv = {
   GITHUB_BRANCH?: string;
   // Admin "Rebuild site" button → Cloudflare Pages deploy hook URL.
   PAGES_DEPLOY_HOOK?: string;
+  // Where review-queue notices are emailed when a rider submits a log (via
+  // Resend). Unset = no notifications; nothing else changes.
+  ADMIN_EMAIL?: string;
   // Flight Log corpus (docs/flight-log-corpus.md): the Supabase Postgres the
   // pipeline maintains. The service key stays server-side; tables are locked
   // to the service role, so there is no browser-facing key at all.
