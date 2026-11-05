@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { PGlite } from '@electric-sql/pglite';
 import { wrapPglite, migrate, type Db } from '../src/db.ts';
 import { CLASSIFY_SQL } from '../src/jobs/classify.ts';
+import { refreshCorpusViews } from '../src/jobs/publish.ts';
 import { classifyOutcome, type ClassifyInput } from '../src/classify.ts';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -200,7 +201,7 @@ test('page RPCs answer with gone for excluded/opted-out and null for missing', a
 });
 
 test('sitemaps list only indexed flights', async () => {
-  await db.query('select refresh_corpus_views()');
+  await refreshCorpusViews(db);
   const rows = await db.query<{ loc: string }>('select loc from sitemap_flights(0)');
   assert.ok(rows.some((r) => r.loc === '/logs/gate/ok/1/'));
   assert.ok(!rows.some((r) => r.loc.startsWith('/logs/gate/smallrepo/')));
@@ -227,7 +228,7 @@ test('author profiles: the view, the page, the sitemap gate, the names on every 
     website_url = 'https://pro.example/', social_urls = '{https://x.com/profiled}',
     readme_excerpt = 'Hi, I build sandboxes.', profile_fetched_at = now() where login = 'profiled'`);
   await db.query('select recompute_index_ok()');
-  await db.query('select refresh_corpus_views()');
+  await refreshCorpusViews(db);
 
   // The view: counts only, bots and (later) opted-out authors excluded.
   const [tot] = await db.query<{ flights: number; indexed: number; burns: number; repos: number; agents: string[] | string }>(
