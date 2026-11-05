@@ -7,6 +7,7 @@ import {
   MAX_IN_FLIGHT,
   type SubmissionRow,
 } from '../../../../lib/submissions.ts';
+import { sendSubmissionNotice } from '../../../../lib/email.ts';
 
 export const prerender = false;
 
@@ -16,7 +17,7 @@ const json = (status: number, body: unknown) =>
 // Move a draft or changes-requested submission into the review queue.
 // Re-checks slug uniqueness at the moment of submit — the partial unique
 // index on live-status slugs is the real guarantee behind this.
-export const POST: APIRoute = async ({ locals, params }) => {
+export const POST: APIRoute = async ({ locals, params, url }) => {
   const rider = locals.rider;
   if (!rider) return json(401, { error: 'Sign in first.' });
   const { env } = locals.runtime;
@@ -64,6 +65,31 @@ export const POST: APIRoute = async ({ locals, params }) => {
     }
     throw error;
   }
+
+  // Best-effort admin notice that a new item is in the review queue. Never let
+  // a mail failure (or missing config) touch the submission result; run it in
+  // the background via waitUntil when the runtime offers it. row.status here is
+  // still the pre-update value, so it distinguishes a first submit from a
+  // re-submit after changes.
+  const notice = (async () => {
+    if (!env.RESEND_API_KEY || !env.ADMIN_EMAIL) return;
+    try {
+      await sendSubmissionNotice(env.RESEND_API_KEY, env.ADMIN_EMAIL, {
+        id: row.id,
+        title: row.title,
+        slug: row.slug,
+        kind: row.kind,
+        handle: rider.handle,
+        resubmit: row.status === 'changes_requested',
+        origin: url.origin,
+      });
+    } catch {
+      /* notification is best-effort */
+    }
+  })();
+  const ctx = locals.runtime.ctx;
+  if (ctx?.waitUntil) ctx.waitUntil(notice);
+  else await notice;
 
   return json(200, { id: row.id, status: 'submitted' });
 };
