@@ -21,8 +21,14 @@ export async function connect(url = process.env.DATABASE_URL ?? ''): Promise<Db>
   }
   const { default: postgres } = await import('postgres');
   // Supabase poolers and direct connections both work; keep the pool tiny —
-  // the pipeline is a batch client, not a server.
-  const sql = postgres(url, { max: 4, prepare: false });
+  // the pipeline is a batch client, not a server. Raise statement_timeout to
+  // 10 minutes on every connection: the publish job's refresh_corpus_views()
+  // runs eight REFRESH ... CONCURRENTLY over ~930k flights as a single
+  // statement, which outgrew the pooler's ~2-minute default and began failing
+  // the daily publish ("canceling statement due to statement timeout"). A
+  // batch client has no fast single statements to protect, so the ceiling is
+  // generous.
+  const sql = postgres(url, { max: 4, prepare: false, connection: { statement_timeout: '600000' } });
   return {
     async query<T>(text: string, params: unknown[] = []): Promise<T[]> {
       const rows = await sql.unsafe(text, params as never[]);
