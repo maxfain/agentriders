@@ -37,5 +37,8 @@ jobs:
       - run: npm ci
         working-directory: pipeline
       - name: Verify indexed debriefs (sweep)
-        run: node src/run.ts verify ${{ inputs.apply && '' || '--dry-run' }}
+        # Report-only unless apply is checked. Written as !apply && '--dry-run'
+        # (not apply && '' || …) so the truthy branch carries the flag — an
+        # empty-string middle operand would collapse to --dry-run every time.
+        run: node src/run.ts verify ${{ !inputs.apply && '--dry-run' || '' }}
         working-directory: pipeline
