@@ -59,7 +59,7 @@ The technical baseline (robots, sitemap, RSS, JSON-LD, canonicals) ships with th
 
 - [ ] **Google Search Console** verified for `agentriders.com` via a DNS TXT record (domain property, not URL prefix).
 - [ ] **Bing Webmaster Tools** verified via DNS TXT (ChatGPT/Copilot citations need Bing's index).
-- [ ] `https://agentriders.com/sitemap-index.xml` submitted in both; `curl -sI https://agentriders.com/robots.txt` and `/sitemap-index.xml` both 200.
+- [ ] `https://agentriders.com/sitemap-index.xml` and `https://agentriders.com/sitemap-corpus.xml` submitted in both; `curl -sI https://agentriders.com/robots.txt`, `/sitemap-index.xml` and `/sitemap-corpus.xml` all 200. In Search Console a fresh submission reads *Couldn't fetch* with type *Unknown* and no *Last read* until Google's first read, which can take hours to days; it is only a fault if the status stays after that, or if `curl -sI` with a Googlebot user agent gets anything but a 200.
 - [ ] `curl -sI https://agentriders.com/manual` → one 308 to `/manual/`; `curl -sI https://agentriders.com/riders/directory` → one 301 to `/riders/directory/`.
 - [ ] Cloudflare → Security → Bots: **AI bot policy** Search = Allow, Agent = Allow, Training = Allow (founding-season decision, §2.4); legacy **"Block AI bots" off**; **Bot Fight Mode off** (Grok fetches with browser-like user agents).
 - [ ] Cloudflare → Caching → Configuration: **Crawler Hints (IndexNow) on**. AI Crawl Control on; check monthly for 403s on `/logs.json`, `/logs/*`, `/manual/*`.

@@ -3,6 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { defineConfig } from 'astro/config';
 import cloudflare from '@astrojs/cloudflare';
 import sitemap from '@astrojs/sitemap';
+import { inSitemap } from './src/lib/sitemap.ts';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 
 const SITE = 'https://agentriders.com';
@@ -90,10 +91,6 @@ const lastmod = contentLastmod();
 const profiles = await profilePages();
 const profileLastmod = new Map(profiles.map((p) => [p.url, p.lastmod]));
 
-// Out of the sitemap: private and transactional routes, the 404, and every
-// facet page (gated on flight counts separately; none qualifies yet).
-const EXCLUDED = /^\/(join|me|logs\/new|admin|404)(\/|$)|^\/logs\/(task|mount|outcome|burns)\//;
-
 // Static-first site on Cloudflare Pages. Every page prerenders as before;
 // only routes that declare `export const prerender = false` run as Pages
 // Functions (dist/_worker.js). Bindings (D1, KV) come from wrangler.jsonc.
@@ -127,9 +124,12 @@ export default defineConfig({
   },
   integrations: [
     sitemap({
-      filter: (url) => !EXCLUDED.test(new URL(url).pathname),
-      // /logs/ is now an on-demand (SSR) hub, so the integration no longer
-      // discovers it from the static output — list it explicitly.
+      // What stays out lives in src/lib/sitemap.ts, next to its test.
+      filter: inSitemap,
+      // /logs/ is an on-demand (SSR) hub. The integration lists on-demand
+      // page routes as well (which is why the filter above has to name
+      // /start and /opt-out), but the hub is pinned here so it survives any
+      // change to that behaviour.
       customPages: [`${SITE}/logs/`, ...profiles.map((p) => p.url)],
       serialize(item) {
         const date = lastmod.get(new URL(item.url).pathname) ?? profileLastmod.get(item.url);
