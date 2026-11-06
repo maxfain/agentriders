@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import { PGlite } from '@electric-sql/pglite';
 import { wrapPglite, migrate, type Db } from '../src/db.ts';
 import { CLASSIFY_SQL } from '../src/jobs/classify.ts';
-import { refreshCorpusViews } from '../src/jobs/publish.ts';
+import { refreshCorpusViews } from '../src/views.ts';
+import { flightReasons, type CheckRow } from '../src/debrief-check.ts';
 import { classifyOutcome, type ClassifyInput } from '../src/classify.ts';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -18,6 +19,33 @@ before(async () => {
 });
 after(async () => {
   await db.end();
+});
+
+test('flightReasons: a clean debrief passes; an unverifiable number is flagged', () => {
+  const base: CheckRow = {
+    id: 1, agent: 'claude-code', agent_label: 'Claude Code', number: 42,
+    owner: 'acme', name: 'widget', repo: 'acme/widget',
+    title: 'Refactor the config parser', body_excerpt: null,
+    task_type: 'refactor', outcome: 'merged_clean', state: 'merged',
+    additions: 10, deletions: 4, files_changed: 3, commits: 2,
+    review_count: 1, change_requests: 0, review_comment_count: 1, hours_to_merge: 5,
+    reviewer_excerpt: null, reviewer_excerpt_url: null,
+    debrief:
+      'The agent opens a pull request that adjusts configuration handling and ' +
+      'refactors the parsing helper into a smaller module. Reviewers check the ' +
+      'change against the existing suite, request minor naming edits, and merge ' +
+      'it once the follow up commit addresses the feedback and integration passes.',
+  };
+  assert.deepEqual(flightReasons(base), []);
+
+  const bad: CheckRow = {
+    ...base,
+    debrief: base.debrief.replace('a smaller module', 'twenty smaller modules'),
+  };
+  assert.ok(
+    flightReasons(bad).some((r) => r.includes('twenty')),
+    `expected a "twenty" reason, got: ${flightReasons(bad).join('; ') || '(none)'}`,
+  );
 });
 
 async function insertFlight(opts: {

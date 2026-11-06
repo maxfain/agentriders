@@ -18,6 +18,7 @@ const JOBS: Record<string, string> = {
   classify: 'Deterministic outcome classification',
   debrief: 'LLM debriefs for gated flights (validated, versioned)',
   publish: 'index_ok, aggregates refresh, OG cards, spot check',
+  verify: 'Re-validate every indexed flight; drop debriefs that fail (--dry-run to report)',
   'refresh-open': 'Nightly re-enrichment of open flights',
   'refresh-repos': 'Weekly repo metadata refresh for repos with indexed flights',
   'rider-cards': 'Render rider share cards for riders with claims',
@@ -119,6 +120,11 @@ try {
     case 'publish': {
       const { publish } = await import('./jobs/publish.ts');
       await publish(db, { skipOg: values['dry-run'] });
+      break;
+    }
+    case 'verify': {
+      const { verify } = await import('./jobs/verify.ts');
+      await verify(db, { apply: !values['dry-run'] });
       break;
     }
     case 'refresh-open': {

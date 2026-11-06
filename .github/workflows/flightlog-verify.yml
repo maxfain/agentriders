@@ -1,0 +1,41 @@
+# Flight Log corpus — sweep every indexed flight through the debrief validator
+# and drop the ones that no longer pass (debrief cleared, gate recomputed, views
+# refreshed). The daily publish only spot-checks a 30-row sample, so invalid
+# debriefs that predate a validator can sit in the index; this clears them out
+# in one pass. Idempotent and re-runnable.
+#
+# Run it from Actions -> flightlog-verify -> Run workflow. Leave "apply"
+# unchecked first to see the count (report only); run again with it checked to
+# drop them.
+name: flightlog-verify
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: 'Drop failing debriefs (unchecked = report only)'
+        type: boolean
+        default: false
+
+# Share the daily/backfill lock so a verify run never overlaps a scheduled
+# matview refresh.
+concurrency: flightlog
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: ${{ secrets.FLIGHTLOG_DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: pipeline
+      - name: Verify indexed debriefs (sweep)
+        run: node src/run.ts verify ${{ inputs.apply && '' || '--dry-run' }}
+        working-directory: pipeline
