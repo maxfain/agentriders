@@ -8,6 +8,8 @@ import {
   definedTermSet, clampAtSentence, collectionPage, softwareAgent,
 } from '../src/lib/seo.ts';
 import { fetchSiteState } from '../src/lib/build-state.ts';
+import { inSitemap } from '../src/lib/sitemap.ts';
+import { readFileSync } from 'node:fs';
 
 test('abs: site paths become absolute, absolute URLs pass through', () => {
   assert.equal(abs('/manual/'), `${SITE}/manual/`);
@@ -376,4 +378,32 @@ test('profilePage for a GitHub author: no dateCreated, no vouches, an image', ()
   assert.equal(p.mainEntity.image, 'https://avatars.githubusercontent.com/u/1?v=4');
   assert.equal(p.mainEntity.identifier, 'octocat');
   assert.equal(p.mainEntity.agentInteractionStatistic[0].userInteractionCount, 3);
+});
+
+// ---- the static sitemap's gate (astro.config.mjs) -----------------------
+
+test('inSitemap: every path robots.txt disallows stays out, public pages stay in', () => {
+  // @astrojs/sitemap lists on-demand page routes too, so a noindex page such
+  // as /start/ or /opt-out/ is in the sitemap unless the filter names it.
+  // Read the prefixes from public/robots.txt so a new Disallow there cannot
+  // land in the sitemap unnoticed.
+  const robots = readFileSync(new URL('../public/robots.txt', import.meta.url), 'utf8');
+  const disallowed = [...new Set([...robots.matchAll(/^Disallow:\s*(\S+)/gm)].map((m) => m[1]))];
+  assert.ok(disallowed.length >= 6, `expected the full Disallow list, got ${disallowed.join(' ')}`);
+  for (const prefix of disallowed) {
+    const slashed = prefix.endsWith('/') ? prefix : `${prefix}/`;
+    assert.equal(inSitemap(`${SITE}${prefix}`), false, prefix);
+    assert.equal(inSitemap(`${SITE}${slashed}`), false, slashed);
+    assert.equal(inSitemap(`${SITE}${slashed}deeper/`), false, `${slashed}deeper/`);
+  }
+  assert.equal(inSitemap(`${SITE}/404/`), false);
+  // Facet pages are gated on flight counts separately; none qualifies yet.
+  assert.equal(inSitemap(`${SITE}/logs/task/code/`), false);
+  // Public pages pass, including ones whose names merely begin like a private one.
+  for (const path of [
+    '/', '/logs/', '/logs/template/', '/logs/newsletter/', '/manual/reins/', '/riders/maxcr/',
+    '/data/methodology/', '/start-here/', '/opt-out-faq/', '/logs/author/maxfain/',
+  ]) {
+    assert.equal(inSitemap(`${SITE}${path}`), true, path);
+  }
 });
