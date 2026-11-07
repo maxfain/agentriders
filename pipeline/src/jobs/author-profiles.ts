@@ -52,11 +52,20 @@ export async function authorProfiles(
   let errors = 0;
   let errorSample: string | undefined;
   try {
+    // Candidates: human, non-opted-out authors with at least one indexed
+    // flight who still need a profile. Drive this from mv_author_totals
+    // (indexed >= 1) — the ~1k authors with an indexed flight — NOT a
+    // correlated `exists` over flights: ~71k authors have profile_fetched_at
+    // IS NULL (every author without an indexed flight), and probing the 930k-row
+    // flights table for each of them seq-scanned past the 2-minute statement
+    // timeout. The view is refreshed by publish, which runs immediately before
+    // this job in the daily workflow. opted_out/is_bot are still checked live so
+    // a change since the last refresh wins.
     const rows = await db.query<Row>(
       `select a.id, a.login, a.github_user_id
        from authors a
+       join mv_author_totals t on t.author_id = a.id and t.indexed >= 1
        where a.is_bot is not true and a.opted_out is not true
-         and exists (select 1 from flights f where f.author_id = a.id and f.index_ok)
          and ${opts.refresh ? "a.profile_fetched_at < now() - interval '30 days'" : 'a.profile_fetched_at is null'}
        order by a.id
        limit $1`,
