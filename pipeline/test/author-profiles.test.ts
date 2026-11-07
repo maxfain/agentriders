@@ -124,6 +124,8 @@ test('author-profiles: scope, identity check, clearing, stamping, run log', asyn
   await indexedFlight(bot, 5);
   // A stale name from an earlier fetch on the row whose login now belongs to someone else.
   await db.query("update authors set name = 'Old Name' where login = 'swapped'");
+  // The job reads candidates from mv_author_totals (refreshed by publish in prod).
+  await db.query('refresh materialized view mv_author_totals');
 
   const client = fakeClient({
     good: profile(1001, 'good'),
@@ -182,6 +184,7 @@ test('author-profiles: scope, identity check, clearing, stamping, run log', asyn
 test('author-profiles: an opt-out that lands mid-request wins — no field is written', async () => {
   const late = await author(2001, 'late');
   await indexedFlight(late, 6);
+  await db.query('refresh materialized view mv_author_totals');
   const client = fakeClient({ late: profile(2001, 'late', { name: 'Too Late' }) }, async () => {
     await db.query('select opt_out_author(2001, true)');
   });
