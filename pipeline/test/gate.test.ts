@@ -243,6 +243,29 @@ test('sitemaps list only indexed flights', async () => {
   );
   assert.ok(repoList.some((r) => r.full_name === 'gate/ok'), 'indexed repo listed');
   assert.ok(!repoList.some((r) => r.full_name === 'gate/smallrepo'), 'non-indexed repo excluded');
+
+  // 0006 browse indexes: paginated { total, items }, same exclusions as corpus_repos.
+  const [{ corpus_repos_page: repoPage }] = await db.query<{
+    corpus_repos_page: { total: number; repos: { full_name: string }[] };
+  }>('select corpus_repos_page(50, 0)');
+  assert.ok(Number(repoPage.total) >= 1, 'repo page reports a total');
+  assert.ok(repoPage.repos.some((r) => r.full_name === 'gate/ok'));
+  assert.ok(!repoPage.repos.some((r) => r.full_name === 'gate/smallrepo'));
+  // An offset past the end is an empty page, not an error.
+  const [{ corpus_repos_page: beyond }] = await db.query<{ corpus_repos_page: { repos: unknown[] } }>(
+    'select corpus_repos_page(50, 100000)',
+  );
+  assert.equal(beyond.repos.length, 0);
+
+  const [{ corpus_authors_page: authorPage }] = await db.query<{
+    corpus_authors_page: { total: number; authors: { login: string }[] };
+  }>('select corpus_authors_page(50, 0)');
+  assert.ok(Number(authorPage.total) >= 1, 'author page reports a total');
+  assert.ok(authorPage.authors.length >= 1);
+
+  // sitemap_pages() lists the browse indexes too.
+  assert.ok(pages.some((p) => p.loc === '/logs/repositories/'), 'repositories index in sitemap');
+  assert.ok(pages.some((p) => p.loc === '/logs/authors/'), 'authors index in sitemap');
 });
 
 test('author profiles: the view, the page, the sitemap gate, the names on every page, opt-out clearing', async () => {
