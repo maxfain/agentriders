@@ -6,6 +6,7 @@
 // empty and let the page render without it.
 
 import Anthropic from '@anthropic-ai/sdk';
+import type { PostHog } from 'posthog-node';
 import { wordCount } from './text.ts';
 
 // v2: tighter word-count target with margin, and the allowed numbers handed to
@@ -183,10 +184,17 @@ export type DebriefResult =
   | { ok: true; text: string }
   | { ok: false; attempts: string[]; reasons: string[] };
 
+export type DebriefObservability = {
+  posthog: PostHog;
+  sessionId: string;
+  traceId: string;
+};
+
 export async function generateDebrief(
   client: Anthropic,
   record: DebriefRecord,
   model = process.env.DEBRIEF_MODEL || DEFAULT_DEBRIEF_MODEL,
+  observability?: DebriefObservability,
 ): Promise<DebriefResult> {
   const { system, user } = buildDebriefPrompt(record);
   const attempts: string[] = [];
@@ -200,12 +208,50 @@ export async function generateDebrief(
         content: `That debrief failed validation: ${lastReasons.join('; ')}. Rewrite it following every hard rule.`,
       });
     }
-    const response = await client.messages.create({
+    const request = {
       model,
       max_tokens: 2000,
       system,
       output_config: { effort: 'low' },
       messages,
+    };
+    const startedAt = Date.now();
+    let response: Anthropic.Message;
+    try {
+      response = await client.messages.create(request);
+    } catch (error) {
+      observability?.posthog.capture({
+        distinctId: observability.sessionId,
+        event: '$ai_generation',
+        properties: {
+          $ai_trace_id: observability.traceId,
+          $ai_session_id: observability.sessionId,
+          $ai_model: model,
+          $ai_provider: 'anthropic',
+          $ai_input: [{ role: 'system', content: system }, ...messages],
+          $ai_output_choices: [],
+          $ai_input_tokens: 0,
+          $ai_output_tokens: 0,
+          $ai_latency: (Date.now() - startedAt) / 1000,
+          $ai_error: String(error),
+        },
+      });
+      throw error;
+    }
+    observability?.posthog.capture({
+      distinctId: observability.sessionId,
+      event: '$ai_generation',
+      properties: {
+        $ai_trace_id: observability.traceId,
+        $ai_session_id: observability.sessionId,
+        $ai_model: model,
+        $ai_provider: 'anthropic',
+        $ai_input: [{ role: 'system', content: system }, ...messages],
+        $ai_output_choices: response.content,
+        $ai_input_tokens: response.usage.input_tokens,
+        $ai_output_tokens: response.usage.output_tokens,
+        $ai_latency: (Date.now() - startedAt) / 1000,
+      },
     });
     const text = response.content
       .filter((b): b is Anthropic.TextBlock => b.type === 'text')

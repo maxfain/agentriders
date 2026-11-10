@@ -10,6 +10,7 @@ export const GET: APIRoute = async ({ locals }) => {
   const body = rider
     ? {
         authenticated: true,
+        id: rider.id,
         handle: rider.handle,
         displayName: rider.display_name,
         pending: isPendingHandle(rider.handle),

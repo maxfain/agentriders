@@ -19,3 +19,4 @@ mcp/dist/
 
 # Flight Log pipeline: downloaded datasets
 pipeline/data/
+.env

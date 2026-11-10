@@ -240,6 +240,8 @@ if (viewer) {
 </Base>
 
 <script>
+  import { track } from '../../../scripts/track';
+
   const claim = document.getElementById('claim-all') as HTMLButtonElement | null;
   claim?.addEventListener('click', async () => {
     const status = document.querySelector<HTMLElement>('.claim-status')!;
@@ -257,6 +259,7 @@ if (viewer) {
         claim.disabled = false;
         return;
       }
+      track('flight_claimed', { claim_scope: 'all' });
       location.reload();
     } catch {
       status.textContent = 'Claim failed — try again.';

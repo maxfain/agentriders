@@ -39,6 +39,12 @@ const active = (href: string) => {
   }
 </style>
 <script>
+  type PostHogClient = {
+    identify: (distinctId: string, properties?: Record<string, unknown>) => void;
+    reset: () => void;
+  };
+  const posthog = (window as Window & { posthog?: PostHogClient }).posthog;
+
   // Static pages stay static; the only personalization is this swap of the
   // join button to the signed-in rider's handle. The ar_signedin hint
   // cookie (set on login, cleared on logout) keeps anonymous page views
@@ -52,6 +58,14 @@ const active = (href: string) => {
           document.cookie = 'ar_signedin=; Max-Age=0; path=/';
           return;
         }
+        // The API exposes the immutable rider id only after authenticating the
+        // cookie. Identifying here covers the sign-in redirect and every later
+        // page refresh without sending mutable handles as the distinct id.
+        posthog?.identify(me.id, {
+          name: me.displayName,
+          handle: me.handle,
+          rank: me.rank ?? undefined,
+        });
         for (const link of document.querySelectorAll<HTMLAnchorElement>('[data-auth-link]')) {
           link.href = me.pending ? '/join/' : '/me/';
           const label = link.querySelector('[data-auth-label]');
@@ -60,6 +74,16 @@ const active = (href: string) => {
       })
       .catch(() => {});
   }
+
+  // A server-rendered form owns sign-out, so reset before its navigation
+  // clears the cookie. This prevents a later visitor on this browser from
+  // inheriting the previous rider's identity.
+  document.addEventListener('submit', (event) => {
+    const form = event.target;
+    if (form instanceof HTMLFormElement && form.action === `${window.location.origin}/api/auth/logout`) {
+      posthog?.reset();
+    }
+  });
 
   const menu = document.querySelector<HTMLDetailsElement>('.mobile-menu');
   if (menu) {
