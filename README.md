@@ -28,7 +28,7 @@ The live deployment is the Cloudflare **Pages** project `agentriders`, building 
 1. **Workers & Pages → Create → Pages → Import an existing Git repository**, pick this repo.
 2. Production branch `main`, framework preset **Astro**, build command `npm run build`, build output directory `dist`.
 3. Custom domains → add `agentriders.com` and `www.agentriders.com` (the zone must be on Cloudflare). Every page's canonical URL points at the apex, so the duplicate hostname is harmless; to make `www` 301 to the apex, add a zone-level Redirect Rule (**Rules → Redirect from WWW to root**) — Pages' `_redirects` cannot do domain-level redirects.
-4. `PUBLIC_NEWSLETTER_ENDPOINT` goes in the project's **Settings → Variables and Secrets** (see § Newsletter). Node comes from `.node-version` (22.23.4; bumped on each Node security release).
+4. `PUBLIC_NEWSLETTER_ENDPOINT` goes in the project's **Settings → Variables and Secrets** (see § Newsletter), as do the analytics variables: `PUBLIC_POSTHOG_KEY` (the PostHog project API key — publishable, not a secret; unset, the site ships and loads no PostHog code at all) and optionally `PUBLIC_POSTHOG_HOST` (defaults to `https://us.i.posthog.com`; set `https://eu.i.posthog.com` for an EU project). All are read at build time, so changing one takes a redeploy. Node comes from `.node-version` (22.23.4; bumped on each Node security release).
 
 **Bindings and resources.** The bindings in `wrangler.jsonc` must exist in the account: a D1 database named `agentriders` (binding `DB`) and a KV namespace (binding `RATE`). Create them once with `npx wrangler d1 create agentriders` / `npx wrangler kv namespace create RATE` and put the returned ids in `wrangler.jsonc`.
 
@@ -97,7 +97,7 @@ Publishing needs an npm account; the name `agentriders` is reserved by the maint
 
 ## Newsletter
 
-Every signup form POSTs a single `email` field to `PUBLIC_NEWSLETTER_ENDPOINT`, read at build time (`src/components/Signup.astro`). Unset or empty, the site displays an honest “signup opens soon” state with a Field Manual link; no email form or placeholder POST is rendered. The newsletter form loads no third-party script — it is a plain POST. (Site analytics is a separate, disclosed Google tag; see § House rules and /privacy.)
+Every signup form POSTs a single `email` field to `PUBLIC_NEWSLETTER_ENDPOINT`, read at build time (`src/components/Signup.astro`). Unset or empty, the site displays an honest “signup opens soon” state with a Field Manual link; no email form or placeholder POST is rendered. The newsletter form loads no third-party script — it is a plain POST. (Site analytics — a Google tag and PostHog — is separate and disclosed; see § House rules and /privacy.)
 
 - **Buttondown** (drop-in): `https://buttondown.com/api/emails/embed-subscribe/<username>` — accepts a form POST with `email`.
 - **Kit (ConvertKit)**: `https://app.kit.com/forms/<form-id>/subscriptions` — expects the field named `email_address`, so either rename the input in `Signup.astro` or front it with the Worker below.
@@ -128,7 +128,7 @@ export default {
 
 ## House rules for changes
 
-Tokens and type live in `src/styles/global.css`; the illustrated experience lives in `src/styles/experience.css`. Preserve ink/bone/ember, Fraunces/Instrument Sans/JetBrains Mono, honest example labels, and static content collections. Artwork and optional motion are now part of the approved direction. No invented riders, testimonials, counts, or published flights. Analytics is the Google tag in `src/layouts/Base.astro` only (disclosed on /privacy) — no session recorders, no ad pixels, nothing else. Respect reduced-motion preferences and retain keyboard navigation.
+Tokens and type live in `src/styles/global.css`; the illustrated experience lives in `src/styles/experience.css`. Preserve ink/bone/ember, Fraunces/Instrument Sans/JetBrains Mono, honest example labels, and static content collections. Artwork and optional motion are now part of the approved direction. No invented riders, testimonials, counts, or published flights. Analytics is the Google tag in `src/layouts/Base.astro` plus PostHog in `src/scripts/posthog.ts` (both disclosed on /privacy; PostHog only when `PUBLIC_POSTHOG_KEY` is set) — pageviews and the deliberate `arTrack` funnel events only: no autocapture, no session recorders, no ad pixels, nothing else. Respect reduced-motion preferences and retain keyboard navigation.
 
 ## Flight School content
 
