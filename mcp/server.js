@@ -5,6 +5,8 @@
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { instrument } from '@posthog/mcp';
+import { PostHog } from 'posthog-node';
 import { z } from 'zod';
 
 import { status } from './tools/status.js';
@@ -20,6 +22,24 @@ process.env.AGENTRIDERS_API =
   process.env.AGENTRIDERS_BASE_URL || process.env.AGENTRIDERS_API || 'https://agentriders.com';
 
 const server = new McpServer({ name: 'agentriders', version: '0.1.1' /* keep in step with package.json (npm version) */ });
+const posthogToken = process.env.POSTHOG_PROJECT_TOKEN;
+const posthogHost = process.env.POSTHOG_HOST;
+
+if (!posthogToken) {
+  process.stderr.write('POSTHOG_PROJECT_TOKEN variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once POSTHOG_PROJECT_TOKEN is configured\n');
+}
+if (!posthogHost) {
+  process.stderr.write('POSTHOG_HOST variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once POSTHOG_HOST is configured\n');
+}
+
+const posthog = posthogToken && posthogHost
+  ? new PostHog(posthogToken, { host: posthogHost, enableExceptionAutocapture: true })
+  : null;
+
+if (posthog) {
+  instrument(server, posthog, { logger: (message) => process.stderr.write(`${message}\n`) });
+}
+
 const confirmWithHuman = makeConfirmWithHuman(server);
 
 const asResult = (obj) => ({
@@ -107,5 +127,20 @@ server.registerTool(
       : asResult(r);
   },
 );
+
+let shuttingDown = false;
+
+async function shutdownPostHog() {
+  if (shuttingDown || !posthog) return;
+  shuttingDown = true;
+  await posthog.shutdown(3000).catch(() => {});
+}
+
+process.once('SIGTERM', () => {
+  void shutdownPostHog().finally(() => process.exit(0));
+});
+process.stdin.once('end', () => {
+  void shutdownPostHog().finally(() => process.exit(0));
+});
 
 await server.connect(new StdioServerTransport());

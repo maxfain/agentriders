@@ -102,6 +102,8 @@ const cardUrl = env.SUPABASE_URL
 </Base>
 
 <script>
+  import { track } from '../../scripts/track';
+
   // flight id rides on the row; fall back to resolving via the page JSON.
   const flightId = async (controls: HTMLElement): Promise<number | null> => {
     const row = controls.closest<HTMLElement>('.fitem');
@@ -127,7 +129,7 @@ const cardUrl = env.SUPABASE_URL
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ all: true }),
     });
-    if (res.ok) location.reload();
+    if (res.ok) { track('flight_claimed', { claim_scope: 'all' }); location.reload(); }
     else {
       status.textContent = 'Failed — try again.';
       button.disabled = false;

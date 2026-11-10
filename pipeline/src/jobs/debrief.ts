@@ -5,6 +5,8 @@
 // simply renders without a debrief and stays out of the index.
 
 import Anthropic from '@anthropic-ai/sdk';
+import { randomUUID } from 'node:crypto';
+import { PostHog } from 'posthog-node';
 import type { Db } from '../db.ts';
 import { AGENT_LABELS } from '../agents.ts';
 import {
@@ -51,6 +53,7 @@ export async function debriefJob(
   let failed = 0;
   let revalidated = 0;
   let errorSample: string | undefined;
+  let posthog: PostHog | undefined;
   try {
     // No --limit means "every gated flight", not a silent cap — the backfill
     // must not quietly stop 5k in. The daily job passes its own small limit.
@@ -62,7 +65,20 @@ export async function debriefJob(
       await finishRun(db, run, { ok: true, rowsIn: rows.length, rowsOut: 0 });
       return;
     }
+    const projectToken = process.env.POSTHOG_PROJECT_TOKEN;
+    const host = process.env.POSTHOG_HOST;
+    if (projectToken && host) {
+      posthog = new PostHog(projectToken, { host });
+    } else if (process.env.NODE_ENV !== 'production') {
+      if (!projectToken) {
+        console.warn('POSTHOG_PROJECT_TOKEN variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once POSTHOG_PROJECT_TOKEN is configured');
+      }
+      if (!host) {
+        console.warn('POSTHOG_HOST variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once POSTHOG_HOST is configured');
+      }
+    }
     const client = opts.client ?? new Anthropic();
+    const sessionId = `pipeline-debrief-${run.id}`;
 
     // Prompt-version bump: revalidate existing debriefs first; only failures
     // regenerate (brief: "A prompt change re-runs validation across all
@@ -91,7 +107,12 @@ export async function debriefJob(
         if (index >= toGenerate.length) return;
         const row = toGenerate[index];
         try {
-          const result = await generateDebrief(client, toRecord(row));
+          const result = await generateDebrief(
+            client,
+            toRecord(row),
+            undefined,
+            posthog ? { posthog, sessionId, traceId: randomUUID() } : undefined,
+          );
           if (result.ok) {
             await db.query(
               `update flights set debrief = $2, debrief_prompt_version = $3,
@@ -136,6 +157,8 @@ export async function debriefJob(
       await finishRun(db, run, { ok: false, rowsOut: written, errors: failed + 1, errorSample: String(error) });
     }
     throw error;
+  } finally {
+    if (posthog) await posthog.shutdown(3000).catch(() => {});
   }
 }
 

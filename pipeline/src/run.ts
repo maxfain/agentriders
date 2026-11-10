@@ -5,6 +5,7 @@ import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { connect, migrate } from './db.ts';
+import { createPostHogPipelineLogger } from './posthog-logs.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -69,8 +70,18 @@ process.on('unhandledRejection', (reason) => {
   process.exit(1);
 });
 
-const db = await connect();
+const posthogLogs = createPostHogPipelineLogger();
+const startedAt = Date.now();
+posthogLogs.logger?.emit({
+  severityText: 'info',
+  body: 'pipeline_job_started',
+  attributes: { job, dry_run: values['dry-run'] },
+});
+
+let db: Awaited<ReturnType<typeof connect>> | undefined;
+let completed = false;
 try {
+  db = await connect();
   switch (job) {
     case 'migrate': {
       const files = await migrate(db, join(HERE, '..', 'migrations'));
@@ -155,6 +166,16 @@ try {
     default:
       usage();
   }
+  completed = true;
 } finally {
-  await db.end();
+  try {
+    if (db) await db.end();
+  } finally {
+    posthogLogs.logger?.emit({
+      severityText: completed ? 'info' : 'error',
+      body: completed ? 'pipeline_job_completed' : 'pipeline_job_failed',
+      attributes: { job, duration_ms: Date.now() - startedAt },
+    });
+    await posthogLogs.shutdown();
+  }
 }

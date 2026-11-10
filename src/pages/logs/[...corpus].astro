@@ -566,6 +566,8 @@ const rCrumbs = r
 
 {f && (
   <script>
+    import { track } from '../../scripts/track';
+
     const claim = document.querySelector<HTMLButtonElement>('.btn-claim');
     claim?.addEventListener('click', async () => {
       const status = document.querySelector<HTMLElement>('.claim-status')!;
@@ -585,12 +587,14 @@ const rCrumbs = r
           claim.disabled = false;
           return;
         }
+        track('flight_claimed', { claim_scope: 'single' });
         if (body.claimable > 0 && confirm(`Claimed. We found ${body.claimable} more ${body.claimable === 1 ? 'flight' : 'flights'} of yours — claim all?`)) {
-          await fetch('/api/flights/claim', {
+          const claimAll = await fetch('/api/flights/claim', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ all: true }),
           });
+          if (claimAll.ok) track('flight_claimed', { claim_scope: 'all' });
         }
         location.reload();
       } catch {

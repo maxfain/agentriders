@@ -372,6 +372,8 @@ const jsonLd = [
 </style>
 
 <script>
+  import { track } from '../../scripts/track';
+
   const form = document.getElementById('vouch-form') as HTMLFormElement | null;
   if (form) {
     const status = document.getElementById('vouch-status')!;
@@ -386,7 +388,7 @@ const jsonLd = [
           body: JSON.stringify({ vouchee_handle: form.dataset.handle, statement }),
         });
         const body = await res.json().catch(() => ({}));
-        if (res.ok) { location.reload(); } else { status.textContent = body.error || 'Something went wrong.'; }
+        if (res.ok) { track('vouch_created'); location.reload(); } else { status.textContent = body.error || 'Something went wrong.'; }
       } catch { status.textContent = 'Network error.'; }
     });
   }
@@ -396,7 +398,7 @@ const jsonLd = [
       if (!confirm('Revoke this vouch? Your name comes off it.')) return;
       try {
         const res = await fetch(`/api/vouches/${btn.dataset.id}`, { method: 'DELETE' });
-        if (res.ok) location.reload();
+        if (res.ok) { track('vouch_revoked'); location.reload(); }
       } catch { /* ignore */ }
     });
   }

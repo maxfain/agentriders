@@ -12,6 +12,7 @@ import frauncesWoff2 from '@fontsource-variable/fraunces/files/fraunces-latin-op
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import JsonLd from '../components/JsonLd.astro';
+import PostHog from '../components/posthog.astro';
 import { abs, canonicalUrl, clampTitle, clampDescription, siteGraph } from '../lib/seo';
 
 // The head contract every page template relies on (docs/seo-aeo-plan.md
@@ -86,6 +87,7 @@ const graph = siteGraph(props.jsonLd, isHome);
 <meta name="twitter:image" content={ogImage} />
 <meta name="twitter:image:alt" content={ogImageAlt} />
 <JsonLd data={graph} />
+<PostHog />
 <!-- Google tag (gtag.js) -->
 <script is:inline async src="https://www.googletagmanager.com/gtag/js?id=G-ZJ0QNE2BB3"></script>
 <script is:inline>
