@@ -10,6 +10,7 @@ import { recomputeRank } from '../../../lib/ranks';
 import {
   flightlogConfigured, githubIdentityOf, rpc, validOwner, validRepoName,
 } from '../../../lib/flightlog';
+import { readJsonCapped, BodyTooLargeError } from '../../../lib/http';
 
 export const prerender = false;
 
@@ -52,8 +53,9 @@ export const POST: APIRoute = async ({ locals, request }) => {
 
   let body: { owner?: string; repo?: string; number?: number; all?: boolean };
   try {
-    body = (await request.json()) as typeof body;
-  } catch {
+    body = (await readJsonCapped(request)) as typeof body;
+  } catch (error) {
+    if (error instanceof BodyTooLargeError) return json(413, { error: 'Request body too large.' });
     return json(400, { error: 'Send JSON: { "owner": "...", "repo": "...", "number": 123 } or { "all": true }' });
   }
 
