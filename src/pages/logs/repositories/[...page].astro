@@ -1,0 +1,143 @@
+---
+// Crawlable "all repositories" index (0006): links every repository with an
+// indexed flight, paginated, so the long tail that the /logs/ hub's top-15 list
+// never reaches gets an internal link two clicks from the homepage.
+import Base from '../../../layouts/Base.astro';
+import PageHero from '../../../components/PageHero.astro';
+import PageCoda from '../../../components/PageCoda.astro';
+import { breadcrumbs, collectionPage } from '../../../lib/seo';
+import { fmtInt, flightlogConfigured, rpc } from '../../../lib/flightlog';
+
+export const prerender = false;
+
+// Mirror of the page size in pipeline/migrations/0006 (sitemap_pages()).
+const PAGE_SIZE = 120;
+
+const { env } = Astro.locals.runtime;
+
+const notFound = () =>
+  new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' } });
+const unavailable = () =>
+  new Response('Corpus temporarily unavailable.', {
+    status: 503,
+    headers: { 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex', 'Retry-After': '120' },
+  });
+
+if (!flightlogConfigured(env)) return notFound();
+
+// Page 1 at /logs/repositories/, page N at /logs/repositories/N/. Reject any
+// other shape (02, 2.5, trailing junk) so a page maps to exactly one URL.
+const raw = String(Astro.params.page ?? '').replace(/\/+$/, '');
+const pageNum = raw === '' ? 1 : Number(raw);
+if (!Number.isInteger(pageNum) || pageNum < 1 || String(pageNum) !== (raw || '1')) return notFound();
+
+type Repo = { full_name: string; stars: number | null; primary_language: string | null; indexed_flights: number };
+let total = 0;
+let repos: Repo[] = [];
+try {
+  const data = await rpc<{ total: number; repos: Repo[] }>(env, 'corpus_repos_page', {
+    p_limit: PAGE_SIZE,
+    p_offset: (pageNum - 1) * PAGE_SIZE,
+  });
+  total = Number(data?.total ?? 0);
+  repos = data?.repos ?? [];
+} catch {
+  return unavailable();
+}
+
+const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+if (pageNum > pages || (repos.length === 0 && pageNum > 1)) return notFound();
+
+const base = '/logs/repositories/';
+const pagePath = (n: number) => (n === 1 ? base : `${base}${n}/`);
+const canonical = pagePath(pageNum);
+const title =
+  pageNum === 1 ? 'All repositories — AgentRiders Flight Logs' : `All repositories · page ${pageNum} — AgentRiders`;
+const description = `Every public repository with an indexed AI-agent pull request in the AgentRiders flight-log corpus — ${fmtInt(total)} in all.`;
+
+Astro.response.headers.set('Cache-Control', 'public, max-age=300, s-maxage=900');
+
+const jsonLd = [
+  breadcrumbs([
+    { name: 'Home', path: '/' },
+    { name: 'Flight Logs', path: '/logs/' },
+    { name: 'Repositories', path: base },
+  ]),
+  collectionPage({
+    name: 'Repositories in the flight-log corpus',
+    description,
+    path: canonical,
+    items: repos.slice(0, 20).map((r) => ({ name: r.full_name, path: `/logs/${r.full_name}/` })),
+  }),
+];
+
+// First, last, and a window of ±2 around the current page — enough that every
+// page is reachable and the chain stays short.
+const windowed = [...new Set([1, pages, pageNum, pageNum - 1, pageNum - 2, pageNum + 1, pageNum + 2])]
+  .filter((n) => n >= 1 && n <= pages)
+  .sort((a, b) => a - b);
+---
+
+<Base title={title} description={description} jsonLd={jsonLd} canonical={canonical}>
+  <PageHero
+    eyebrow="The Corpus"
+    title="All repositories."
+    description={`${fmtInt(total)} public repositories with at least one indexed agent flight.`}
+    art="ledger"
+    id="repos-index-title"
+    compact
+  ></PageHero>
+  <section class="section section--bone">
+    <div class="container">
+      <p class="browse-crumb"><a href="/logs/">← Flight Logs</a></p>
+      {repos.length === 0 ? (
+        <p class="browse-empty">No repositories in the corpus yet.</p>
+      ) : (
+        <ul class="browse-list">
+          {repos.map((r) => (
+            <li>
+              <a href={`/logs/${r.full_name}/`}>{r.full_name}</a>
+              <span class="browse-meta">
+                {r.stars !== null && <>★ {fmtInt(r.stars)} · </>}
+                {r.primary_language && <>{r.primary_language} · </>}
+                {fmtInt(r.indexed_flights)} indexed
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {pages > 1 && (
+        <nav class="pager" aria-label="Repository index pages">
+          {pageNum > 1 && <a rel="prev" href={pagePath(pageNum - 1)}>← Prev</a>}
+          {windowed.map((n, i) => (
+            <>
+              {i > 0 && windowed[i - 1] !== n - 1 && <span class="pager__gap" aria-hidden="true">…</span>}
+              {n === pageNum ? (
+                <span class="pager__cur" aria-current="page">{n}</span>
+              ) : (
+                <a href={pagePath(n)}>{n}</a>
+              )}
+            </>
+          ))}
+          {pageNum < pages && <a rel="next" href={pagePath(pageNum + 1)}>Next →</a>}
+        </nav>
+      )}
+    </div>
+  </section>
+  <PageCoda />
+</Base>
+
+<style>
+  .browse-crumb { font-family: var(--mono); font-size: 13px; margin-bottom: 18px; }
+  .browse-empty { color: var(--text-on-bone-soft); padding: 24px 0; }
+  .browse-list { list-style: none; margin: 0; padding: 0; }
+  .browse-list li { padding: 9px 0; border-bottom: 1px solid var(--bone-line); break-inside: avoid; }
+  .browse-list a { font-family: var(--mono); font-size: 14.5px; word-break: break-word; }
+  .browse-meta { display: block; margin-top: 3px; font-size: 12.5px; color: var(--ash); }
+  @media (min-width: 720px) { .browse-list { columns: 2; column-gap: 48px; } }
+  .pager { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 32px; font-family: var(--mono); font-size: 14px; }
+  .pager a, .pager__cur { padding: 4px 11px; border: 1px solid var(--bone-line); text-decoration: none; }
+  .pager a:hover { border-color: var(--ink); }
+  .pager__cur { background: var(--ink); color: var(--bone); border-color: var(--ink); }
+  .pager__gap { color: var(--ash); padding: 0 2px; }
+</style>

@@ -130,7 +130,12 @@ export default defineConfig({
       // page routes as well (which is why the filter above has to name
       // /start and /opt-out), but the hub is pinned here so it survives any
       // change to that behaviour.
-      customPages: [`${SITE}/logs/`, ...profiles.map((p) => p.url)],
+      customPages: [
+        `${SITE}/logs/`,
+        `${SITE}/logs/repositories/`,
+        `${SITE}/logs/authors/`,
+        ...profiles.map((p) => p.url),
+      ],
       serialize(item) {
         const date = lastmod.get(new URL(item.url).pathname) ?? profileLastmod.get(item.url);
         return date ? { ...item, lastmod: date } : item;

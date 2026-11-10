@@ -1,0 +1,135 @@
+---
+// Crawlable "all authors" index (0006): links every GitHub account with an
+// indexed flight, paginated, so the authors beyond the hub's top-15 list get an
+// internal link two clicks from the homepage.
+import Base from '../../../layouts/Base.astro';
+import PageHero from '../../../components/PageHero.astro';
+import PageCoda from '../../../components/PageCoda.astro';
+import { breadcrumbs, collectionPage } from '../../../lib/seo';
+import { authorLabel, fmtInt, flightlogConfigured, rpc } from '../../../lib/flightlog';
+
+export const prerender = false;
+
+// Mirror of the page size in pipeline/migrations/0006 (sitemap_pages()).
+const PAGE_SIZE = 120;
+
+const { env } = Astro.locals.runtime;
+
+const notFound = () =>
+  new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' } });
+const unavailable = () =>
+  new Response('Corpus temporarily unavailable.', {
+    status: 503,
+    headers: { 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex', 'Retry-After': '120' },
+  });
+
+if (!flightlogConfigured(env)) return notFound();
+
+const raw = String(Astro.params.page ?? '').replace(/\/+$/, '');
+const pageNum = raw === '' ? 1 : Number(raw);
+if (!Number.isInteger(pageNum) || pageNum < 1 || String(pageNum) !== (raw || '1')) return notFound();
+
+type Author = { login: string; name: string | null; flights: number; indexed_flights: number };
+let total = 0;
+let authors: Author[] = [];
+try {
+  const data = await rpc<{ total: number; authors: Author[] }>(env, 'corpus_authors_page', {
+    p_limit: PAGE_SIZE,
+    p_offset: (pageNum - 1) * PAGE_SIZE,
+  });
+  total = Number(data?.total ?? 0);
+  authors = data?.authors ?? [];
+} catch {
+  return unavailable();
+}
+
+const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+if (pageNum > pages || (authors.length === 0 && pageNum > 1)) return notFound();
+
+const base = '/logs/authors/';
+const pagePath = (n: number) => (n === 1 ? base : `${base}${n}/`);
+const canonical = pagePath(pageNum);
+const title =
+  pageNum === 1 ? 'All authors — AgentRiders Flight Logs' : `All authors · page ${pageNum} — AgentRiders`;
+const description = `Every GitHub account with an indexed AI-agent pull request in the AgentRiders flight-log corpus — ${fmtInt(total)} in all.`;
+
+Astro.response.headers.set('Cache-Control', 'public, max-age=300, s-maxage=900');
+
+const jsonLd = [
+  breadcrumbs([
+    { name: 'Home', path: '/' },
+    { name: 'Flight Logs', path: '/logs/' },
+    { name: 'Authors', path: base },
+  ]),
+  collectionPage({
+    name: 'Authors in the flight-log corpus',
+    description,
+    path: canonical,
+    items: authors.slice(0, 20).map((a) => ({ name: authorLabel(a), path: `/logs/author/${a.login.toLowerCase()}/` })),
+  }),
+];
+
+const windowed = [...new Set([1, pages, pageNum, pageNum - 1, pageNum - 2, pageNum + 1, pageNum + 2])]
+  .filter((n) => n >= 1 && n <= pages)
+  .sort((a, b) => a - b);
+---
+
+<Base title={title} description={description} jsonLd={jsonLd} canonical={canonical}>
+  <PageHero
+    eyebrow="The Corpus"
+    title="All authors."
+    description={`${fmtInt(total)} GitHub accounts with at least one indexed agent flight.`}
+    art="ledger"
+    id="authors-index-title"
+    compact
+  ></PageHero>
+  <section class="section section--bone">
+    <div class="container">
+      <p class="browse-crumb"><a href="/logs/">← Flight Logs</a></p>
+      {authors.length === 0 ? (
+        <p class="browse-empty">No authors in the corpus yet.</p>
+      ) : (
+        <ul class="browse-list">
+          {authors.map((a) => (
+            <li>
+              <a href={`/logs/author/${a.login.toLowerCase()}/`}>{authorLabel(a)}</a>
+              <span class="browse-meta">{fmtInt(a.indexed_flights)} indexed · {fmtInt(a.flights)} total</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {pages > 1 && (
+        <nav class="pager" aria-label="Author index pages">
+          {pageNum > 1 && <a rel="prev" href={pagePath(pageNum - 1)}>← Prev</a>}
+          {windowed.map((n, i) => (
+            <>
+              {i > 0 && windowed[i - 1] !== n - 1 && <span class="pager__gap" aria-hidden="true">…</span>}
+              {n === pageNum ? (
+                <span class="pager__cur" aria-current="page">{n}</span>
+              ) : (
+                <a href={pagePath(n)}>{n}</a>
+              )}
+            </>
+          ))}
+          {pageNum < pages && <a rel="next" href={pagePath(pageNum + 1)}>Next →</a>}
+        </nav>
+      )}
+    </div>
+  </section>
+  <PageCoda />
+</Base>
+
+<style>
+  .browse-crumb { font-family: var(--mono); font-size: 13px; margin-bottom: 18px; }
+  .browse-empty { color: var(--text-on-bone-soft); padding: 24px 0; }
+  .browse-list { list-style: none; margin: 0; padding: 0; }
+  .browse-list li { padding: 9px 0; border-bottom: 1px solid var(--bone-line); break-inside: avoid; }
+  .browse-list a { font-family: var(--mono); font-size: 14.5px; word-break: break-word; }
+  .browse-meta { display: block; margin-top: 3px; font-size: 12.5px; color: var(--ash); }
+  @media (min-width: 720px) { .browse-list { columns: 2; column-gap: 48px; } }
+  .pager { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 32px; font-family: var(--mono); font-size: 14px; }
+  .pager a, .pager__cur { padding: 4px 11px; border: 1px solid var(--bone-line); text-decoration: none; }
+  .pager a:hover { border-color: var(--ink); }
+  .pager__cur { background: var(--ink); color: var(--bone); border-color: var(--ink); }
+  .pager__gap { color: var(--ash); padding: 0 2px; }
+</style>
