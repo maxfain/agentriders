@@ -13,6 +13,7 @@ import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import JsonLd from '../components/JsonLd.astro';
 import { abs, canonicalUrl, clampTitle, clampDescription, siteGraph } from '../lib/seo';
+import { isPendingHandle } from '../lib/handles';
 
 // The head contract every page template relies on (docs/seo-aeo-plan.md
 // §4.3, §4.5). Titles and descriptions are clamped here so no template can
@@ -53,6 +54,13 @@ const publishedTime = iso(props.publishedTime);
 const modifiedTime = iso(props.modifiedTime);
 const alternates = props.alternates ?? [];
 const graph = siteGraph(props.jsonLd, isHome);
+// Signed-in rider, known only on server-rendered (prerender = false) pages —
+// the middleware resolves the session cookie before the render. Prerendered
+// pages build with no rider, so the static output is byte-identical. The
+// handle is stamped on <body> for scripts/posthog.ts to identify against;
+// a pending handle is skipped because it changes at claim time.
+const rider = Astro.locals?.rider;
+const riderHandle = rider && !isPendingHandle(rider.handle) ? rider.handle : undefined;
 ---
 
 <!doctype html>
@@ -96,11 +104,17 @@ const graph = siteGraph(props.jsonLd, isHome);
   gtag('config', 'G-ZJ0QNE2BB3');
 
   // Funnel events (join_view, handle_claimed, log_submitted, …) go through one
-  // helper so a page never has to care whether gtag loaded.
-  window.arTrack = (name, params) => { try { gtag('event', name, params || {}) } catch {} };
+  // helper so a page never has to care whether gtag loaded. Each call also
+  // lands in window.__arQ, where scripts/posthog.ts picks it up — events fired
+  // before that module loads replay from the queue.
+  window.arTrack = (name, params) => {
+    try { gtag('event', name, params || {}) } catch {}
+    try { (window.__arQ = window.__arQ || []).push([name, params]) } catch {}
+  };
 </script>
+<script>import '../scripts/posthog';</script>
 </head>
-<body class:list={{ "is-home": isHome, "is-inner": !isHome }}>
+<body class:list={{ "is-home": isHome, "is-inner": !isHome }} data-rider={riderHandle}>
 <a class="skip-link" href="#main-content">Skip to content</a>
 
 <Header />

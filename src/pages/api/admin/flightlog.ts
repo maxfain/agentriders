@@ -5,6 +5,7 @@
 
 import type { APIRoute } from 'astro';
 import { flightlogConfigured, rpc, validOwner, validRepoName } from '../../../lib/flightlog';
+import { readJsonCapped, BodyTooLargeError } from '../../../lib/http';
 
 export const prerender = false;
 
@@ -17,8 +18,9 @@ export const POST: APIRoute = async ({ locals, request }) => {
 
   let body: { action?: string; owner?: string; repo?: string; excluded?: boolean; githubUserId?: number; optedOut?: boolean };
   try {
-    body = (await request.json()) as typeof body;
-  } catch {
+    body = (await readJsonCapped(request)) as typeof body;
+  } catch (error) {
+    if (error instanceof BodyTooLargeError) return json(413, { error: 'Request body too large.' });
     return json(400, { error: 'Send JSON.' });
   }
 

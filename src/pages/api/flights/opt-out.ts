@@ -7,6 +7,7 @@
 import type { APIRoute } from 'astro';
 import { rateLimit } from '../../../lib/ratelimit';
 import { flightlogConfigured, githubIdentityOf, rpc } from '../../../lib/flightlog';
+import { readJsonCapped, BodyTooLargeError } from '../../../lib/http';
 
 export const prerender = false;
 
@@ -26,11 +27,15 @@ export const POST: APIRoute = async ({ locals, request }) => {
     return json(403, { error: 'Opting out needs a GitHub sign-in, so it only ever covers your own account.' });
   }
 
+  // The body is optional ({ "optedOut": false } undoes an opt-out); absent or
+  // malformed defaults to opting out. Only an oversized stream is an error —
+  // the capped read stops it before it is buffered.
   let optedOut = true;
   try {
-    const body = (await request.json()) as { optedOut?: boolean };
-    optedOut = body.optedOut !== false;
-  } catch {
+    const body = (await readJsonCapped(request)) as { optedOut?: boolean };
+    optedOut = body?.optedOut !== false;
+  } catch (error) {
+    if (error instanceof BodyTooLargeError) return json(413, { error: 'Request body too large.' });
     /* default: opt out */
   }
 
