@@ -10,7 +10,7 @@ import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import {
   AGENT_LABELS, AGENT_SIGNALS_PROSE, OUTCOME_LABELS, agentAnswer, agentH1Suffix, agentTitle, agentVendor,
   agentWithVendor, authorLabel, fmtDate, fmtHours, fmtInt, fmtRate, flightlogConfigured, isAgentSlug,
-  outcomeTone, rpc, type AgentPage,
+  corpusUnavailable, crawlRel, outcomeTone, rpc, type AgentPage,
 } from '../../../lib/flightlog';
 import { breadcrumbs, clampDescription, collectionPage, softwareAgent } from '../../../lib/seo';
 
@@ -32,10 +32,16 @@ if (Astro.params.agent !== agent) {
 }
 
 type CorpusAgent = { agent: string; flights: number };
-const [data, corpusAgents] = await Promise.all([
-  rpc<AgentPage>(env, 'agent_page', { p_agent: agent }),
-  rpc<CorpusAgent[]>(env, 'corpus_agents', {}).catch(() => null),
-]);
+let data: AgentPage | null;
+let corpusAgents: CorpusAgent[] | null;
+try {
+  [data, corpusAgents] = await Promise.all([
+    rpc<AgentPage>(env, 'agent_page', { p_agent: agent }),
+    rpc<CorpusAgent[]>(env, 'corpus_agents', {}).catch(() => null),
+  ]);
+} catch {
+  return corpusUnavailable();
+}
 if (!data) return notFound();
 
 const label = AGENT_LABELS[agent] ?? agent;
@@ -149,7 +155,7 @@ const agentNode = softwareAgent({ product: vendor.product, vendor: vendor.vendor
             <tbody>
               {(data.top_authors ?? []).map((t) => (
                 <tr>
-                  <td><a href={`/logs/author/${t.login.toLowerCase()}/`}>{authorLabel(t)}</a></td>
+                  <td><a href={`/logs/author/${t.login.toLowerCase()}/`} rel={crawlRel(Number(t.indexed) > 0)}>{authorLabel(t)}</a></td>
                   <td>{fmtInt(t.flights)}</td>
                   <td>{fmtInt(t.indexed)}</td>
                 </tr>

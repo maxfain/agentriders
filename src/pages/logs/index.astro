@@ -91,6 +91,8 @@ const jsonLd = [
 ];
 
 // Static facets, computed at build from published logs only.
+// A facet under three flights is noindex ([facet]/[value].astro), so its
+// link here is nofollow: crawl budget goes to pages that can rank.
 const facet = (label: string) => {
   const map = new Map<string, { label: string; count: number }>();
   return { label, map };
@@ -213,14 +215,14 @@ const burned = logs.filter((l) => l.data.burns.length > 0);
               <div class="facets__row">
                 <span class="facets__label">{f.label}</span>
                 {[...f.map.entries()].map(([value, { label, count }]: any) => (
-                  <a href={`/logs/${key}/${value}/`}>{label} ({count})</a>
+                  <a href={`/logs/${key}/${value}/`} rel={count < 3 ? 'nofollow' : undefined}>{label} ({count})</a>
                 ))}
               </div>
             ))}
             {burned.length > 0 && (
               <div class="facets__row">
                 <span class="facets__label">Burns</span>
-                <a href="/logs/burns/burned/">burns &gt; 0 ({burned.length})</a>
+                <a href="/logs/burns/burned/" rel={burned.length < 3 ? 'nofollow' : undefined}>burns &gt; 0 ({burned.length})</a>
               </div>
             )}
           </nav>

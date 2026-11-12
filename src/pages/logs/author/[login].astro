@@ -14,7 +14,7 @@ import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import {
   AGENT_LABELS, OUTCOME_LABELS, agentWithVendor, authorAnswer, authorDescription, authorDisplay,
   authorH1Suffix, authorLabel, authorTitle, fmtDate, fmtInt, fmtRate, flightlogConfigured, isAgentSlug,
-  outcomeTone, rpc, validOwner, type AuthorPage,
+  corpusUnavailable, crawlRel, outcomeTone, rpc, validOwner, type AuthorPage,
 } from '../../../lib/flightlog';
 import { breadcrumbs, profilePage } from '../../../lib/seo';
 
@@ -38,12 +38,13 @@ const redirectTo = (path: string) =>
 if (!validOwner(login) || !flightlogConfigured(env)) return notFound();
 if (raw !== login) return redirectTo(`/logs/author/${login}/`);
 
-// A database without migration 0004 has no author_page: a 404, not a 500.
+// A database error or timeout is a 503 (come back later), never a 404: a 404
+// told Google these pages did not exist whenever the query ran slow.
 let data: AuthorPage | null = null;
 try {
   data = await rpc<AuthorPage>(env, 'author_page', { p_login: login });
 } catch {
-  return notFound();
+  return corpusUnavailable();
 }
 if (!data) return notFound();
 if (data.gone) return goneResponse();
@@ -190,7 +191,7 @@ if (viewer) {
           <ul class="plain-list">
             {data.flights.map((fl) => (
               <li>
-                <a href={`/logs/${fl.repo}/${fl.number}/`}>{fl.title}</a>
+                <a href={`/logs/${fl.repo}/${fl.number}/`} rel={crawlRel(fl.index_ok)}>{fl.title}</a>
                 <span class="related-meta">
                   {fl.repo}#{fl.number} · {AGENT_LABELS[fl.agent] ?? fl.agent} · <span class:list={[`tone--${outcomeTone(fl.outcome)}`]}>{fl.outcome ? OUTCOME_LABELS[fl.outcome] : fl.state}</span> · {fmtDate(fl.opened_at)}
                 </span>

@@ -12,9 +12,32 @@ export function flightlogConfigured(env: FlightlogEnv): boolean {
 }
 
 /**
+ * rel for an internal link to a corpus page: nofollow when the target is
+ * noindex (a flight below the quality gate, an author with no indexed
+ * flight), so crawlers spend their budget on pages that can rank. Search
+ * Console reported 548 noindex pages found through these links. Astro drops
+ * the attribute when this is undefined.
+ */
+export function crawlRel(indexable: boolean | null | undefined): 'nofollow' | undefined {
+  return indexable === false ? 'nofollow' : undefined;
+}
+
+/**
+ * The answer when the corpus database errors or times out: a 503 with
+ * Retry-After, so a crawler reads "temporarily unavailable, come back" —
+ * never a 404 (which says the page does not exist) and never a bare 500.
+ */
+export function corpusUnavailable(): Response {
+  return new Response('Corpus temporarily unavailable.', {
+    status: 503,
+    headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store', 'Retry-After': '120' },
+  });
+}
+
+/**
  * One RPC round trip. Returns null for "function returned SQL null" (page →
- * 404) and throws on transport/SQL errors (page → 500). fetchImpl is
- * injectable for tests.
+ * 404) and throws on transport/SQL errors (pages answer corpusUnavailable()).
+ * fetchImpl is injectable for tests.
  */
 export async function rpc<T>(
   env: FlightlogEnv,
