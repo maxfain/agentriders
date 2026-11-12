@@ -1,0 +1,69 @@
+# Flight Log corpus — weekly (Saturday): the GitHub Sponsors graph
+# (docs/flight-log-corpus.md, Sponsors graph). FUNDING.yml links for
+# catalogued repos, then a breadth-first crawl of public sponsorships from
+# their owners, FUNDING.yml accounts and approved seeds, up to the hop limit.
+# The database is the checkpoint: a run that hits --max-minutes stops cleanly
+# and the next run continues the queue. Separate from flightlog-weekly so a
+# long first crawl cannot push that workflow past its timeout.
+#
+# Run by hand with dry_run + seed first: it prints what the token can see for
+# those accounts and touches no database (the Sponsors-fields token check).
+name: flightlog-sponsors
+on:
+  schedule:
+    - cron: '23 3 * * 6'
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: 'Extra seed logins, comma-separated (e.g. ArashTabrizi,unclecode)'
+        required: false
+      max_depth:
+        description: 'Hop limit from the roots (default 3)'
+        required: false
+      max_accounts:
+        description: 'Accounts to expand this run (default 5000)'
+        required: false
+      dry_run:
+        description: 'Only fetch the seeds and print them (no database writes)'
+        type: boolean
+        default: false
+
+concurrency: flightlog
+
+permissions:
+  contents: read
+
+jobs:
+  sponsors:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      DATABASE_URL: ${{ secrets.FLIGHTLOG_DATABASE_URL }}
+      FLIGHTLOG_GITHUB_TOKEN: ${{ secrets.FLIGHTLOG_GITHUB_TOKEN }}
+      # Optional: a classic PAT with no scopes, only if the fine-grained ingest
+      # token cannot read Sponsors fields (the dry run tells you).
+      SPONSORS_GITHUB_TOKEN: ${{ secrets.FLIGHTLOG_SPONSORS_GITHUB_TOKEN }}
+      SEED: ${{ inputs.seed }}
+      MAX_DEPTH: ${{ inputs.max_depth }}
+      MAX_ACCOUNTS: ${{ inputs.max_accounts }}
+      DRY_RUN: ${{ inputs.dry_run }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: pipeline
+      - name: Sponsors graph
+        working-directory: pipeline
+        run: |
+          args=(sponsors --max-minutes 100)
+          [ -n "$SEED" ] && args+=(--seed "$SEED")
+          [ -n "$MAX_DEPTH" ] && args+=(--max-depth "$MAX_DEPTH")
+          [ -n "$MAX_ACCOUNTS" ] && args+=(--max-accounts "$MAX_ACCOUNTS")
+          if [ "$DRY_RUN" = "true" ]; then
+            args+=(--dry-run)
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            args+=(--refresh)
+          fi
+          node src/run.ts "${args[@]}"

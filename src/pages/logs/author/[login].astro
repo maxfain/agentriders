@@ -14,7 +14,7 @@ import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import {
   AGENT_LABELS, OUTCOME_LABELS, agentWithVendor, authorAnswer, authorDescription, authorDisplay,
   authorH1Suffix, authorLabel, authorTitle, fmtDate, fmtInt, fmtRate, flightlogConfigured, isAgentSlug,
-  outcomeTone, rpc, validOwner, type AuthorPage,
+  outcomeTone, rpc, safeSponsorsUrl, validOwner, type AuthorPage,
 } from '../../../lib/flightlog';
 import { breadcrumbs, profilePage } from '../../../lib/seo';
 
@@ -58,6 +58,7 @@ if (data.author.is_bot) {
 const a = data.author;
 const path = `/logs/author/${login}/`;
 const githubUrl = `https://github.com/${a.login}`;
+const sponsorsUrl = safeSponsorsUrl(a.sponsors_url);
 const name = authorDisplay(a);
 const title = authorTitle(a, data.totals, data.agents);
 const answer = authorAnswer(a, data.totals, data.agents);
@@ -115,6 +116,7 @@ if (viewer) {
     <p class="page-hero__meta">
       <a href={githubUrl} rel="nofollow noopener">@{a.login} on GitHub ↗</a>
       {data.claim && <> · <a href={`/riders/${data.claim.rider_handle}/`}>@{data.claim.rider_handle} on AgentRiders</a></>}
+      {sponsorsUrl && <> · <a href={sponsorsUrl} rel="nofollow noopener">♥ Sponsor @{a.login} on GitHub ↗</a></>}
     </p>
   </PageHero>
 

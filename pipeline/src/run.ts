@@ -24,6 +24,7 @@ const JOBS: Record<string, string> = {
   'rider-cards': 'Render rider share cards for riders with claims',
   'author-profiles': 'GraphQL public profile fields for authors with indexed flights (never fetched)',
   'refresh-authors': 'Monthly re-fetch of author profiles older than 30 days',
+  sponsors: 'GitHub Sponsors graph: funding links, then breadth-first crawl (--seed, --max-depth, --refresh, --dry-run)',
 };
 
 function usage(): never {
@@ -45,6 +46,11 @@ const { positionals, values } = parseArgs({
     concurrency: { type: 'string' },
     'dry-run': { type: 'boolean', default: false },
     refresh: { type: 'boolean', default: false },
+    seed: { type: 'string' },
+    'max-depth': { type: 'string' },
+    'max-pages': { type: 'string' },
+    'max-accounts': { type: 'string' },
+    'max-minutes': { type: 'string' },
   },
 });
 
@@ -54,6 +60,20 @@ if (!job || !(job in JOBS)) usage();
 if (job === 'download-aidev') {
   const { downloadAidev } = await import('./hf.ts');
   await downloadAidev(values.dir ?? 'data/aidev', values.revision);
+  process.exit(0);
+}
+
+const num = (v: string | undefined): number | undefined => {
+  if (v === undefined) return undefined;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n < 0) throw new Error(`expected a non-negative number, got "${v}"`);
+  return n;
+};
+
+// The token smoke test needs no database: fetch the seeds and print.
+if (job === 'sponsors' && values['dry-run']) {
+  const { sponsorsDryRun, parseSeeds } = await import('./jobs/sponsors.ts');
+  await sponsorsDryRun(parseSeeds(values.seed));
   process.exit(0);
 }
 
@@ -150,6 +170,19 @@ try {
     case 'refresh-authors': {
       const { authorProfiles } = await import('./jobs/author-profiles.ts');
       await authorProfiles(db, { limit: values.limit ? Number(values.limit) : undefined, refresh: true });
+      break;
+    }
+    case 'sponsors': {
+      const { sponsorsJob, parseSeeds } = await import('./jobs/sponsors.ts');
+      await sponsorsJob(db, {
+        seeds: parseSeeds(values.seed),
+        maxDepth: num(values['max-depth']),
+        maxPages: num(values['max-pages']),
+        maxAccounts: num(values['max-accounts']),
+        maxMinutes: num(values['max-minutes']),
+        fundingLimit: num(values.limit),
+        refresh: values.refresh,
+      });
       break;
     }
     default:

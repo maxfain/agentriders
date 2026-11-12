@@ -71,6 +71,8 @@ export type AuthorProfile = {
   social_urls?: string[];
   readme_excerpt?: string | null;
   profile_fetched_at?: string | null;
+  /** https://github.com/sponsors/<login> when the account takes sponsorships (migration 0007). */
+  sponsors_url?: string | null;
 };
 
 export type TopAuthor = { login: string; name: string | null; flights: number; indexed: number };
@@ -121,6 +123,64 @@ export type RepoPage = {
   indexed?: number;
   top_authors?: TopAuthor[];
 };
+
+/**
+ * The repo page's sponsor block (repo_sponsors(), migration 0007): the
+ * maintainers (owner + FUNDING.yml GitHub accounts) and whether they take
+ * sponsorships, the FUNDING.yml links, their public GitHub sponsors (named;
+ * opted-out accounts never appear) and catalogued repos with the same sponsors.
+ */
+export type RepoSponsors = {
+  gone?: boolean;
+  maintainers: {
+    login: string;
+    kind: 'User' | 'Organization';
+    avatar_url: string | null;
+    has_sponsors_listing: boolean;
+    sponsors_url: string | null;
+    listing_short_desc: string | null;
+    sponsors_count: number | null;
+    is_owner: boolean;
+  }[];
+  funding: { platform: string; url: string }[];
+  sponsors: { login: string; avatar_url: string | null; kind: 'User' | 'Organization' }[];
+  sponsors_total: number;
+  related: { full_name: string; stars: number | null; primary_language: string | null; shared_sponsors: number }[];
+  fetched_at: string | null;
+};
+
+/** FUNDING.yml platform enum → the name people know it by. */
+export const FUNDING_PLATFORM_LABELS: Record<string, string> = {
+  GITHUB: 'GitHub Sponsors',
+  PATREON: 'Patreon',
+  OPEN_COLLECTIVE: 'Open Collective',
+  KO_FI: 'Ko-fi',
+  TIDELIFT: 'Tidelift',
+  COMMUNITY_BRIDGE: 'Community Bridge',
+  LIBERAPAY: 'Liberapay',
+  ISSUEHUNT: 'IssueHunt',
+  LFX_CROWDFUNDING: 'LFX Crowdfunding',
+  POLAR: 'Polar',
+  BUY_ME_A_COFFEE: 'Buy Me a Coffee',
+  THANKS_DEV: 'thanks.dev',
+  CUSTOM: 'Website',
+};
+
+/** True when a repo_sponsors() payload has anything worth a section. */
+export function hasSponsorBlock(s: RepoSponsors | null | undefined): s is RepoSponsors {
+  if (!s || s.gone) return false;
+  return (
+    s.maintainers.some((m) => m.has_sponsors_listing) ||
+    s.funding.length > 0 ||
+    s.sponsors.length > 0 ||
+    s.related.length > 0
+  );
+}
+
+/** Only GitHub's own Sponsors URLs become a "Sponsor" button. */
+export function safeSponsorsUrl(url: string | null | undefined): string | null {
+  return typeof url === 'string' && /^https:\/\/github\.com\/sponsors\/[A-Za-z0-9-]{1,39}$/.test(url) ? url : null;
+}
 
 export type AgentPage = {
   agent: string;

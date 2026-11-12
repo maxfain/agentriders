@@ -145,6 +145,210 @@ export function parseUserNode(node: unknown): UserProfile | null {
   };
 }
 
+// --- GitHub Sponsors graph ---------------------------------------------------
+// docs/flight-log-corpus.md, Sponsors graph. Public sponsorships only (GitHub
+// never returns private ones to another account's token) and no amounts.
+// Fields are spelled out per concrete type (User, Organization) rather than
+// through the Sponsorable interface, and neighbours carry hasSponsorsListing so
+// an account at the hop limit is still known to be sponsorable — scalar fields
+// on connection nodes cost no extra requests.
+
+export const ACCOUNT_BATCH = 20;
+export const FUNDING_BATCH = 50;
+export const CONNECTION_PAGE = 100;
+
+export type SponsorConnectionField = 'sponsors' | 'sponsoring';
+type OwnerKind = 'User' | 'Organization';
+
+const NEIGHBOR_NODE =
+  'nodes { __typename ... on User { login databaseId hasSponsorsListing }' +
+  ' ... on Organization { login databaseId hasSponsorsListing } }';
+
+function connection(field: SponsorConnectionField, after?: string): string {
+  const cursor = after ? `, after: ${JSON.stringify(after)}` : '';
+  return `${field}(first: ${CONNECTION_PAGE}${cursor}) { totalCount pageInfo { hasNextPage endCursor } ${NEIGHBOR_NODE} }`;
+}
+
+const ACCOUNT_FIELDS =
+  'login databaseId hasSponsorsListing sponsorsListing { shortDescription } ' +
+  `${connection('sponsors')} ${connection('sponsoring')} ` +
+  'repositories(first: 5, privacy: PUBLIC, isFork: false, ownerAffiliations: [OWNER],' +
+  ' orderBy: { field: STARGAZERS, direction: DESC }) {' +
+  ' nodes { nameWithOwner stargazerCount description repositoryTopics(first: 10) { nodes { topic { name } } } } }';
+
+/** Accounts by login, ACCOUNT_BATCH per query: listing, both connections' first page, top repos. */
+export function buildAccountBatchQuery(logins: string[]): string {
+  const parts = logins.map(
+    (login, i) =>
+      `a${i}: repositoryOwner(login: ${JSON.stringify(login)}) { __typename ...AccountUser ...AccountOrg }`,
+  );
+  return (
+    `query {\n${parts.join('\n')}\nrateLimit { remaining resetAt cost }\n}\n` +
+    `fragment AccountUser on User { ${ACCOUNT_FIELDS} }\n` +
+    `fragment AccountOrg on Organization { ${ACCOUNT_FIELDS} }`
+  );
+}
+
+/** The next page of one account's sponsors or sponsoring connection. */
+export function buildConnectionPageQuery(login: string, field: SponsorConnectionField, after: string): string {
+  const conn = connection(field, after);
+  return (
+    `query {\no: repositoryOwner(login: ${JSON.stringify(login)}) { __typename` +
+    ` ... on User { databaseId ${conn} } ... on Organization { databaseId ${conn} } }\n` +
+    `rateLimit { remaining resetAt cost }\n}`
+  );
+}
+
+/** FUNDING.yml links and the owner's identity for catalogued repos, FUNDING_BATCH per query. */
+export function buildRepoFundingBatchQuery(repos: { owner: string; name: string }[]): string {
+  const parts = repos.map(
+    (r, i) =>
+      `r${i}: repository(owner: ${JSON.stringify(r.owner)}, name: ${JSON.stringify(r.name)}) {` +
+      ` nameWithOwner owner { __typename login ... on User { databaseId } ... on Organization { databaseId } }` +
+      ` fundingLinks { platform url } }`,
+  );
+  return `query {\n${parts.join('\n')}\nrateLimit { remaining resetAt cost }\n}`;
+}
+
+export type SponsorNeighbor = {
+  githubId: number;
+  login: string;
+  kind: OwnerKind;
+  hasSponsorsListing: boolean | null;
+};
+
+export type SponsorConnection = {
+  totalCount: number;
+  hasNextPage: boolean;
+  endCursor: string | null;
+  nodes: SponsorNeighbor[];
+};
+
+export type TopRepo = { name_with_owner: string; stars: number; description: string | null; topics: string[] };
+
+export type SponsorAccount = {
+  githubId: number;
+  login: string;
+  kind: OwnerKind;
+  hasSponsorsListing: boolean;
+  listingShortDescription: string | null;
+  sponsors: SponsorConnection;
+  sponsoring: SponsorConnection;
+  topRepos: TopRepo[];
+};
+
+const ownerKind = (t: unknown): OwnerKind | null =>
+  t === 'User' || t === 'Organization' ? t : null;
+
+/** A sponsors/sponsoring connection; nodes without a login or numeric id (ghosts) are dropped. */
+export function parseSponsorConnection(conn: unknown): SponsorConnection {
+  const c = conn as {
+    totalCount?: number;
+    pageInfo?: { hasNextPage?: boolean; endCursor?: string | null };
+    nodes?: ({ __typename?: string; login?: unknown; databaseId?: unknown; hasSponsorsListing?: unknown } | null)[];
+  } | null;
+  const nodes: SponsorNeighbor[] = [];
+  for (const n of c?.nodes ?? []) {
+    const kind = ownerKind(n?.__typename);
+    if (!n || !kind || typeof n.login !== 'string' || typeof n.databaseId !== 'number') continue;
+    nodes.push({
+      githubId: n.databaseId,
+      login: n.login,
+      kind,
+      hasSponsorsListing: typeof n.hasSponsorsListing === 'boolean' ? n.hasSponsorsListing : null,
+    });
+  }
+  return {
+    totalCount: typeof c?.totalCount === 'number' ? c.totalCount : nodes.length,
+    hasNextPage: c?.pageInfo?.hasNextPage === true,
+    endCursor: c?.pageInfo?.endCursor ?? null,
+    nodes,
+  };
+}
+
+const DESCRIPTION_MAX = 200;
+
+export function parseAccountNode(node: unknown): SponsorAccount | null {
+  const a = node as Record<string, unknown> | null;
+  const kind = ownerKind(a?.__typename);
+  if (!a || !kind || typeof a.login !== 'string' || typeof a.databaseId !== 'number') return null;
+  const listing = a.sponsorsListing as { shortDescription?: unknown } | null;
+  const repoNodes = (a.repositories as { nodes?: unknown[] } | null)?.nodes ?? [];
+  const topRepos: TopRepo[] = [];
+  for (const raw of repoNodes) {
+    const r = raw as {
+      nameWithOwner?: unknown;
+      stargazerCount?: unknown;
+      description?: unknown;
+      repositoryTopics?: { nodes?: { topic?: { name?: unknown } }[] };
+    } | null;
+    if (!r || typeof r.nameWithOwner !== 'string') continue;
+    const description = typeof r.description === 'string' ? r.description.replace(/\s+/g, ' ').trim() : '';
+    topRepos.push({
+      name_with_owner: r.nameWithOwner,
+      stars: typeof r.stargazerCount === 'number' ? r.stargazerCount : 0,
+      description: description ? Array.from(description).slice(0, DESCRIPTION_MAX).join('') : null,
+      topics: (r.repositoryTopics?.nodes ?? [])
+        .map((t) => t?.topic?.name)
+        .filter((t): t is string => typeof t === 'string'),
+    });
+  }
+  const short = typeof listing?.shortDescription === 'string' ? listing.shortDescription.replace(/\s+/g, ' ').trim() : '';
+  return {
+    githubId: a.databaseId,
+    login: a.login,
+    kind,
+    hasSponsorsListing: a.hasSponsorsListing === true,
+    listingShortDescription: short ? Array.from(short).slice(0, 300).join('') : null,
+    sponsors: parseSponsorConnection(a.sponsors),
+    sponsoring: parseSponsorConnection(a.sponsoring),
+    topRepos,
+  };
+}
+
+export type RepoFunding = {
+  owner: { githubId: number; login: string; kind: OwnerKind } | null;
+  links: { platform: string; url: string; githubLogin: string | null }[];
+};
+
+/** github.com/<login> or github.com/sponsors/<login> → login; anything else → null. */
+export function githubLoginFromFundingUrl(url: string): string | null {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return null;
+  }
+  if (u.hostname !== 'github.com' && u.hostname !== 'www.github.com') return null;
+  const parts = u.pathname.split('/').filter(Boolean);
+  const login = parts[0] === 'sponsors' ? parts[1] : parts[0];
+  return login && /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(login) ? login : null;
+}
+
+export function parseFundingNode(node: unknown): RepoFunding | null {
+  const r = node as {
+    owner?: { __typename?: string; login?: unknown; databaseId?: unknown } | null;
+    fundingLinks?: { platform?: unknown; url?: unknown }[];
+  } | null;
+  if (!r) return null;
+  const kind = ownerKind(r.owner?.__typename);
+  const owner =
+    r.owner && kind && typeof r.owner.login === 'string' && typeof r.owner.databaseId === 'number'
+      ? { githubId: r.owner.databaseId, login: r.owner.login, kind }
+      : null;
+  const links: RepoFunding['links'] = [];
+  for (const l of r.fundingLinks ?? []) {
+    if (typeof l?.platform !== 'string' || typeof l.url !== 'string') continue;
+    if (!/^https?:\/\//i.test(l.url)) continue;
+    links.push({
+      platform: l.platform,
+      url: l.url,
+      githubLogin: l.platform === 'GITHUB' ? githubLoginFromFundingUrl(l.url) : null,
+    });
+  }
+  return { owner, links };
+}
+
 export type GraphqlResult = {
   data?: Record<string, unknown> & {
     rateLimit?: { remaining: number; resetAt: string; cost: number };

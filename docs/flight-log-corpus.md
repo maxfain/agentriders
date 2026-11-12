@@ -97,11 +97,54 @@ and why. The operational runbook is `pipeline/README.md`.
   Opting back in clears the stamp and the next backfill restores the profile. Email fallback for
   people who won't sign in: verify via a line in the GitHub profile bio, then
   the admin sets the same flag from `/admin/flightlog`.
+- Sponsors graph (migration 0007): per GitHub account seen in public
+  sponsorships — login, numeric id, constructed avatar URL, kind
+  (user/organization), whether it has a Sponsors listing and that listing's
+  short description (≤300 chars), sponsor counts, its top five public repos
+  (name, stars, description ≤200 chars, topics) — plus who sponsors whom
+  (`sponsorships`: first/last seen, active) and catalogued repos' FUNDING.yml
+  links. Public sponsorships only (GitHub never returns private ones to
+  another account's token); no amounts or tiers. Repo pages **name** the
+  maintainers' public sponsors (login + avatar, linked to GitHub, at most 60,
+  "+N more" to the maintainer's own Sponsors page) — the same list GitHub
+  shows on that page — with no per-sponsor pages and nothing in the
+  sitemaps. Names are read live from `gh_accounts` (`repo_sponsors()`); the
+  materialized views hold ids and counts only.
+- `opt_out_author()` also marks the account in `gh_accounts` (creating the
+  row if the crawler never saw it): it leaves every sponsor list on the next
+  render, is never expanded, and no new edge to or from it is written.
+  Opting back in re-queues it.
 - Repo takedown: `repos.excluded` (same 410 behavior), from `/admin/flightlog`.
 - No outreach from inside GitHub, ever: the pipeline only reads.
 - AIDev is CC BY 4.0 (dataset); the PR contents it aggregates keep their
   repos' own licenses — which is why pages show metadata, computed numbers and
   ≤25-word verbatim excerpts with links, never diffs or full bodies.
+
+## Sponsors graph
+
+Goal: send money and attention to the people behind catalogued projects, and
+find related projects through the people who fund them. The `sponsors`
+pipeline job (see `pipeline/README.md`, Sponsors graph) crawls public GitHub
+sponsorships breadth-first over the GraphQL API from the catalog's repo
+owners, their FUNDING.yml GitHub accounts, manual seeds and approved
+discovery candidates, up to a hop limit (default 3), 20 accounts per query.
+
+- **Repo pages** (`SponsorBlock.astro`, `repo_sponsors()`): "Sponsor @x"
+  buttons for maintainers with a GitHub Sponsors listing, FUNDING.yml links,
+  "Sponsored on GitHub by" (named, see Consent and footprint), and "Projects
+  with the same sponsors" (`mv_related_repos`: catalogued repos from other
+  owners ranked by the Jaccard index of their maintainers' active public
+  sponsors, ≥2 shared, top 5). Optional: a failed call or an unapplied
+  migration renders the page without it.
+- **Author pages**: a "Sponsor @login" link when the account (matched by
+  numeric id) has a Sponsors listing.
+- **`/admin/flightlog` discovery queue** (`mv_sponsor_discovery`):
+  sponsorable accounts outside the catalog, ranked by distinct sponsors shared
+  with catalogued maintainers, then AI/agent topics on their top repos, then
+  stars. Approve → crawl seed (hop 0); dismiss → hidden. What an approved
+  project becomes on the site is a later decision.
+- **No outreach.** The graph is read-only, holds no emails, and nobody found
+  through it is contacted.
 
 ## Quality gate
 

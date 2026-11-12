@@ -9,11 +9,12 @@
 import Base from '../../layouts/Base.astro';
 import PageHero from '../../components/PageHero.astro';
 import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import SponsorBlock from '../../components/SponsorBlock.astro';
 import {
   AGENT_LABELS, CONFIDENCE_LABELS, OUTCOME_LABELS, agentVendor, agentWithVendor, authorDisplay, authorLabel,
   fmtDate, fmtHours, fmtInt, fmtRate, flightAnswer, flightDescription, flightH1Suffix, flightTitle,
   flightlogConfigured, isAgentSlug, outcomeTone, repoAnswer, repoH1Suffix, repoTitle, rpc, validOwner,
-  validRepoName, type FlightPage, type RepoPage,
+  validRepoName, type FlightPage, type RepoPage, type RepoSponsors,
 } from '../../lib/flightlog';
 import { breadcrumbs, clampDescription, collectionPage, flightArticle } from '../../lib/seo';
 
@@ -62,7 +63,7 @@ if (numberRaw !== null && !/^[1-9]\d{0,8}$/.test(numberRaw)) return notFound();
 
 type View =
   | { kind: 'flight'; data: FlightPage }
-  | { kind: 'repo'; data: RepoPage & { riders?: string[] } };
+  | { kind: 'repo'; data: RepoPage & { riders?: string[] }; sponsors: RepoSponsors | null };
 
 let view: View;
 if (numberRaw !== null) {
@@ -90,6 +91,11 @@ if (numberRaw !== null) {
   if (Astro.url.pathname !== expected) return redirectTo(expected);
   view = { kind: 'flight', data };
 } else {
+  // The sponsor block (pipeline migration 0007) loads alongside the page and is
+  // optional: an error or an unapplied migration renders the page without it.
+  const sponsorsPromise = wantJson
+    ? Promise.resolve(null)
+    : rpc<RepoSponsors>(env, 'repo_sponsors', { p_owner: owner, p_repo: repoName }).catch(() => null);
   const data = await rpc<RepoPage & { riders?: string[] }>(env, 'repo_page', {
     p_owner: owner, p_repo: repoName,
   });
@@ -98,7 +104,7 @@ if (numberRaw !== null) {
   if (wantJson) return json({ ...data, page: `https://agentriders.com/logs/${data.repo.full_name}/` });
   const expected = `/logs/${data.repo.full_name}/`;
   if (Astro.url.pathname !== expected) return redirectTo(expected);
-  view = { kind: 'repo', data };
+  view = { kind: 'repo', data, sponsors: await sponsorsPromise };
 }
 
 // --- shared bits -------------------------------------------------------------
@@ -523,6 +529,8 @@ const rCrumbs = r
             </ul>
           </div>
         )}
+
+        <SponsorBlock data={view.kind === 'repo' ? view.sponsors : null} repoFullName={r.repo.full_name} />
 
         <div class="claim-box">
           {(r.riders ?? []).length > 0 ? (

@@ -2,6 +2,8 @@
 //   { action: "exclude-repo",   owner, repo, excluded }   repo takedown (48h promise)
 //   { action: "opt-out-author", githubUserId, optedOut }  email opt-outs, verified
 //     by a line in the author's GitHub profile bio (docs/flight-log-corpus.md)
+//   { action: "discovery-status", login, status }  sponsors-graph discovery queue:
+//     approved (becomes a crawl seed) | dismissed (hidden) | new
 
 import type { APIRoute } from 'astro';
 import { flightlogConfigured, rpc, validOwner, validRepoName } from '../../../lib/flightlog';
@@ -16,7 +18,10 @@ export const POST: APIRoute = async ({ locals, request }) => {
   const { env } = locals.runtime;
   if (!flightlogConfigured(env)) return json(503, { error: 'The flight log is not configured yet.' });
 
-  let body: { action?: string; owner?: string; repo?: string; excluded?: boolean; githubUserId?: number; optedOut?: boolean };
+  let body: {
+    action?: string; owner?: string; repo?: string; excluded?: boolean; githubUserId?: number; optedOut?: boolean;
+    login?: string; status?: string;
+  };
   try {
     body = (await readJsonCapped(request)) as typeof body;
   } catch (error) {
@@ -42,6 +47,18 @@ export const POST: APIRoute = async ({ locals, request }) => {
       p_github_user_id: id, p_opted_out: body.optedOut !== false,
     });
     if (!result?.ok) return json(500, { error: 'Failed.' });
+    return json(200, { ok: true });
+  }
+
+  if (body.action === 'discovery-status') {
+    const login = (body.login ?? '').trim();
+    const status = body.status ?? '';
+    if (!validOwner(login)) return json(400, { error: 'Bad login.' });
+    if (!['new', 'approved', 'dismissed'].includes(status)) return json(400, { error: 'Bad status.' });
+    const result = await rpc<{ ok: boolean; error?: string }>(env, 'set_discovery_status', {
+      p_login: login, p_status: status,
+    });
+    if (!result?.ok) return json(404, { error: result?.error ?? 'No such account.' });
     return json(200, { ok: true });
   }
 

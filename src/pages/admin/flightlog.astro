@@ -2,7 +2,8 @@
 // The corpus status page (the brief's private "/status", behind the existing
 // admin gate): flights by source and confidence, index_ok count, claims,
 // debrief failure rate, last run per pipeline job, GraphQL points remaining —
-// plus the takedown and email-opt-out controls.
+// plus the takedown and email-opt-out controls, and the sponsors-graph
+// discovery queue (pipeline migration 0007, docs/flight-log-corpus.md).
 export const prerender = false;
 import Base from '../../layouts/Base.astro';
 import PageHero from '../../components/PageHero.astro';
@@ -25,14 +26,35 @@ type Snapshot = {
   last_runs: Record<string, { started_at: string; finished_at: string | null; ok: boolean | null; rows_in: number | null; rows_out: number | null; errors: number; meta: Record<string, unknown> | null }>;
 };
 
+type Discovery = {
+  totals: { accounts: number; sponsorable: number; expanded: number; queued: number; edges: number; catalog_maintainers: number };
+  candidates: {
+    login: string;
+    kind: string;
+    sponsors_url: string;
+    listing_short_desc: string | null;
+    shared_sponsors: number;
+    sponsors_count: number | null;
+    topic_hits: number;
+    depth: number;
+    review_status: 'new' | 'approved' | 'dismissed';
+    top_repos: { name_with_owner: string; stars: number; topics: string[] }[];
+  }[];
+};
+
 let snap: Snapshot | null = null;
+let discovery: Discovery | null = null;
 let loadError = '';
+let discoveryError = '';
 if (configured) {
-  try {
-    snap = await rpc<Snapshot>(env, 'status_snapshot', {});
-  } catch (error) {
-    loadError = String(error);
-  }
+  const [s, d] = await Promise.allSettled([
+    rpc<Snapshot>(env, 'status_snapshot', {}),
+    rpc<Discovery>(env, 'sponsor_discovery', { p_limit: 100 }),
+  ]);
+  if (s.status === 'fulfilled') snap = s.value;
+  else loadError = String(s.reason);
+  if (d.status === 'fulfilled') discovery = d.value;
+  else discoveryError = String(d.reason);
 }
 const failRate =
   snap && snap.debriefs + snap.debrief_failed > 0
@@ -104,6 +126,53 @@ const fmtWhen = (iso: string | null) => (iso ? new Date(iso).toISOString().repla
         </>
       )}
 
+      <h2 id="discovery">Sponsors graph: discovery queue</h2>
+      {discoveryError && <p class="soft">Sponsors graph unavailable (is pipeline migration 0007 applied?): {discoveryError}</p>}
+      {discovery && (
+        <>
+          <dl class="stats">
+            <div><dt>Accounts</dt><dd>{fmtInt(discovery.totals.accounts)}</dd></div>
+            <div><dt>Expanded</dt><dd>{fmtInt(discovery.totals.expanded)}</dd></div>
+            <div><dt>Queued</dt><dd>{fmtInt(discovery.totals.queued)}</dd></div>
+            <div><dt>Sponsorable</dt><dd>{fmtInt(discovery.totals.sponsorable)}</dd></div>
+            <div><dt>Sponsorships</dt><dd>{fmtInt(discovery.totals.edges)}</dd></div>
+            <div><dt>Catalog maintainers</dt><dd>{fmtInt(discovery.totals.catalog_maintainers)}</dd></div>
+          </dl>
+          <p class="soft">Sponsorable accounts outside the catalog, ranked by how many sponsors they share with catalogued maintainers, then AI/agent topics on their top repos, then stars. Approve makes the account a crawl seed for the next <code>sponsors</code> run; dismiss hides it.</p>
+          {discovery.candidates.length === 0 ? (
+            <p class="soft">No candidates yet — run <code>node src/run.ts sponsors</code> (or the flightlog-sponsors workflow).</p>
+          ) : (
+            <table class="corpus-table discovery-table">
+              <thead><tr><th>Account</th><th>Shared</th><th>Sponsors</th><th>Top repos</th><th>Status</th><th></th></tr></thead>
+              <tbody>
+                {discovery.candidates.map((c) => (
+                  <tr>
+                    <td>
+                      <a href={`https://github.com/${c.login}`} rel="nofollow noopener">@{c.login}</a>
+                      {c.kind === 'Organization' && <span class="soft"> org</span>}
+                      {c.listing_short_desc && <div class="soft">{c.listing_short_desc}</div>}
+                    </td>
+                    <td>{fmtInt(c.shared_sponsors)}</td>
+                    <td>{fmtInt(c.sponsors_count)}</td>
+                    <td>
+                      {c.top_repos.length === 0 ? <span class="soft">not expanded (hop {c.depth})</span> : c.top_repos.slice(0, 3).map((r) => (
+                        <div><a href={`https://github.com/${r.name_with_owner}`} rel="nofollow noopener">{r.name_with_owner}</a> <span class="soft">★{fmtInt(r.stars)}</span></div>
+                      ))}
+                      {c.topic_hits > 0 && <div class="soft">{c.topic_hits} AI/agent {c.topic_hits === 1 ? 'topic' : 'topics'}</div>}
+                    </td>
+                    <td>{c.review_status}</td>
+                    <td class="discovery-actions">
+                      {c.review_status !== 'approved' && <button type="button" class="btn-mini" data-login={c.login} data-status="approved">Approve</button>}
+                      <button type="button" class="btn-mini" data-login={c.login} data-status="dismissed">Dismiss</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </>
+      )}
+
       <h2>Takedown & opt-out</h2>
       <div class="controls">
         <form id="exclude-form">
@@ -141,6 +210,15 @@ const fmtWhen = (iso: string | null) => (iso ? new Date(iso).toISOString().repla
     const [owner, repo] = (new FormData(form).get('repo') as string).split('/');
     void post({ action: 'exclude-repo', owner, repo, excluded: !(form.elements.namedItem('undo') as HTMLInputElement).checked });
   });
+  document.querySelectorAll<HTMLButtonElement>('.discovery-actions button').forEach((button) => {
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      await post({ action: 'discovery-status', login: button.dataset.login, status: button.dataset.status });
+      const cell = button.closest('tr')?.querySelector('td:nth-child(5)');
+      if (cell && status.textContent === 'Done.') cell.textContent = button.dataset.status ?? '';
+      button.disabled = false;
+    });
+  });
   document.getElementById('optout-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
@@ -161,6 +239,10 @@ const fmtWhen = (iso: string | null) => (iso ? new Date(iso).toISOString().repla
   .corpus-table { border-collapse: collapse; font-size: 14px; min-width: 50%; }
   .corpus-table th { text-align: left; font-family: var(--mono); font-size: 12px; text-transform: uppercase; color: var(--ash); padding: 6px 14px 6px 0; border-bottom: 1px solid var(--text-on-bone); }
   .corpus-table td { padding: 6px 14px 6px 0; border-bottom: 1px solid var(--bone-line); font-family: var(--mono); font-size: 13px; }
+  .discovery-table td { vertical-align: top; }
+  .discovery-table .soft { font-size: 12px; }
+  .btn-mini { font-family: var(--mono); font-size: 12px; cursor: pointer; background: var(--bone-raised); border: 1px solid var(--bone-line); border-radius: var(--radius); padding: 3px 8px; margin: 0 4px 4px 0; }
+  .btn-mini:hover { border-color: var(--text-on-bone); }
   .controls form { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
   .controls input[type="text"], .controls input:not([type]), .controls input[type="number"] { font: inherit; padding: 6px 8px; border: 1px solid var(--bone-line); border-radius: var(--radius); background: var(--bone-raised); }
 </style>

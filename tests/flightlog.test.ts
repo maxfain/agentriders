@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import {
   AGENT_LABELS, AGENT_SIGNALS_PROSE, AGENT_SLUGS, AGENT_VENDORS, agentAnswer, agentH1Suffix, agentTitle,
   agentWithVendor, authorAnswer, authorDescription, authorDisplay, authorH1Suffix, authorLabel, authorTitle,
-  flightAnswer, flightDescription, flightH1Suffix, flightTitle, fmtHours, fmtRate, isAgentSlug, outcomeTone,
-  repoAnswer, repoTitle, validOwner, validRepoName,
+  flightAnswer, flightDescription, flightH1Suffix, flightTitle, fmtHours, fmtRate, hasSponsorBlock, isAgentSlug,
+  outcomeTone, repoAnswer, repoTitle, safeSponsorsUrl, validOwner, validRepoName, type RepoSponsors,
 } from '../src/lib/flightlog.ts';
 import { safeNextPath } from '../src/lib/next-path.ts';
 import { flightArticle } from '../src/lib/seo.ts';
@@ -244,4 +244,23 @@ test('author builders: name and login first, makers by flights, bio-led descript
   // No bio: the answer, clamped to the description budget.
   assert.equal(authorDescription(a, null, 'A short answer.'), 'A short answer.');
   assert.ok(Array.from(authorDescription(a, null, answer)).length <= 155);
+});
+
+test('sponsor block: only GitHub Sponsors URLs become buttons; empty payloads render nothing', () => {
+  assert.equal(safeSponsorsUrl('https://github.com/sponsors/unclecode'), 'https://github.com/sponsors/unclecode');
+  assert.equal(safeSponsorsUrl('https://github.com/sponsors/unclecode/extra'), null);
+  assert.equal(safeSponsorsUrl('javascript:alert(1)'), null);
+  assert.equal(safeSponsorsUrl('https://evil.example/sponsors/x'), null);
+  assert.equal(safeSponsorsUrl(null), null);
+
+  const empty: RepoSponsors = { maintainers: [], funding: [], sponsors: [], sponsors_total: 0, related: [], fetched_at: null };
+  assert.equal(hasSponsorBlock(null), false);
+  assert.equal(hasSponsorBlock({ ...empty, gone: true }), false);
+  assert.equal(hasSponsorBlock(empty), false);
+  // A maintainer without a Sponsors listing alone is not worth a section.
+  const quiet = { login: 'acme', kind: 'User' as const, avatar_url: null, has_sponsors_listing: false, sponsors_url: null, listing_short_desc: null, sponsors_count: 0, is_owner: true };
+  assert.equal(hasSponsorBlock({ ...empty, maintainers: [quiet] }), false);
+  assert.equal(hasSponsorBlock({ ...empty, maintainers: [{ ...quiet, has_sponsors_listing: true }] }), true);
+  assert.equal(hasSponsorBlock({ ...empty, funding: [{ platform: 'PATREON', url: 'https://patreon.com/x' }] }), true);
+  assert.equal(hasSponsorBlock({ ...empty, related: [{ full_name: 'a/b', stars: 1, primary_language: null, shared_sponsors: 2 }] }), true);
 });

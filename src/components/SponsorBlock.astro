@@ -1,0 +1,137 @@
+---
+// The repo page's "Fund the people behind it" block (repo_sponsors(),
+// pipeline migration 0007; docs/flight-log-corpus.md, Sponsors graph):
+// sponsor buttons for maintainers with a GitHub Sponsors listing, the repo's
+// FUNDING.yml links, the maintainers' public GitHub sponsors, and catalogued
+// repos with the same sponsors. Renders nothing when there is nothing to show.
+import {
+  FUNDING_PLATFORM_LABELS, fmtInt, hasSponsorBlock, safeSponsorsUrl, type RepoSponsors,
+} from '../lib/flightlog';
+
+interface Props {
+  data: RepoSponsors | null;
+  repoFullName: string;
+}
+
+const { data, repoFullName } = Astro.props;
+const show = hasSponsorBlock(data);
+const s = show ? data : null;
+
+const sponsorable = (s?.maintainers ?? [])
+  .map((m) => ({ ...m, url: safeSponsorsUrl(m.sponsors_url) }))
+  .filter((m) => m.url);
+// A GITHUB funding link to a maintainer already shown as a button is redundant.
+const buttonLogins = new Set(sponsorable.map((m) => m.login.toLowerCase()));
+const funding = (s?.funding ?? []).filter((f) => {
+  if (!/^https?:\/\//i.test(f.url)) return false;
+  if (f.platform !== 'GITHUB') return true;
+  const login = f.url.replace(/^https?:\/\/(www\.)?github\.com\/(sponsors\/)?/i, '').split(/[/?#]/)[0].toLowerCase();
+  return !buttonLogins.has(login);
+});
+const hostOf = (url: string) => {
+  try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; }
+};
+const sized = (url: string | null) => (url ? `${url}${url.includes('?') ? '&' : '?'}s=64` : null);
+// Sponsors of whom: the maintainers who have any (owner first).
+const sponsoredWho = (s?.maintainers ?? []).filter((m) => Number(m.sponsors_count) > 0);
+const moreUrl = safeSponsorsUrl(sponsoredWho[0]?.sponsors_url ?? sponsorable[0]?.sponsors_url);
+const extra = s ? Number(s.sponsors_total) - s.sponsors.length : 0;
+---
+{s && (
+  <div class="sponsor-block" id="sponsors">
+    <h2>Fund the people behind {repoFullName}</h2>
+
+    {sponsorable.length > 0 && (
+      <ul class="sponsor-buttons">
+        {sponsorable.map((m) => (
+          <li>
+            <a class="btn-sponsor" href={m.url} rel="nofollow noopener">
+              <span aria-hidden="true">♥</span> Sponsor @{m.login}
+            </a>
+            {m.listing_short_desc && <span class="sponsor-desc">{m.listing_short_desc}</span>}
+          </li>
+        ))}
+      </ul>
+    )}
+    {funding.length > 0 && (
+      <ul class="fund-links" aria-label="Funding links from the repository's FUNDING.yml">
+        {funding.map((f) => (
+          <li>
+            <a class="btn-fund" href={f.url} rel="nofollow noopener">
+              {FUNDING_PLATFORM_LABELS[f.platform] ?? f.platform}{f.platform === 'CUSTOM' && <> · {hostOf(f.url)}</>} ↗
+            </a>
+          </li>
+        ))}
+      </ul>
+    )}
+
+    {s.sponsors.length > 0 && (
+      <>
+        <h3>Sponsored on GitHub by</h3>
+        <ul class="sponsor-faces">
+          {s.sponsors.map((p) => (
+            <li>
+              <a href={`https://github.com/${p.login}`} rel="nofollow noopener" title={`@${p.login}`}>
+                {p.avatar_url && <img src={sized(p.avatar_url)} alt="" width="32" height="32" loading="lazy" />}
+                <span class="sponsor-login">@{p.login}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+        {extra > 0 && moreUrl && (
+          <p class="sponsor-more"><a href={moreUrl} rel="nofollow noopener">+{fmtInt(extra)} more on GitHub Sponsors ↗</a></p>
+        )}
+      </>
+    )}
+
+    {s.related.length > 0 && (
+      <>
+        <h3>Projects with the same sponsors</h3>
+        <ul class="sponsor-related">
+          {s.related.map((r) => (
+            <li>
+              <a href={`/logs/${r.full_name}/`}>{r.full_name}</a>
+              <span class="related-meta">
+                {r.stars !== null && <>★ {fmtInt(r.stars)} · </>}{fmtInt(r.shared_sponsors)} shared {Number(r.shared_sponsors) === 1 ? 'sponsor' : 'sponsors'}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </>
+    )}
+
+    <p class="sponsor-fine">
+      Public sponsorships and FUNDING.yml links as GitHub lists them{s.fetched_at && <>, read {new Date(s.fetched_at).toISOString().slice(0, 10)}</>}.
+      Private sponsorships and amounts are never shown. Don’t want to appear here? <a href="/opt-out/">Opt out</a>.
+    </p>
+  </div>
+)}
+
+<style>
+  .sponsor-block { margin-top: 44px; padding-top: 4px; }
+  .sponsor-block h2 { font-size: 24px; margin: 0 0 14px; }
+  .sponsor-block h3 { font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ash); margin: 26px 0 10px; font-weight: 500; }
+  .sponsor-buttons { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  .sponsor-buttons li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; }
+  .fund-links { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; }
+  .btn-sponsor, .btn-fund {
+    display: inline-block; font-family: var(--mono); font-size: 14px; text-decoration: none;
+    border-radius: var(--radius); padding: 9px 16px; border: 1px solid var(--bone-line);
+  }
+  .btn-sponsor { background: var(--ink); color: var(--bone); border-color: var(--ink); }
+  .btn-sponsor:hover, .btn-sponsor:focus-visible { background: var(--ember); border-color: var(--ember); }
+  .btn-sponsor span { color: var(--ember); }
+  .btn-sponsor:hover span, .btn-sponsor:focus-visible span { color: var(--bone); }
+  .btn-fund { background: var(--bone-raised); color: var(--text-on-bone); }
+  .btn-fund:hover, .btn-fund:focus-visible { border-color: var(--text-on-bone); }
+  .sponsor-desc { font-size: 14px; color: var(--text-on-bone-soft); max-width: 46ch; }
+  .sponsor-faces { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 14px; }
+  .sponsor-faces a { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; color: var(--text-on-bone-soft); font-family: var(--mono); font-size: 12.5px; }
+  .sponsor-faces a:hover .sponsor-login, .sponsor-faces a:focus-visible .sponsor-login { text-decoration: underline; }
+  .sponsor-faces img { border-radius: 50%; background: var(--bone-raised); }
+  .sponsor-more { margin-top: 10px; font-family: var(--mono); font-size: 13px; }
+  .sponsor-related { list-style: none; margin: 0; padding: 0; }
+  .sponsor-related li { padding: 8px 0; border-bottom: 1px solid var(--bone-line); }
+  .related-meta { margin-left: 10px; font-family: var(--mono); font-size: 12.5px; color: var(--ash); }
+  .sponsor-fine { margin-top: 16px; font-size: 13px; color: var(--ash); }
+</style>

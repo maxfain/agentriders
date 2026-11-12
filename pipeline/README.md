@@ -39,6 +39,8 @@ node src/run.ts migrate         # apply migrations/ to DATABASE_URL
   the profile README), fetched by `author-profiles`, refreshed every 30 days,
   cleared on opt-out (`docs/flight-log-corpus.md`, Consent and footprint).
   Nothing private: no emails, no location, nothing beyond the flights.
+  The sponsors graph adds public GitHub sponsorships and Sponsors listings
+  (§ Sponsors graph); it too is API-only, read-only and cleared on opt-out.
 
 ## Secrets (environment variables — never in the repo)
 
@@ -50,6 +52,7 @@ node src/run.ts migrate         # apply migrations/ to DATABASE_URL
 | `ANTHROPIC_API_KEY` | debrief | debrief model defaults to `claude-opus-5-5`; set `DEBRIEF_MODEL=claude-haiku-5-5` to cut the ~20k-call backfill roughly 40× — the task is narrow and machine-validated, but the trade is yours to make |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` | publish, rider-cards | Storage uploads (public `cards` bucket). The same two values go to Cloudflare Pages secrets for the site |
 | `FLIGHTLOG_CRON_SECRET` | nightly workflow | must equal the site's `CRON_SECRET` Pages secret (`/api/cron/flightlog`) |
+| `SPONSORS_GITHUB_TOKEN` | sponsors (optional) | only if the fine-grained `FLIGHTLOG_GITHUB_TOKEN` cannot read GitHub Sponsors fields (the dry run below tells you): a **classic PAT with no scopes** reads public data only. Actions secret `FLIGHTLOG_SPONSORS_GITHUB_TOKEN` |
 
 GitHub Actions repo secrets use the `FLIGHTLOG_*` names in
 `.github/workflows/flightlog-*.yml`. Site-side secrets (`SUPABASE_URL`,
@@ -108,12 +111,61 @@ claim confirms it.
 | 02:00 nightly | `flightlog-nightly` | re-enrich open + claimed flights → classify → rider cards → site rank resync |
 | Sun 04:00 | `flightlog-weekly` | repo metadata refresh (indexed repos) → author profile refresh (30+ days old) |
 | 1st 05:30 | `flightlog-monthly` | full re-classify → debriefs → full gate re-run |
+| Sat 03:23 | `flightlog-sponsors` | sponsors graph: FUNDING.yml for new/30-day-old catalogued repos → breadth-first crawl (`--refresh`, 100-minute budget) |
+
+## Sponsors graph
+
+`node src/run.ts sponsors` maps who publicly sponsors whom on GitHub,
+starting from the catalog (docs/flight-log-corpus.md, Sponsors graph):
+
+1. **Roots** (hop 0): owners of catalogued repos (≥1 indexed flight), the
+   GitHub accounts in their FUNDING.yml (`Repository.fundingLinks`, stored in
+   `repo_funding`), seeds from `--seed`, and discovery candidates approved in
+   `/admin/flightlog`.
+2. **Breadth-first**: each queued account below the hop limit is fetched with
+   its Sponsors listing, top five public repos, and both directions —
+   `sponsors` (who sponsors it) and `sponsoring` (whom it sponsors) — 20
+   accounts per query, 100 per page, up to `--max-pages` pages per direction.
+   Every neighbour is stored one hop further out; at the hop limit it stays
+   queued as a leaf (login, id, sponsorable or not) until a deeper run.
+3. **Outputs**: `repo_sponsors()` (the repo page's sponsor block),
+   `mv_related_repos` ("projects with the same sponsors"),
+   `mv_sponsor_discovery` (the admin discovery queue), and
+   `author_public().sponsors_url`.
+
+```sh
+# Token check first — no database needed, prints what the token can see:
+node src/run.ts sponsors --dry-run --seed ArashTabrizi,unclecode
+# A small first crawl:
+node src/run.ts sponsors --seed ArashTabrizi,unclecode --max-depth 2 --max-accounts 200
+# The scheduled form:
+node src/run.ts sponsors --refresh
+```
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--seed a,b` | — | extra roots, remembered (`is_seed`) |
+| `--max-depth N` | 3 | hops from a root; ArashTabrizi → unclecode → unclecode's other sponsors → what they sponsor is 3 |
+| `--max-pages N` | 10 | pages of 100 per direction; a hub past it is marked `sponsors_truncated` and none of its edges deactivate |
+| `--max-accounts N` | 5000 | accounts expanded per run |
+| `--max-minutes N` | 100 | wall-clock budget; the queue carries over |
+| `--refresh` | off | re-queue accounts and FUNDING.yml fetched more than 30 days ago |
+| `--limit N` | 5000 | catalogued repos whose FUNDING.yml is read this run |
+| `--dry-run` | off | fetch `--seed` only and print; no database |
+
+Opt-out (`opt_out_author()`, the existing `/opt-out` button) marks the
+GitHub account in `gh_accounts`: it is never expanded, no edge to or from it
+is written, and every read joins `opted_out` live. Edges a complete read no
+longer lists become `active = false` (kept, not deleted). The first full crawl
+from ~1.7k catalogued repos takes several weekly runs; each run's counts
+(`expanded`, `pending`, `leaves`, `edgesAdded`, `truncated`, `stoppedBy`) are
+in its `pipeline_runs.meta`.
 
 ## Rate limits (how each job stays under them)
 
 | Resource | Limit | Behavior |
 |---|---|---|
-| GitHub GraphQL | 5,000 points/hr | 25 PRs (or 50 repos, or 25 user profiles) per aliased query; `rateLimit { remaining resetAt }` read on every response, sleep to `resetAt` under 200; 3 consecutive 5xx → 15-minute pause |
+| GitHub GraphQL | 5,000 points/hr | 25 PRs (or 50 repos, 25 user profiles, 20 sponsors-graph accounts) per aliased query; `rateLimit { remaining resetAt }` read on every response, sleep to `resetAt` under 200; 3 consecutive 5xx → 15-minute pause |
 | GitHub REST | 30 req/min search | not used by any scheduled job (avatars are constructed URLs, repo lookups ride GraphQL) |
 | BigQuery | billed per byte | one query per day over one day table, selected columns only, never `SELECT *` on month tables |
 | Anthropic | cost per call | gated flights only, cached by (flight, prompt version), concurrency 4, failure rate >5% fails the run |
