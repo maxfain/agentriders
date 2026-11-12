@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   AGENT_LABELS, AGENT_SIGNALS_PROSE, AGENT_SLUGS, AGENT_VENDORS, agentAnswer, agentH1Suffix, agentTitle,
-  agentWithVendor, authorAnswer, authorDescription, authorDisplay, authorH1Suffix, authorLabel, authorTitle,
+  agentWithVendor, authorAnswer, corpusUnavailable, crawlRel, authorDescription, authorDisplay, authorH1Suffix, authorLabel, authorTitle,
   flightAnswer, flightDescription, flightH1Suffix, flightTitle, fmtHours, fmtRate, isAgentSlug, outcomeTone,
   repoAnswer, repoTitle, validOwner, validRepoName,
 } from '../src/lib/flightlog.ts';
@@ -244,4 +244,19 @@ test('author builders: name and login first, makers by flights, bio-led descript
   // No bio: the answer, clamped to the description budget.
   assert.equal(authorDescription(a, null, 'A short answer.'), 'A short answer.');
   assert.ok(Array.from(authorDescription(a, null, answer)).length <= 155);
+});
+
+test('crawlRel nofollows only links to known-noindex corpus pages', () => {
+  assert.equal(crawlRel(false), 'nofollow');
+  assert.equal(crawlRel(true), undefined);
+  // Unknown indexability (older payloads without index_ok) stays followed.
+  assert.equal(crawlRel(undefined), undefined);
+  assert.equal(crawlRel(null), undefined);
+});
+
+test('a corpus database failure answers 503 + Retry-After, never 404/500', () => {
+  const res = corpusUnavailable();
+  assert.equal(res.status, 503);
+  assert.equal(res.headers.get('Retry-After'), '120');
+  assert.equal(res.headers.get('Cache-Control'), 'no-store');
 });
