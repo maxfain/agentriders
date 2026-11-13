@@ -34,6 +34,9 @@ export function corpusUnavailable(): Response {
   });
 }
 
+/** Just over the database's 8 s statement_timeout, so a slow query still reports its own error first. */
+export const RPC_TIMEOUT_MS = 9_000;
+
 /**
  * One RPC round trip. Returns null for "function returned SQL null" (page →
  * 404) and throws on transport/SQL errors (pages answer corpusUnavailable()).
@@ -47,7 +50,12 @@ export async function rpc<T>(
 ): Promise<T | null> {
   if (!flightlogConfigured(env)) throw new Error('flight log database is not configured');
   const url = `${env.SUPABASE_URL!.replace(/\/$/, '')}/rest/v1/rpc/${fn}`;
+  // Bounded: the database's own statement_timeout is 8 s, but a stalled
+  // connection (pooler saturated, lock queue) never answers at all — without
+  // this the page hung until the platform killed it instead of reaching the
+  // 503 path. The abort throws, which callers turn into corpusUnavailable().
   const res = await fetchImpl(url, {
+    signal: AbortSignal.timeout(RPC_TIMEOUT_MS),
     method: 'POST',
     headers: {
       apikey: env.SUPABASE_SERVICE_KEY!,
