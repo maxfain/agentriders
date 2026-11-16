@@ -169,6 +169,9 @@ const claimedByViewer = !!f && !!f.claim && !!viewer && f.claim.rider_handle ===
 // A bot's "author page" is its agent page: bot logins carry "[bot]", which no
 // owner name may, so they never get a /logs/author/ URL.
 const fAuthorPage = f && !f.author.is_bot ? `/logs/author/${f.author.login.toLowerCase()}/` : null;
+// An author page is noindex until the author has an indexed flight; link it
+// nofollow until then (unknown count → followed).
+const fAuthorRel = f ? crawlRel(f.author.indexed_flights === undefined ? undefined : f.author.indexed_flights > 0) : undefined;
 const fByAuthor = f?.related_by_author ?? [];
 const fByTask = f?.related_by_task ?? [];
 const fOg = f && f.flight.og_generated_at && cardsBase
@@ -260,7 +263,7 @@ const rCrumbs = r
           Flown by
           {f.author.avatar_url && <img src={f.author.avatar_url} alt="" width="22" height="22" loading="lazy" />}
           {fAuthorPage
-            ? <a href={fAuthorPage}>{authorLabel(f.author)}</a>
+            ? <a href={fAuthorPage} rel={fAuthorRel}>{authorLabel(f.author)}</a>
             : <span>{authorLabel(f.author)}</span>}
           <a class="flight-author__gh" href={`https://github.com/${f.author.login}`} rel="nofollow noopener">GitHub ↗</a>
           {f.claim
@@ -378,7 +381,7 @@ const rCrumbs = r
                 </li>
               ))}
             </ul>
-            {fAuthorPage && <p class="related-more"><a href={fAuthorPage}>Every agent flight by {authorLabel(f.author)}</a></p>}
+            {fAuthorPage && <p class="related-more"><a href={fAuthorPage} rel={fAuthorRel}>Every agent flight by {authorLabel(f.author)}</a></p>}
           </div>
         )}
 
