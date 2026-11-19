@@ -110,6 +110,10 @@ and why. The operational runbook is `pipeline/README.md`.
 stars and not a fork and not excluded, substance (≥20 changed lines and ≥1
 file, or a non-author human review), outcome decided
 (merged_clean/merged_after_rework/burn), debrief present and validated, author
-not opted out, claim not hidden. Everything else renders `noindex` (or 410).
-Expected from AIDev-pop: 15–25k indexable flights; measure after the first
-classification run and tighten rather than loosen.
+not opted out, claim not hidden — and, since migration 0009, a *story*: a
+burn or a merge after rework, or a clean merge that a human reviewed in a repo
+with ≥1,000 stars. Everything else renders `noindex` (or 410).
+Expected from AIDev-pop: 15–25k indexable flights under the original gate
+(19,420 measured). In November 2026 Search Console answered with ~4,900
+"Crawled – currently not indexed" flight pages, so 0009 tightened the gate to
+~4,260 flights. Keep tightening rather than loosening.

@@ -63,7 +63,7 @@ async function insertFlight(opts: {
      on conflict (full_name_lower) do update set stars = excluded.stars,
        is_fork = excluded.is_fork, excluded = excluded.excluded
      returning id`,
-    [repoName, opts.stars === undefined ? 500 : opts.stars, opts.isFork ?? false, opts.excluded ?? false],
+    [repoName, opts.stars === undefined ? 1500 : opts.stars, opts.isFork ?? false, opts.excluded ?? false],
   );
   const [author] = await db.query<{ id: number }>(
     `insert into authors (github_user_id, login, opted_out)
@@ -134,6 +134,12 @@ test('index_ok: the full gate, each condition knocking a flight out', async () =
   const undecided = await insertFlight({ repo: 'gate/ok', number: 8, state: 'open', outcome: 'open' });
   const noDebrief = await insertFlight({ repo: 'gate/ok', number: 9, outcome: 'merged_clean', debrief: null });
   const lowConf = await insertFlight({ repo: 'gate/ok', number: 10, outcome: 'merged_clean', confidence: 'low' });
+  // 0009: a clean merge needs a human review in a 1,000+ star repo; burns and
+  // reworks only need the base gate.
+  const cleanMidRepo = await insertFlight({ repo: 'gate/midrepo', stars: 500, number: 13, outcome: 'merged_clean' });
+  const burnMidRepo = await insertFlight({ repo: 'gate/midrepo', stars: 500, number: 14, outcome: 'burn' });
+  const reworkMidRepo = await insertFlight({ repo: 'gate/midrepo', stars: 500, number: 15, outcome: 'merged_after_rework' });
+  const cleanUnreviewed = await insertFlight({ repo: 'gate/ok', number: 16, humanReviews: 0, outcome: 'merged_clean' });
 
   await db.query('select recompute_index_ok()');
   const expect = async (id: number, ok: boolean, label: string) => {
@@ -150,6 +156,10 @@ test('index_ok: the full gate, each condition knocking a flight out', async () =
   await expect(undecided, false, 'outcome not decided');
   await expect(noDebrief, false, 'no debrief');
   await expect(lowConf, false, 'branch prefix alone');
+  await expect(cleanMidRepo, false, 'clean merge in a repo under 1,000 stars');
+  await expect(burnMidRepo, true, 'burn in a 500-star repo');
+  await expect(reworkMidRepo, true, 'rework in a 500-star repo');
+  await expect(cleanUnreviewed, false, 'clean merge with no human review');
 });
 
 test('claims: author match enforced, hidden drops index, note capped', async () => {
@@ -230,10 +240,10 @@ test('page RPCs answer with gone for excluded/opted-out and null for missing', a
 
 test('sitemaps list only indexed flights', async () => {
   await refreshCorpusViews(db);
-  const rows = await db.query<{ loc: string }>('select loc from sitemap_flights(0)');
+  const rows = await db.query<{ loc: string }>("select e->>'loc' as loc from jsonb_array_elements(sitemap_flights(0)) e");
   assert.ok(rows.some((r) => r.loc === '/logs/gate/ok/1/'));
   assert.ok(!rows.some((r) => r.loc.startsWith('/logs/gate/smallrepo/')));
-  const pages = await db.query<{ loc: string }>('select loc from sitemap_pages()');
+  const pages = await db.query<{ loc: string }>("select e->>'loc' as loc from jsonb_array_elements(sitemap_pages()) e");
   assert.ok(pages.some((p) => p.loc === '/logs/agent/claude-code/'));
 
   // corpus_repos reads mv_corpus_repos (0005), refreshed by refresh_corpus_views
@@ -317,7 +327,7 @@ test('author profiles: the view, the page, the sitemap gate, the names on every 
   assert.equal(dup.author.name, 'Pro Filed');
 
   // Sitemap: at the gate yes, below it no, bots never; lowercase URLs.
-  const pages = await db.query<{ loc: string }>('select loc from sitemap_pages()');
+  const pages = await db.query<{ loc: string }>("select e->>'loc' as loc from jsonb_array_elements(sitemap_pages()) e");
   assert.ok(pages.some((p) => p.loc === '/logs/author/profiled/'));
   assert.ok(!pages.some((p) => p.loc === '/logs/author/quiet-author/'));
   assert.ok(!pages.some((p) => p.loc.includes('[bot]')));
